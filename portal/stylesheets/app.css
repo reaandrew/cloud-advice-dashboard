@@ -1,0 +1,227 @@
+/* Custom width container following GOV.UK Design System guidance */
+.app-width-container {
+  max-width: 1400px;
+  /* Expanded from default 1020px for better data table viewing */
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+/* Responsive padding for mobile devices */
+@media (min-width: 40.0625em) {
+  .app-width-container {
+    padding: 0 30px;
+  }
+}
+
+/* Optimize tables for wider layout */
+.govuk-table {
+  font-size: 14px;
+}
+
+/* Adjust grid proportions for data-heavy layouts */
+@media (min-width: 40.0625em) {
+  .govuk-grid-column-two-thirds {
+    width: 75%;
+  }
+
+  .govuk-grid-column-one-third {
+    width: 25%;
+  }
+}
+
+/* Left-hand navigation active states following GDS patterns */
+.app-subnav {
+  margin-top: 20px;
+}
+
+.app-subnav__theme {
+  margin-bottom: 15px;
+  margin-top: 30px;
+}
+
+.app-subnav__theme:first-child {
+  margin-top: 0;
+}
+
+.app-subnav .govuk-list li {
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.app-subnav .govuk-link {
+  display: block;
+  padding: 8px 0;
+  padding-left: 15px;
+  text-decoration: none;
+  border-left: 4px solid transparent;
+  margin-left: -15px;
+}
+
+.app-subnav .govuk-link:hover {
+  background-color: #f3f2f1;
+  border-left-color: #505a5f;
+}
+
+.app-subnav .govuk-link.app-subnav__link--current {
+  background-color: #1d70b8;
+  border-left-color: #1d70b8;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.app-subnav .govuk-link.app-subnav__link--current:hover {
+  background-color: #003078;
+  border-left-color: #003078;
+  color: #ffffff;
+}
+
+.app-subnav .govuk-link.app-subnav__link--current:visited {
+  color: #ffffff;
+}
+
+:root {
+  --app-primary-green: #008670;
+  --app-primary-light-green: #E8F3F1;
+  --app-primary-dark-green: #00362D;
+  --app-primary-green-0: #005043;
+  --app-primary-green-1: #008670;
+  --app-primary-green-2: #339E8D;
+  --app-primary-green-3: #66B6A9;
+  --app-primary-green-4: #99CFC6;
+  --app-primary-green-5: #CCE7E2;
+  --app-primary-green-6: #E8F3F1;
+  --app-primary-accessible-black: #0B0C0C;
+  --app-secondary-yellow: #FFD100;
+  --app-secondary-light-yellow: #FFED99;
+  --app-secondary-dark-yellow: #E09300;
+  --app-secondary-orange: #FF7F38;
+  --app-secondary-light-orange: #FFCCAF;
+  --app-secondary-dark-orange: #DB4B17;
+  --app-secondary-lilac: #DA8FF4;
+  --app-secondary-light-lilac: #F0D2FB;
+  --app-secondary-dark-lilac: #AE72C3;
+  --app-tertiary-red: #C8102E;
+  --app-tertiary-light-red: #FBD1E5;
+  --app-tertiary-dark-red: #7B0000;
+  --app-tertiary-blue: #84B6FF;
+  --app-tertiary-light-blue: #CEE2FF;
+  --app-tertiary-navy: #151F6D;
+
+  font-family: arial,sans-serif;
+}
+
+.app-link {
+  color: var(--app-primary-green);
+  margin-right: 30px;
+  text-decoration: none;
+
+  &:hover {
+    border-bottom: 3px solid;
+    margin-bottom: -3px;
+  }
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  color: var(--app-primary-dark-green);
+  padding-left: 30px;
+  padding-right: 30px;
+  height: 60px;
+  width: 100%;
+
+  @media screen and (max-width: 640px) {
+    flex-direction: column;
+    height: auto;
+    padding-left: 0px;
+    padding-right: 0px;
+  }
+}
+
+.app-header__link {
+  color: var(--app-primary-green);
+  text-decoration: none;
+  margin-right: 30px;
+  height: fit-content;
+  width: fit-content;
+
+  &:hover {
+    border-bottom: 3px solid;
+    margin-bottom: -3px;
+  }
+
+  @media screen and (max-width: 640px) {
+    margin-right: 0px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+}
+
+.app-header__logo {
+  height: 44px;
+  width: auto;
+
+  @media screen and (max-width: 640px) {
+    height: 30px;
+  }
+}
+
+.app-header__service-name {
+  height: fit-content;
+  font-weight: 600;
+  font-size: 1.4rem;
+
+  @media screen and (max-width: 640px) {
+    font-size: 1rem;
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+}
+
+.app-header__nav-button {
+  color: var(--app-primary-green);
+  background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	outline: inherit;
+  height: fit-content;
+  width: fit-content;
+  margin-top: 10px;
+  margin-bottom: 10px;
+
+  &:hover {
+    border-bottom: 3px solid;
+    margin-bottom: 7px;
+  }
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  background-color: var(--app-primary-green);
+  border-bottom: 1px solid transparent;
+  padding-left: 30px;
+  padding-right: 30px;
+  height: 60px;
+  width: 100%;
+
+  > * {
+    color: #fff;
+    border: 0 solid var(--app-primary-green);
+    height: fit-content;
+  }
+
+  @media screen and (max-width: 640px) {
+    flex-direction: column;
+    height: auto;
+    padding-left: 0px;
+    padding-right: 0px;
+    > * {
+      margin-right: 0px;
+      padding-top: 20px;
+      padding-bottom: 20px;
+    }
+  }
+}

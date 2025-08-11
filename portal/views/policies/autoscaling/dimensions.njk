@@ -1,0 +1,47 @@
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<h1 class="govuk-heading-l" id="top">{{ policy_title }}</h1>
+<p class="govuk-body">This page shows Auto Scaling Group dimension configurations (Min/Max/Desired) grouped by team.</p>
+{% if data %}
+    <p class="govuk-body">
+        <strong>Jump to team:</strong>
+        {% for teamData in data %}
+            <a class="govuk-link" href="#team-{{ loop.index }}">{{ teamData.team }}</a>{% if not loop.last %} | {% endif %}
+        {% endfor %}
+    </p>
+    {% for teamData in data %}
+        <h2 class="govuk-heading-m" id="team-{{ loop.index }}">
+            {{ teamData.team }}
+            <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+        </h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th class="govuk-table__header">Min Size</th>
+                    <th class="govuk-table__header">Max Size</th>
+                    <th class="govuk-table__header">Desired Capacity</th>
+                    <th class="govuk-table__header">Count</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                {% for dimension in teamData.dimensions %}
+                    <tr class="govuk-table__row"{% if dimension.min == 0 and dimension.max == 0 %} style="background-color: #fef2f2;"{% endif %}>
+                        <td class="govuk-table__cell">{{ dimension.min }}</td>
+                        <td class="govuk-table__cell">{{ dimension.max }}</td>
+                        <td class="govuk-table__cell">{{ dimension.desired }}</td>
+                        <td class="govuk-table__cell">
+                            {% if dimension.count > 0 %}
+                                <a href="/compliance/autoscaling/dimensions/details?team={{ teamData.team | urlencode }}&min={{ dimension.min }}&max={{ dimension.max }}&desired={{ dimension.desired }}" class="govuk-link">{{ dimension.count }}</a>
+                            {% else %}
+                                {{ dimension.count }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+{% else %}
+    <p class="govuk-body">No Auto Scaling Groups found.</p>
+{% endif %}
+{% endblock %}

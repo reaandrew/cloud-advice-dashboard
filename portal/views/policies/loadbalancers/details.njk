@@ -1,0 +1,229 @@
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<h1 class="govuk-heading-l">{{ policy_title }}</h1>
+
+<p class="govuk-body">
+    All load balancers {% if tlsVersion === "NO CERTS" %}without TLS certificates{% else %}using <strong>{{ tlsVersion }}</strong> TLS policy{% endif %} in team <strong>{{ team }}</strong>.
+</p>
+
+<form method="get" class="govuk-form">
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="search">
+            Search load balancers
+        </label>
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-three-quarters">
+                <input class="govuk-input" id="search" name="search" type="text" value="{{ search }}" placeholder="Load balancer name or account ID">
+                <input type="hidden" name="team" value="{{ team }}">
+                <input type="hidden" name="tlsVersion" value="{{ tlsVersion }}">
+            </div>
+            <div class="govuk-grid-column-one-quarter">
+                <button class="govuk-button govuk-button--secondary govuk-!-width-full" data-module="govuk-button">
+                    Search
+                </button>
+            </div>
+        </div>
+        {% if search %}
+            <p class="govuk-body govuk-!-margin-top-2">
+                <a href="?team={{ team | urlencode }}&tlsVersion={{ tlsVersion | urlencode }}" class="govuk-link">Clear search</a>
+            </p>
+        {% endif %}
+    </div>
+</form>
+
+{% if pagination.totalResults > 0 %}
+    <p class="govuk-body">
+        Showing {{ pagination.startResult }} to {{ pagination.endResult }} of {{ pagination.totalResults }} results
+        {% if search %}matching "{{ search }}"{% endif %}
+    </p>
+
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header">Load Balancer Name</th>
+                <th class="govuk-table__header">Account</th>
+                <th class="govuk-table__header" style="width: 40px;"></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for resource in resources %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <details class="govuk-details govuk-!-margin-bottom-0" data-module="govuk-details">
+                            <summary class="govuk-details__summary">
+                                <span class="govuk-details__summary-text">
+                                    <code class="govuk-!-font-size-16">{{ resource.shortName }}</code>
+                                </span>
+                            </summary>
+                            <div class="govuk-details__text">
+                                <strong>Full resource ID:</strong><br>
+                                <code class="govuk-!-font-size-14">{{ resource.resourceId }}</code>
+                                
+                                <div class="govuk-!-margin-top-3">
+                                    <strong>Load balancer details:</strong>
+                                    <table class="govuk-table govuk-!-margin-top-2">
+                                        <thead class="govuk-table__head">
+                                            <tr class="govuk-table__row">
+                                                <th class="govuk-table__header govuk-!-font-size-14">Property</th>
+                                                <th class="govuk-table__header govuk-!-font-size-14">Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="govuk-table__body">
+                                            <tr class="govuk-table__row">
+                                                <td class="govuk-table__cell govuk-!-font-size-14"><strong>Type</strong></td>
+                                                <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.type }}</td>
+                                            </tr>
+                                            <tr class="govuk-table__row">
+                                                <td class="govuk-table__cell govuk-!-font-size-14"><strong>Scheme</strong></td>
+                                                <td class="govuk-table__cell govuk-!-font-size-14">
+                                                    {% if resource.scheme == "internet-facing" %}
+                                                        <span class="govuk-tag govuk-tag--yellow">{{ resource.scheme }}</span>
+                                                    {% else %}
+                                                        <span class="govuk-tag govuk-tag--green">{{ resource.scheme }}</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr class="govuk-table__row">
+                                                <td class="govuk-table__cell govuk-!-font-size-14"><strong>TLS Policy</strong></td>
+                                                <td class="govuk-table__cell govuk-!-font-size-14">
+                                                    {% if resource.tlsPolicy === "NO CERTS" %}
+                                                        <span class="govuk-tag govuk-tag--red">{{ resource.tlsPolicy }}</span>
+                                                    {% elif resource.tlsPolicy.includes('2015') or resource.tlsPolicy.includes('2016') or resource.tlsPolicy === 'Classic-Default' or resource.tlsPolicy.includes('TLS-1-0') or resource.tlsPolicy.includes('TLS-1-1') %}
+                                                        <span class="govuk-tag govuk-tag--red">{{ resource.tlsPolicy }} (deprecated)</span>
+                                                    {% else %}
+                                                        {{ resource.tlsPolicy }}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% if resource.details %}
+                                                {% if resource.details.state %}
+                                                <tr class="govuk-table__row">
+                                                    <td class="govuk-table__cell govuk-!-font-size-14"><strong>State</strong></td>
+                                                    <td class="govuk-table__cell govuk-!-font-size-14">
+                                                        {% if resource.details.state == "active" %}
+                                                            <span class="govuk-tag govuk-tag--green">{{ resource.details.state }}</span>
+                                                        {% else %}
+                                                            <span class="govuk-tag govuk-tag--yellow">{{ resource.details.state }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                {% if resource.details.dnsName %}
+                                                <tr class="govuk-table__row">
+                                                    <td class="govuk-table__cell govuk-!-font-size-14"><strong>DNS Name</strong></td>
+                                                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.details.dnsName }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                {% if resource.details.vpcId %}
+                                                <tr class="govuk-table__row">
+                                                    <td class="govuk-table__cell govuk-!-font-size-14"><strong>VPC ID</strong></td>
+                                                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.details.vpcId }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                {% if resource.details.availabilityZones %}
+                                                <tr class="govuk-table__row">
+                                                    <td class="govuk-table__cell govuk-!-font-size-14"><strong>Availability Zones</strong></td>
+                                                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.details.availabilityZones }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                
+                                                {% if resource.details.securityGroups %}
+                                                <tr class="govuk-table__row">
+                                                    <td class="govuk-table__cell govuk-!-font-size-14"><strong>Security Groups</strong></td>
+                                                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.details.securityGroups }}</td>
+                                                </tr>
+                                                {% endif %}
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </details>
+                    </td>
+                    <td class="govuk-table__cell">{{ resource.accountId }}</td>
+                    <td class="govuk-table__cell">
+                        <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" onclick="copyToClipboard('{{ resource.resourceId }}')" title="Copy resource ID" style="padding: 8px 12px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if pagination.totalPages > 1 %}
+        <nav class="govuk-pagination" role="navigation" aria-label="results">
+            {% if pagination.hasPrev %}
+                <div class="govuk-pagination__prev">
+                    <a class="govuk-link govuk-pagination__link" href="?team={{ team | urlencode }}&tlsVersion={{ tlsVersion | urlencode }}&search={{ search | urlencode }}&page={{ pagination.currentPage - 1 }}" rel="prev">
+                        <svg class="govuk-pagination__icon govuk-pagination__icon--prev" xmlns="http://www.w3.org/2000/svg" height="13" width="15" aria-hidden="true" focusable="false" viewBox="0 0 15 13">
+                            <path d="m6.5938-0.0078125-6.7266 6.7266 6.7441 6.4062 1.377-1.449-4.1856-3.9768h12.896v-2h-12.984l4.2931-4.293-1.414-1.414z"></path>
+                        </svg>
+                        <span class="govuk-pagination__link-title">Previous</span>
+                    </a>
+                </div>
+            {% endif %}
+
+            <ul class="govuk-pagination__list">
+                {% for pageNum in range(1, pagination.totalPages + 1) %}
+                    {% if pageNum == pagination.currentPage %}
+                        <li class="govuk-pagination__item govuk-pagination__item--current">
+                            <a class="govuk-link govuk-pagination__link" href="#" aria-label="Page {{ pageNum }}" aria-current="page">{{ pageNum }}</a>
+                        </li>
+                    {% elif pageNum <= 3 or pageNum > pagination.totalPages - 3 or (pageNum >= pagination.currentPage - 1 and pageNum <= pagination.currentPage + 1) %}
+                        <li class="govuk-pagination__item">
+                            <a class="govuk-link govuk-pagination__link" href="?team={{ team | urlencode }}&tlsVersion={{ tlsVersion | urlencode }}&search={{ search | urlencode }}&page={{ pageNum }}" aria-label="Page {{ pageNum }}">{{ pageNum }}</a>
+                        </li>
+                    {% elif pageNum == 4 and pagination.currentPage > 5 %}
+                        <li class="govuk-pagination__item govuk-pagination__item--ellipses">&ctdot;</li>
+                    {% elif pageNum == pagination.totalPages - 3 and pagination.currentPage < pagination.totalPages - 4 %}
+                        <li class="govuk-pagination__item govuk-pagination__item--ellipses">&ctdot;</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+
+            {% if pagination.hasNext %}
+                <div class="govuk-pagination__next">
+                    <a class="govuk-link govuk-pagination__link" href="?team={{ team | urlencode }}&tlsVersion={{ tlsVersion | urlencode }}&search={{ search | urlencode }}&page={{ pagination.currentPage + 1 }}" rel="next">
+                        <span class="govuk-pagination__link-title">Next</span>
+                        <svg class="govuk-pagination__icon govuk-pagination__icon--next" xmlns="http://www.w3.org/2000/svg" height="13" width="15" aria-hidden="true" focusable="false" viewBox="0 0 15 13">
+                            <path d="m8.107-0.0078125-1.4136 1.414 4.2926 4.293h-12.986v2h12.896l-4.1855 3.9766 1.377 1.4492 6.7441-6.4062-6.7246-6.7266z"></path>
+                        </svg>
+                    </a>
+                </div>
+            {% endif %}
+        </nav>
+    {% endif %}
+
+{% else %}
+    <div class="govuk-panel govuk-panel--confirmation">
+        <h2 class="govuk-panel__title">No load balancers found</h2>
+        <div class="govuk-panel__body">
+            {% if search %}
+                No load balancers match your search "{{ search }}"
+            {% else %}
+                No load balancers found {% if tlsVersion === "NO CERTS" %}without TLS certificates{% else %}with {{ tlsVersion }} TLS policy{% endif %} for {{ team }} team
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<p class="govuk-body govuk-!-margin-top-6">
+    <a href="/compliance/loadbalancers" class="govuk-link">← Back to Load Balancers Overview</a>
+</p>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Could add a temporary success message here
+    });
+}
+</script>
+{% endblock %}

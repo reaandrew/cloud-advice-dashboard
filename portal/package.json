@@ -1,0 +1,22 @@
+{
+  "name": "standardisation",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-openid-connect": "^2.18.1",
+    "govuk-frontend": "^5.10.1",
+    "js-yaml": "^4.1.0",
+    "marked": "^15.0.12",
+    "mongodb": "^6.17.0",
+    "nunjucks": "^3.2.4",
+    "sass": "^1.89.0",
+    "yaml": "^2.8.0"
+  }
+}

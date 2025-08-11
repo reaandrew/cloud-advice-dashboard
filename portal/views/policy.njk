@@ -1,0 +1,38 @@
+{% extends "template.njk" %}
+ 
+{% block content %}
+    <div class="app-width-container">
+        {% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
+        {{ govukBreadcrumbs({ items: breadcrumbs }) }}
+    </div>
+ 
+  <div class="app-width-container">
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <div class="govuk-grid-row">
+        <!-- Left-hand Navigation -->
+        <div class="govuk-grid-column-one-third">
+          <div class="app-split-pane__nav">
+            <nav class="app-subnav" aria-labelledby="app-subnav-heading">
+              <h2 class="govuk-visually-hidden" id="app-subnav-heading">Pages in this section</h2>
+              {% for section in navigationSections %}
+                <h3 class="app-subnav__theme govuk-heading-m">{{ section.title }}</h3>
+                <ul class="govuk-list govuk-list--spaced">
+                  {% for item in section.items %}
+                    <li>
+                      <a class="govuk-link{% if item.href == currentPath %} app-subnav__link--current{% endif %}" href="{{ item.href }}">{{ item.text }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endfor %}
+            </nav>
+          </div>
+        </div>
+ 
+        <!-- Main content -->
+        <div class="govuk-grid-column-two-thirds govuk-body">
+            {{ policyContent | safe }}
+        </div>
+      </div>
+    </main>
+  </div>
+{% endblock %}

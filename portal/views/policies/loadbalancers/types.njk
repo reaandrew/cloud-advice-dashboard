@@ -1,0 +1,57 @@
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<h1 class="govuk-heading-l">{{ policy_title }}</h1>
+<p class="govuk-body">This page shows the count of different load balancer types grouped by team.</p>
+{% if data %}
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header">Team</th>
+                <th class="govuk-table__header">ALB</th>
+                <th class="govuk-table__header">NLB</th>
+                <th class="govuk-table__header">Classic</th>
+                <th class="govuk-table__header">Total</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for teamData in data %}
+                {% set alb = 0 %}
+                {% set nlb = 0 %}
+                {% set classic = 0 %}
+                {% for type in teamData.types %}
+                    {% if type.type == "ALB" %}{% set alb = type.count %}{% endif %}
+                    {% if type.type == "NLB" %}{% set nlb = type.count %}{% endif %}
+                    {% if type.type == "Classic" %}{% set classic = type.count %}{% endif %}
+                {% endfor %}
+                <tr class="govuk-table__row"{% if classic > 0 %} style="background-color: #fef2f2;"{% endif %}>
+                    <td class="govuk-table__cell">{{ teamData.team }}</td>
+                    <td class="govuk-table__cell">
+                        {% if alb > 0 %}
+                            <a href="/compliance/loadbalancers/types/details?team={{ teamData.team | urlencode }}&type=application" class="govuk-link">{{ alb }}</a>
+                        {% else %}
+                            {{ alb }}
+                        {% endif %}
+                    </td>
+                    <td class="govuk-table__cell">
+                        {% if nlb > 0 %}
+                            <a href="/compliance/loadbalancers/types/details?team={{ teamData.team | urlencode }}&type=network" class="govuk-link">{{ nlb }}</a>
+                        {% else %}
+                            {{ nlb }}
+                        {% endif %}
+                    </td>
+                    <td class="govuk-table__cell">
+                        {% if classic > 0 %}
+                            <a href="/compliance/loadbalancers/types/details?team={{ teamData.team | urlencode }}&type=classic" class="govuk-link">{{ classic }}</a> <span class="govuk-hint govuk-!-font-size-14" style="color: #d73027;">(deprecated)</span>
+                        {% else %}
+                            {{ classic }}
+                        {% endif %}
+                    </td>
+                    <td class="govuk-table__cell">{{ alb + nlb + classic }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p class="govuk-body">No load balancers found.</p>
+{% endif %}
+{% endblock %}

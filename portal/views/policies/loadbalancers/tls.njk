@@ -1,0 +1,51 @@
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<h1 class="govuk-heading-l" id="top">{{ policy_title }}</h1>
+<p class="govuk-body">This page shows TLS/SSL configurations for load balancers grouped by team.</p>
+{% if data %}
+    <p class="govuk-body">
+        <strong>Jump to team:</strong>
+        {% for teamData in data %}
+            <a class="govuk-link" href="#team-{{ loop.index }}">{{ teamData.team }}</a>{% if not loop.last %} | {% endif %}
+        {% endfor %}
+    </p>
+    {% for teamData in data %}
+        <h2 class="govuk-heading-m" id="team-{{ loop.index }}">
+            {{ teamData.team }}
+            <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+        </h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th class="govuk-table__header">TLS/SSL Policy</th>
+                    <th class="govuk-table__header">Count</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                {% for tlsVersion in teamData.tlsVersions %}
+                    <tr class="govuk-table__row"{% if tlsVersion.isDeprecated %} style="background-color: #fef2f2;"{% endif %}>
+                        <td class="govuk-table__cell">
+                            {% if tlsVersion.isNoCerts %}
+                                <strong>{{ tlsVersion.version }}</strong>
+                            {% elif tlsVersion.isDeprecated %}
+                                {{ tlsVersion.version }} <span class="govuk-hint govuk-!-font-size-14" style="color: #d73027;">(deprecated)</span>
+                            {% else %}
+                                {{ tlsVersion.version }}
+                            {% endif %}
+                        </td>
+                        <td class="govuk-table__cell">
+                            {% if tlsVersion.count > 0 %}
+                                <a href="/compliance/loadbalancers/details?team={{ teamData.team | urlencode }}&tlsVersion={{ tlsVersion.version | urlencode }}" class="govuk-link">{{ tlsVersion.count }}</a>
+                            {% else %}
+                                {{ tlsVersion.count }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+{% else %}
+    <p class="govuk-body">No load balancers with TLS/SSL configurations found.</p>
+{% endif %}
+{% endblock %}

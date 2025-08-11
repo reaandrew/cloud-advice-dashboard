@@ -1,0 +1,49 @@
+{% extends "govuk/template.njk" %}
+
+{# Set custom container width following GOV.UK Design System pattern #}
+{% set containerClasses = "app-width-container" %}
+
+{% block head %}
+<link rel="stylesheet" href="/stylesheets/govuk-frontend.min.css">
+<link rel="stylesheet" href="/stylesheets/app.css">
+<style>
+
+</style>
+{% endblock %}
+
+{% block header %}
+<header class="app-header">
+  <a class="app-header__link" href="/">
+    <img class="app-header__logo" aria-label="App Logo" src="/assets/LOGO.png" />
+  </a>
+  <span class="app-header__service-name">
+    {{ title }}
+  </span>
+  <button aria-controls="navigation" class="app-header__nav-button" type="menu">
+    Menu
+  </button>
+</header>
+<nav class="app-nav" aria-label="menu">
+  <a class="app-link" href="/compliance">Compliance Reports</a>
+  <a class="app-link" href="/policies">Policies</a>
+</nav>
+{% endblock %}
+
+
+{% block content %}
+<h1 class="govuk-heading-xl">Default page template</h1>
+{% endblock %}
+
+{% block bodyEnd %}
+{# Run JavaScript at end of the
+
+<body>, to avoid blocking the initial render. #}
+  <script type="module" src="/javascripts/govuk-frontend.min.js"></script>
+  <script type="module" src="/javascripts/app.js"></script>
+  <script type="module">
+    import {initAll} from '/javascripts/govuk-frontend.min.js'
+    import {appInit} from '/javascripts/app.js'
+    initAll()
+    appInit()
+  </script>
+  {% endblock %}

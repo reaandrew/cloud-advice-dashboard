@@ -1,0 +1,81 @@
+{% extends "template.njk" %}
+ 
+{% block content %}
+    {% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
+ 
+    {{ govukBreadcrumbs({
+      items: [
+        {
+          text: "Home",
+          href: "#"
+        },
+        {
+          text: "Compliance Reports",
+          href: "#"
+        },
+        {
+          text: "Tagging",
+          href: "#"
+        }
+      ]
+    }) }}
+  <div class="govuk-width-container">
+    <main class="govuk-main-wrapper" id="main-content" role="main">
+      <div class="govuk-grid-row">
+        <!-- Left-hand Navigation -->
+        <div class="govuk-grid-column-one-third">
+          <div class="app-split-pane__nav">
+            <nav class="app-subnav" aria-labelledby="app-subnav-heading">
+              <h2 class="govuk-visually-hidden" id="app-subnav-heading">Pages in this section</h2>
+              <h3 class="app-subnav__theme govuk-heading-m">Compliance Overview</h3>
+              <ul class="govuk-list  govuk-list--spaced">
+                <li>
+                  <a class="govuk-link" href="#">By Services</a>
+                </li>
+                <li>
+                  <a class="govuk-link" href="#">By Teams</a>
+                </li>
+              </ul>
+              <h3 class="app-subnav__theme govuk-heading-m">Policies</h3>
+ 
+                <ul class="govuk-list  govuk-list--spaced">
+                  <li>
+                    <a class="govuk-link" href="/compliance/tagging">Tagging</a>
+                  </li>
+                  <li>
+                    <a class="govuk-link" href="/compliance/loadbalancers">Load Balancers</a>
+                  </li>
+                  <li>
+                    <a class="govuk-link" href="/compliance/database">Database</a>
+                  </li>
+                  <li>
+                    <a class="govuk-link" href="/compliance/decommissioning">Decommissioning</a>
+                  </li>
+                  <li>
+                      <a class="govuk-link" href="/compliance/containers">Containers</a>
+                    </li>
+                  <li>
+                    <a class="govuk-link" href="/compliance/monitoring">Monitoring and Alerting</a>
+                  </li>
+                  <li>
+                    <a class="govuk-link" href="/compliance/amis">AMIs</a>
+                  </li>
+                  <li>
+                    <a class="govuk-link" href="/compliance/agents">Agents and Ports</a>
+                  </li>
+                </ul>
+ 
+            </nav>
+          </div>
+        </div>
+ 
+        <!-- Main content -->
+        <div class="govuk-grid-column-two-thirds">
+          <h1 class="govuk-heading-l">Welcome</h1>
+          <p class="govuk-body">This is the main content area.</p>
+          <p class="govuk-body"><a href="/compliance" class="govuk-link">Go to Compliance Reports</a></p>
+        </div>
+      </div>
+    </main>
+  </div>
+{% endblock %}
