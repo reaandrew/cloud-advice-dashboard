@@ -461,3 +461,6 @@ kubeconfig
 
 # Configuration directory - users should copy from examples/
 configs/
+
+# Assets directory - user-specific assets like logos
+portal/assets/
