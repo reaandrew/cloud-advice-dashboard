@@ -24,9 +24,7 @@
   </button>
 </header>
 <nav class="app-nav" aria-label="menu">
-  {% if not currentPath or not currentPath.startsWith('/policies') %}
-    <a class="app-link" href="/compliance">Compliance Reports</a>
-  {% endif %}
+  <a class="app-link" href="/compliance">Compliance Reports</a>
   <a class="app-link" href="/policies">Policies</a>
 </nav>
 {% endblock %}
