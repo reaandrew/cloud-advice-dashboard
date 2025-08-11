@@ -458,3 +458,9 @@ override.tf.json
 
 # kubeconfig file for the cluster
 kubeconfig
+
+# Configuration files (except examples and default)
+configs/*
+!configs/default.yaml
+!configs/*.example
+!configs/README.md
