@@ -1,4 +1,4 @@
-const { auth } = require('express-openid-connect');
+const { auth, requiresAuth } = require('express-openid-connect');
 
 function setupOIDC(app) {
     const clientId = process.env.OIDC_CLIENT_ID;
@@ -40,4 +40,7 @@ function setupOIDC(app) {
     );
 }
 
-module.exports = setupOIDC;
+module.exports = {
+    setupAuth: setupOIDC,
+    requiresAuth
+};
