@@ -33,7 +33,8 @@ router.get('/', (req, res) => {
     res.render('compliance.njk', {
         breadcrumbs: complianceBreadcrumbs,
         navigationSections: navigationSections,
-        currentSection: "compliance"
+        currentSection: "compliance",
+        currentPath: "/compliance"
     });
 });
 
