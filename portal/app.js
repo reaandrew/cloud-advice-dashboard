@@ -46,6 +46,7 @@ const nunjucksEnv = nunjucks.configure([
 });
 nunjucksEnv.addGlobal('govukRebrand', get('frontend.govuk.rebrand', true));
 nunjucksEnv.addGlobal('serviceName', get('frontend.govuk.service_name', 'Cloud Advice Dashboard'));
+nunjucksEnv.addGlobal('logoUrl', get('frontend.govuk.logo_url', '/assets/LOGO.png'));
 nunjucksEnv.addGlobal('config', config);
 logger.debug('✓ Nunjucks configured');
 
