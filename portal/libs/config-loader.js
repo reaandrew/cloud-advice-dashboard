@@ -2,6 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
+// Import logger after it's available
+let logger;
+try {
+    logger = require('./logger');
+} catch {
+    // Fallback to console if logger not available during bootstrap
+    logger = {
+        debug: console.log,
+        info: console.log,
+        warn: console.warn,
+        error: console.error
+    };
+}
+
 class ConfigLoader {
     constructor() {
         this.config = {};
@@ -36,42 +50,44 @@ class ConfigLoader {
      */
     load() {
         try {
-            console.log('About to initialize config...');
+            logger.debug('About to initialize config...');
             this.config = {};
             
             // Always load default configuration first
-            console.log('About to load default configuration...');
+            logger.debug('About to load default configuration...');
             if (fs.existsSync(this.defaultConfigPath)) {
-                console.log(`Reading default config from: ${this.defaultConfigPath}`);
+                logger.debug(`Reading default config from: ${this.defaultConfigPath}`);
                 const defaultConfig = yaml.load(fs.readFileSync(this.defaultConfigPath, 'utf8'));
                 this.config = this.deepMerge(this.config, defaultConfig);
-                console.log('✓ Default configuration loaded');
+                logger.info('✓ Default configuration loaded');
             } else {
-                console.warn(`Default configuration file not found at ${this.defaultConfigPath}`);
+                logger.warn(`Default configuration file not found at ${this.defaultConfigPath}`);
             }
 
             // Load additional configuration files in order
-            console.log(`About to load ${this.configFiles.length} additional config files...`);
+            if (this.configFiles.length > 0) {
+                logger.debug(`About to load ${this.configFiles.length} additional config files...`);
+            }
             this.configFiles.forEach((configPath, index) => {
-                console.log(`Loading config file ${index + 1}/${this.configFiles.length}: ${configPath}`);
+                logger.debug(`Loading config file ${index + 1}/${this.configFiles.length}: ${configPath}`);
                 if (fs.existsSync(configPath)) {
                     const configData = yaml.load(fs.readFileSync(configPath, 'utf8'));
                     this.config = this.deepMerge(this.config, configData);
-                    console.log(`✓ Configuration loaded from ${path.relative(path.join(__dirname, '../..'), configPath)}`);
+                    logger.info(`✓ Configuration loaded from ${path.relative(path.join(__dirname, '../..'), configPath)}`);
                 } else {
-                    console.warn(`Configuration file not found: ${configPath}`);
+                    logger.warn(`Configuration file not found: ${configPath}`);
                 }
             });
 
             // Apply environment variable overrides last
-            console.log('About to apply environment variable overrides...');
+            logger.debug('About to apply environment variable overrides...');
             this.applyEnvOverrides();
-            console.log('✓ Environment variable overrides applied');
+            logger.debug('✓ Environment variable overrides applied');
 
-            console.log(`✓ Configuration loading complete - ${1 + this.configFiles.filter(f => fs.existsSync(f)).length} files loaded`);
+            logger.info(`✓ Configuration loading complete - ${1 + this.configFiles.filter(f => fs.existsSync(f)).length} files loaded`);
             return this.config;
         } catch (error) {
-            console.error('Error loading configuration:', error);
+            logger.error('Error loading configuration:', error);
             throw error;
         }
     }
@@ -227,9 +243,7 @@ class ConfigLoader {
 
 // Parse command line arguments for config files
 function parseConfigArgs() {
-    console.log('About to parse command line arguments...');
     const args = process.argv.slice(2);
-    console.log(`Command line args: ${args.join(' ')}`);
     const configFiles = [];
     
     for (let i = 0; i < args.length; i++) {
@@ -243,25 +257,21 @@ function parseConfigArgs() {
         }
     }
     
-    console.log(`✓ Found ${configFiles.length} config files from args: ${configFiles.join(', ')}`);
+    if (configFiles.length > 0) {
+        console.log(`Found ${configFiles.length} config files from args: ${configFiles.join(', ')}`);
+    }
     return configFiles;
 }
 
 // Create singleton instance
-console.log('About to create config loader...');
 const configLoader = new ConfigLoader();
-console.log('✓ Config loader created');
 
 const configFiles = parseConfigArgs();
 if (configFiles.length > 0) {
-    console.log(`About to set config files: ${configFiles.join(', ')}`);
     configLoader.setConfigFiles(configFiles);
-    console.log('✓ Config files set');
 }
 
-console.log('About to load configuration...');
 const config = configLoader.load();
-console.log('✓ Configuration loaded successfully');
 
 module.exports = {
     config,
