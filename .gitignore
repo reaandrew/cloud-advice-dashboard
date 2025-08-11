@@ -464,3 +464,6 @@ configs/
 
 # Assets directory - user-specific assets like logos
 portal/assets/
+
+# Markdown directory - user-specific markdown content
+portal/markdown/
