@@ -115,7 +115,8 @@
   margin-right: 30px;
   text-decoration: none;
 
-  &:hover {
+  &:hover,
+  &.app-link--current {
     border-bottom: 3px solid;
     margin-bottom: -3px;
   }
