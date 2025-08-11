@@ -18,16 +18,6 @@ router.get('/', (_, res) => {
                 { text: "Load Balancers", href: "/policies/load_balancers" },
                 { text: "Decommissioning", href: "/policies/decommissioning" }
             ]
-        },
-        {
-            title: "Compliance Reports",
-            items: [
-                { text: "Tagging", href: "/compliance/tagging" },
-                { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                { text: "Database", href: "/compliance/database" },
-                { text: "KMS Keys", href: "/compliance/kms" },
-                { text: "Auto Scaling", href: "/compliance/autoscaling" }
-            ]
         }
     ];
 
@@ -81,16 +71,6 @@ router.get('/:policy', (req, res) => {
                         { text: "Load Balancers", href: "/policies/load_balancers" },
                         { text: "Decommissioning", href: "/policies/decommissioning" }
                     ]
-                },
-                {
-                    title: "Compliance Reports",
-                    items: [
-                        { text: "Tagging", href: "/compliance/tagging" },
-                        { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                        { text: "Database", href: "/compliance/database" },
-                        { text: "KMS Keys", href: "/compliance/kms" },
-                        { text: "Auto Scaling", href: "/compliance/autoscaling" }
-                    ]
                 }
             ];
 
@@ -125,16 +105,6 @@ router.get('/:policy', (req, res) => {
                     { text: "Databases", href: "/policies/databases" },
                     { text: "Load Balancers", href: "/policies/load_balancers" },
                     { text: "Decommissioning", href: "/policies/decommissioning" }
-                ]
-            },
-            {
-                title: "Compliance Reports",
-                items: [
-                    { text: "Tagging", href: "/compliance/tagging" },
-                    { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                    { text: "Database", href: "/compliance/database" },
-                    { text: "KMS Keys", href: "/compliance/kms" },
-                    { text: "Auto Scaling", href: "/compliance/autoscaling" }
                 ]
             }
         ];
