@@ -1,0 +1,166 @@
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<h1 class="govuk-heading-l">{{ policy_title }}</h1>
+
+<!-- Search form -->
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <form method="get" class="govuk-form">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="search">Search KMS keys</label>
+                <input class="govuk-input" id="search" name="search" type="text" value="{{ search }}" placeholder="Enter key name, key ID, or other details...">
+            </div>
+            <button class="govuk-button" data-module="govuk-button">Search</button>
+            {% if search %}
+                <a href="?" class="govuk-link govuk-!-margin-left-2">Clear search</a>
+            {% endif %}
+            <!-- Preserve query parameters -->
+            <input type="hidden" name="team" value="{{ team }}">
+            <input type="hidden" name="ageBucket" value="{{ ageBucket }}">
+        </form>
+    </div>
+</div>
+
+{% if resources and resources.length > 0 %}
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-full">
+            <p class="govuk-body">
+                Showing {{ pagination.startResult }}-{{ pagination.endResult }} of {{ pagination.totalResults }} 
+                KMS keys{% if search %} matching "{{ search }}"{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header">Key Name</th>
+                <th class="govuk-table__header">Key ID</th>
+                <th class="govuk-table__header">Creation Date</th>
+                <th class="govuk-table__header">Age</th>
+                <th class="govuk-table__header">Key Usage</th>
+                <th class="govuk-table__header">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for resource in resources %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <strong>{{ resource.keyName or resource.resourceId }}</strong>
+                    </td>
+                    <td class="govuk-table__cell govuk-!-font-size-14">
+                        <code>{{ resource.keyId }}</code>
+                        <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" onclick="copyToClipboard('{{ resource.keyId }}')" title="Copy key ID" style="padding: 8px 12px;">
+                            📋
+                        </button>
+                    </td>
+                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.creationDate }}</td>
+                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.ageDescription }}</td>
+                    <td class="govuk-table__cell govuk-!-font-size-14">{{ resource.keyUsage or "Unknown" }}</td>
+                    <td class="govuk-table__cell govuk-!-font-size-14">
+                        <details class="govuk-details" data-module="govuk-details">
+                            <summary class="govuk-details__summary">
+                                <span class="govuk-details__summary-text">View details</span>
+                            </summary>
+                            <div class="govuk-details__text">
+                                <dl class="govuk-summary-list govuk-summary-list--no-border">
+                                    <div class="govuk-summary-list__row">
+                                        <dt class="govuk-summary-list__key">ARN</dt>
+                                        <dd class="govuk-summary-list__value"><code>{{ resource.arn or resource.resourceId }}</code></dd>
+                                    </div>
+                                    <div class="govuk-summary-list__row">
+                                        <dt class="govuk-summary-list__key">Key State</dt>
+                                        <dd class="govuk-summary-list__value">{{ resource.keyState or "Unknown" }}</dd>
+                                    </div>
+                                    <div class="govuk-summary-list__row">
+                                        <dt class="govuk-summary-list__key">Key Spec</dt>
+                                        <dd class="govuk-summary-list__value">{{ resource.keySpec or "Unknown" }}</dd>
+                                    </div>
+                                    <div class="govuk-summary-list__row">
+                                        <dt class="govuk-summary-list__key">Origin</dt>
+                                        <dd class="govuk-summary-list__value">{{ resource.origin or "Unknown" }}</dd>
+                                    </div>
+                                    {% if resource.description %}
+                                    <div class="govuk-summary-list__row">
+                                        <dt class="govuk-summary-list__key">Description</dt>
+                                        <dd class="govuk-summary-list__value">{{ resource.description }}</dd>
+                                    </div>
+                                    {% endif %}
+                                </dl>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if pagination.totalPages > 1 %}
+        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
+            {% if pagination.hasPrev %}
+                <div class="govuk-pagination__prev">
+                    <a class="govuk-link govuk-pagination__link" href="?page={{ pagination.currentPage - 1 }}&search={{ search | urlencode }}&team={{ team | urlencode }}&ageBucket={{ ageBucket | urlencode }}" rel="prev">
+                        <svg class="govuk-pagination__icon govuk-pagination__icon--prev" xmlns="http://www.w3.org/2000/svg" height="13" width="15" aria-hidden="true" focusable="false" viewBox="0 0 15 13">
+                            <path d="m6.5938-0.0078125-6.7266 6.7266 6.7441 6.4062 1.377-1.449-4.1856-3.9768h12.896v-2h-12.984l4.2931-4.293-1.414-1.414z"></path>
+                        </svg>
+                        <span class="govuk-pagination__link-title">Previous</span>
+                    </a>
+                </div>
+            {% endif %}
+            
+            <ul class="govuk-pagination__list">
+                {% for page in range(1, pagination.totalPages + 1) %}
+                    {% if page == pagination.currentPage %}
+                        <li class="govuk-pagination__item govuk-pagination__item--current">
+                            <a class="govuk-link govuk-pagination__link" href="#" aria-label="Page {{ page }}" aria-current="page">{{ page }}</a>
+                        </li>
+                    {% elif page <= 3 or page >= pagination.totalPages - 2 or (page >= pagination.currentPage - 2 and page <= pagination.currentPage + 2) %}
+                        <li class="govuk-pagination__item">
+                            <a class="govuk-link govuk-pagination__link" href="?page={{ page }}&search={{ search | urlencode }}&team={{ team | urlencode }}&ageBucket={{ ageBucket | urlencode }}" aria-label="Page {{ page }}">{{ page }}</a>
+                        </li>
+                    {% elif page == 4 and pagination.currentPage > 6 %}
+                        <li class="govuk-pagination__item">
+                            <span class="govuk-pagination__link">…</span>
+                        </li>
+                    {% elif page == pagination.totalPages - 3 and pagination.currentPage < pagination.totalPages - 5 %}
+                        <li class="govuk-pagination__item">
+                            <span class="govuk-pagination__link">…</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+
+            {% if pagination.hasNext %}
+                <div class="govuk-pagination__next">
+                    <a class="govuk-link govuk-pagination__link" href="?page={{ pagination.currentPage + 1 }}&search={{ search | urlencode }}&team={{ team | urlencode }}&ageBucket={{ ageBucket | urlencode }}" rel="next">
+                        <span class="govuk-pagination__link-title">Next</span>
+                        <svg class="govuk-pagination__icon govuk-pagination__icon--next" xmlns="http://www.w3.org/2000/svg" height="13" width="15" aria-hidden="true" focusable="false" viewBox="0 0 15 13">
+                            <path d="m8.107-0.0078125-1.4136 1.414 4.2926 4.293h-12.986v2h12.896l-4.1855 3.9766 1.377 1.4492 6.7441-6.4062-6.7246-6.7266z"></path>
+                        </svg>
+                    </a>
+                </div>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% else %}
+    <div class="govuk-panel govuk-panel--confirmation" style="background-color: #f3f2f1; border: 2px solid #b1b4b6;">
+        <h2 class="govuk-panel__title">No KMS keys found</h2>
+        <div class="govuk-panel__body">
+            {% if search %}
+                No KMS keys matching "{{ search }}" found for {{ team }} team in {{ ageBucket }} age range.
+            {% else %}
+                No KMS keys found for {{ team }} team in {{ ageBucket }} age range.
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<script>
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            // Could add a toast notification here
+        });
+    }
+</script>
+{% endblock %}
