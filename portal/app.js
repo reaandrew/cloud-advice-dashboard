@@ -93,6 +93,62 @@ app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
 app.use('/compliance/kms', requiresAuth(), kmsRoutes);
 logger.debug('✓ Routes configured');
 
+// Error handling middleware
+logger.debug('Setting up error handling...');
+
+// 404 handler - must be after all other routes
+app.use((req, res, next) => {
+    res.status(404);
+    
+    // Respond with 404 page
+    if (req.accepts('html')) {
+        res.render('errors/404.njk', { 
+            url: req.url,
+            currentSection: null 
+        });
+        return;
+    }
+
+    // Respond with JSON for API requests
+    if (req.accepts('json')) {
+        res.json({ error: 'Not found' });
+        return;
+    }
+
+    // Default to plain text
+    res.type('txt').send('Not found');
+});
+
+// 500 error handler - must be last middleware
+app.use((err, req, res, next) => {
+    // Log the error
+    logger.error('Application error:', err);
+
+    res.status(err.status || 500);
+
+    // Respond with 500 page
+    if (req.accepts('html')) {
+        res.render('errors/500.njk', { 
+            error: get('development.debug', false) ? err : {},
+            currentSection: null 
+        });
+        return;
+    }
+
+    // Respond with JSON for API requests
+    if (req.accepts('json')) {
+        res.json({ 
+            error: get('development.debug', false) ? err.message : 'Internal server error'
+        });
+        return;
+    }
+
+    // Default to plain text
+    res.type('txt').send(get('development.debug', false) ? err.stack : 'Internal server error');
+});
+
+logger.debug('✓ Error handling configured');
+
 // Get port from config
 const port = get('app.port', 3000);
 const appName = get('app.name', 'Cloud Advice Dashboard');

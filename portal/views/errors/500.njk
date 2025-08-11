@@ -1,0 +1,28 @@
+{% extends "../template.njk" %}
+
+{% block content %}
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Sorry, there is a problem with the service</h1>
+        
+        <p class="govuk-body">Try again later.</p>
+        
+        <p class="govuk-body">We saved your answers. They will be available for 30 days.</p>
+        
+        <p class="govuk-body">
+            <a href="/" class="govuk-link">Go to the homepage</a>
+        </p>
+        
+        <details class="govuk-details" data-module="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">
+                    Help us improve this service
+                </span>
+            </summary>
+            <div class="govuk-details__text">
+                <p class="govuk-body">If you have been getting this screen repeatedly, <a href="mailto:support@example.com" class="govuk-link">contact the Cloud Advice Dashboard team</a> with details of what you were trying to do.</p>
+            </div>
+        </details>
+    </div>
+</div>
+{% endblock %}
