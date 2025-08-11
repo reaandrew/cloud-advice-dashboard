@@ -37,15 +37,28 @@ database:
 
 # AWS Account Mappings
 account_mappings:
-  # Map AWS account IDs to team names
-  - owner_id: "123456789012"
-    team: "Platform"
+  # Map AWS account IDs to team information
+  # Use the actual keys from your data: 'Application Env', 'Code', 'ECS Account', 'OwnerId', 'Service', 'Team'
+  - OwnerId: "123456789012"
+    Team: "Platform"
+    Service: "Infrastructure Services"
+    Code: "PLAT001"
+    "Application Env": "production"
+    "ECS Account": "primary"
     description: "Platform team AWS account"
-  - owner_id: "234567890123"
-    team: "Application"
+  - OwnerId: "234567890123"
+    Team: "Application"
+    Service: "Web Services"
+    Code: "APP001"
+    "Application Env": "production"
+    "ECS Account": "secondary"
     description: "Application team AWS account"
-  - owner_id: "345678901234"
-    team: "Infrastructure"
+  - OwnerId: "345678901234"
+    Team: "Infrastructure"
+    Service: "Core Infrastructure"
+    Code: "INFRA001"
+    "Application Env": "production"
+    "ECS Account": "tertiary"
     description: "Infrastructure team AWS account"
 
 # Compliance Configuration

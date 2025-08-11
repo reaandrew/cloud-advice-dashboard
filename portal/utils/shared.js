@@ -3,7 +3,31 @@ const { get } = require('../libs/config-loader');
 
 // Load account mappings from config
 const mappings = get('account_mappings', []);
-const accountIdToTeam = Object.fromEntries(mappings.map(mapping => [mapping.owner_id, mapping.team]));
+
+// Create lookup maps for different fields
+const accountIdToTeam = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping.Team]));
+const accountIdToService = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping.Service]));
+const accountIdToCode = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping.Code]));
+const accountIdToApplicationEnv = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping['Application Env']]));
+const accountIdToECSAccount = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping['ECS Account']]));
+
+// Create a comprehensive lookup function
+const getAccountInfo = (accountId) => {
+    const mapping = mappings.find(m => m.OwnerId === accountId);
+    return mapping ? {
+        team: mapping.Team,
+        service: mapping.Service,
+        code: mapping.Code,
+        applicationEnv: mapping['Application Env'],
+        ecsAccount: mapping['ECS Account'],
+        description: mapping.description
+    } : null;
+};
+
+// Debug logging for account mappings
+const logger = require('../libs/logger');
+logger.debug('Account mappings loaded:', mappings);
+logger.debug('Account ID to Team lookup:', accountIdToTeam);
 
 // Breadcrumb configurations
 const baseBreadcrumbs = [
@@ -43,6 +67,11 @@ function checkDatabaseDeprecation(engine, version) {
 
 module.exports = {
     accountIdToTeam,
+    accountIdToService,
+    accountIdToCode,
+    accountIdToApplicationEnv,
+    accountIdToECSAccount,
+    getAccountInfo,
     baseBreadcrumbs,
     complianceBreadcrumbs,
     policiesBreadcrumbs,
