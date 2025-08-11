@@ -2,10 +2,12 @@ const express = require('express');
 const { auth, requiresAuth } = require('express-openid-connect');
 const nunjucks = require('nunjucks');
 const path = require('path');
+const { config, get, getLoadedFiles } = require('./libs/config-loader');
 
 const app = express();
 
-const AUTH_TYPE = process.env.AUTH_TYPE || 'none';
+// Get auth type from config
+const AUTH_TYPE = get('auth.type', 'none');
 
 let setupAuth;
 
@@ -22,15 +24,18 @@ switch (AUTH_TYPE) {
 
 setupAuth(app);
 
-// Configure Nunjucks
+// Configure Nunjucks using config
 const nunjucksEnv = nunjucks.configure([
     path.join(__dirname, 'node_modules/govuk-frontend/dist'),
     path.join(__dirname, 'views')
 ], {
-    autoescape: true,
+    autoescape: get('frontend.templates.autoescape', true),
     express: app,
+    cache: get('frontend.templates.cache', false),
 });
-nunjucksEnv.addGlobal('govukRebrand', true);
+nunjucksEnv.addGlobal('govukRebrand', get('frontend.govuk.rebrand', true));
+nunjucksEnv.addGlobal('serviceName', get('frontend.govuk.service_name', 'Cloud Advice Dashboard'));
+nunjucksEnv.addGlobal('config', config);
 
 // Serve GOV.UK Frontend assets
 
@@ -70,6 +75,17 @@ app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
 app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
 app.use('/compliance/kms', requiresAuth(), kmsRoutes);
 
-app.listen(3000, () => {
-    console.log('Server is running on http://localhost:3000');
+// Get port from config
+const port = get('app.port', 3000);
+const appName = get('app.name', 'Cloud Advice Dashboard');
+const environment = get('app.environment', 'development');
+
+app.listen(port, () => {
+    console.log(`${appName} (${environment}) is running on http://localhost:${port}`);
+    console.log('Configuration loaded successfully');
+    
+    if (get('development.debug', false)) {
+        console.log('Debug mode enabled');
+        console.log('Loaded configuration files:', getLoadedFiles().map(f => path.relative(__dirname, f)));
+    }
 });
