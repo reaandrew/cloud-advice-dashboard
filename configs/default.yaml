@@ -185,6 +185,7 @@ frontend:
   govuk:
     rebrand: true
     service_name: "Cloud Advice Dashboard"
+    logo_url: "/assets/LOGO.png"  # Path to site logo
 
 # Reporting Configuration
 reporting:
