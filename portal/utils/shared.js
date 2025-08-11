@@ -36,7 +36,7 @@ const baseBreadcrumbs = [
 
 const complianceBreadcrumbs = [
     ...baseBreadcrumbs,
-    { text: 'Compliance Reports', href: '/compliance' }
+    { text: 'Reports', href: '/compliance' }
 ];
 
 const policiesBreadcrumbs = [
