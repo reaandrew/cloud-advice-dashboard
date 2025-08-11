@@ -16,7 +16,13 @@
                 {% for ageBucket in teamData.ageBuckets %}
                     <tr class="govuk-table__row">
                         <td class="govuk-table__cell">{{ ageBucket.bucket }}</td>
-                        <td class="govuk-table__cell">{{ ageBucket.count }}</td>
+                        <td class="govuk-table__cell">
+                            {% if ageBucket.count > 0 %}
+                                <a href="/compliance/kms/details?team={{ teamData.team | urlencode }}&ageBucket={{ ageBucket.bucket | urlencode }}" class="govuk-link">{{ ageBucket.count }}</a>
+                            {% else %}
+                                {{ ageBucket.count }}
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
