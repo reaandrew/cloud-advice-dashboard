@@ -1,0 +1,302 @@
+# Cloud Advice Dashboard Configuration
+# This file contains all configuration settings for the dashboard application
+
+# Application Settings
+app:
+  name: "Cloud Advice Dashboard"
+  version: "1.0.0"
+  port: 3000
+  environment: "development"  # Options: development, staging, production
+  base_url: "http://localhost:3000"  # BASE_URL for OIDC redirects
+
+# Authentication Configuration
+auth:
+  type: "oidc"  # Options: none, oidc
+  oidc:
+    enabled: true
+    client_id: ""  # OIDC_CLIENT_ID
+    client_secret: ""  # OIDC_CLIENT_SECRET
+    issuer_url: ""  # OIDC_ISSUER_URL
+    redirect_uri: "/callback"
+    scope: "openid profile email"
+    response_type: "code"
+    enable_telemetry: false
+
+# MongoDB Database Configuration
+database:
+  mongodb:
+    host: "localhost"  # MONGO_HOST
+    port: 27017  # MONGO_PORT
+    database_name: "aws_data"
+    connection_string: ""  # Optional: full connection string override
+    options:
+      max_pool_size: 10
+      connection_timeout: 10000
+      retry_writes: true
+
+# AWS Account Mappings
+account_mappings:
+  # Map AWS account IDs to team names
+  - owner_id: "123456789012"
+    team: "Platform"
+    description: "Platform team AWS account"
+  - owner_id: "234567890123"
+    team: "Application"
+    description: "Application team AWS account"
+  - owner_id: "345678901234"
+    team: "Infrastructure"
+    description: "Infrastructure team AWS account"
+
+# Compliance Configuration
+compliance:
+  # Tagging Policy
+  tagging:
+    mandatory_tags:
+      - "PRCode"
+      - "Source"
+      - "SN_ServiceID"
+      - "SN_Environment"
+      - "SN_Application"
+      - "BSP"  # Requires BillingID and (Service OR Project)
+    
+    # BSP validation rules
+    bsp_validation:
+      required_fields:
+        - "BillingID"
+      optional_fields:  # At least one required
+        - "Service"
+        - "Project"
+    
+    # Resource types to check
+    resource_types:
+      - "ec2"
+      - "rds"
+      - "s3"
+      - "lambda"
+      - "ecs"
+      - "elb"
+      - "vpc"
+      - "dynamodb"
+      - "bucket"
+  
+  # Database Compliance
+  database:
+    # Deprecated versions to flag
+    deprecated_versions:
+      mysql:
+        - version: "5.7"
+          message: "MySQL 5.7 reached end of standard support on February 29, 2024"
+      postgres:
+        - version: "9.6"
+          message: "PostgreSQL 9.6 reached end of life on November 11, 2021"
+        - version: "10"
+          message: "PostgreSQL 10 reached end of life on November 10, 2022"
+        - version: "11"
+          message: "PostgreSQL 11 reached end of life on November 9, 2023"
+      oracle:
+        - version: "11.2"
+          message: "Oracle 11g is no longer supported"
+        - version: "12.1"
+          message: "Oracle 12c reached end of support on March 31, 2022"
+        - version: "12.2"
+          message: "Oracle 12c reached end of support on March 31, 2022"
+        - version: "18.0"
+          message: "Oracle 18c is no longer supported"
+      sqlserver:
+        - version: "12.00"
+          message: "SQL Server 2014 reached end of support on July 9, 2024"
+  
+  # Load Balancer Compliance
+  loadbalancers:
+    # TLS version requirements
+    tls:
+      minimum_version: "1.2"
+      preferred_version: "1.3"
+      deprecated_versions:
+        - "1.0"
+        - "1.1"
+    
+    # Health check configuration
+    health_checks:
+      timeout: 5
+      interval: 30
+      unhealthy_threshold: 2
+      healthy_threshold: 3
+  
+  # KMS Compliance
+  kms:
+    # Key rotation requirements
+    key_rotation:
+      enabled: true
+      max_age_days: 365
+      warning_threshold_days: 300
+    
+    # Key usage policies
+    key_policies:
+      require_key_admin_separation: true
+      require_mfa_for_deletion: true
+  
+  # Auto Scaling Compliance
+  autoscaling:
+    # Minimum requirements
+    min_instances: 2
+    max_instances: 100
+    desired_capacity_buffer: 20  # Percentage
+    
+    # Scaling policies
+    policies:
+      target_tracking:
+        cpu_utilization_target: 70
+        request_count_target: 1000
+      
+      step_scaling:
+        scale_up_threshold: 80
+        scale_down_threshold: 30
+
+# Frontend Configuration
+frontend:
+  # Template settings
+  templates:
+    engine: "nunjucks"
+    autoescape: true
+    cache: false  # Set to true in production
+  
+  # Asset paths
+  assets:
+    govuk_frontend: "node_modules/govuk-frontend/dist"
+    custom_stylesheets: "stylesheets"
+    custom_javascripts: "javascripts"
+  
+  # GOV.UK settings
+  govuk:
+    rebrand: true
+    service_name: "Cloud Advice Dashboard"
+
+# Reporting Configuration
+reporting:
+  # Report generation settings
+  generation:
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention_days: 90
+    formats:
+      - "html"
+      - "json"
+      - "csv"
+  
+  # Data collection intervals
+  collection:
+    tags:
+      interval_hours: 24
+    databases:
+      interval_hours: 12
+    loadbalancers:
+      interval_hours: 6
+    kms:
+      interval_hours: 24
+    autoscaling:
+      interval_hours: 12
+
+# Monitoring and Logging
+monitoring:
+  # Logging configuration
+  logging:
+    level: "info"  # Options: debug, info, warn, error
+    format: "json"
+    destinations:
+      - type: "console"
+      - type: "file"
+        path: "/var/log/cloud-advice-dashboard/app.log"
+        rotation:
+          max_size: "100MB"
+          max_files: 10
+  
+  # Metrics collection
+  metrics:
+    enabled: true
+    interval_seconds: 60
+    include:
+      - "request_count"
+      - "response_time"
+      - "error_rate"
+      - "database_connections"
+
+# Security Configuration
+security:
+  # Session management
+  session:
+    secret: ""  # Generate a strong secret
+    timeout_minutes: 30
+    cookie:
+      secure: true  # Set to true in production with HTTPS
+      http_only: true
+      same_site: "strict"
+  
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    window_minutes: 15
+    max_requests: 100
+  
+  # CORS settings
+  cors:
+    enabled: false
+    allowed_origins: []
+    allowed_methods:
+      - "GET"
+      - "POST"
+    allowed_headers:
+      - "Content-Type"
+      - "Authorization"
+
+# Feature Flags
+features:
+  enable_tagging_compliance: true
+  enable_database_compliance: true
+  enable_loadbalancer_compliance: true
+  enable_kms_compliance: true
+  enable_autoscaling_compliance: true
+  enable_cost_analysis: false
+  enable_security_hub_integration: false
+  enable_export_reports: true
+
+# Integration Settings
+integrations:
+  # AWS Integration
+  aws:
+    region: "us-east-1"
+    assume_role_arn: ""
+    external_id: ""
+    
+  # Notification integrations
+  notifications:
+    email:
+      enabled: false
+      smtp:
+        host: ""
+        port: 587
+        secure: true
+        auth:
+          user: ""
+          pass: ""
+      from_address: ""
+      to_addresses: []
+    
+    slack:
+      enabled: false
+      webhook_url: ""
+      channel: "#cloud-compliance"
+      username: "Cloud Advice Bot"
+
+# Cache Configuration
+cache:
+  enabled: true
+  ttl_seconds: 3600
+  max_size_mb: 100
+  eviction_policy: "lru"  # Options: lru, lfu, fifo
+
+# Development Settings
+development:
+  debug: true
+  hot_reload: true
+  mock_data: false
+  verbose_errors: true
