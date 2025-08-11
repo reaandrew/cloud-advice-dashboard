@@ -7,6 +7,17 @@ const router = express.Router();
 // Import shared utilities
 const { policiesBreadcrumbs, markdownRoot } = require('../utils/shared');
 
+// Function to get proper display name for policy breadcrumbs
+function getPolicyDisplayName(policy) {
+    const policyMap = {
+        'tagging': 'Tagging',
+        'databases': 'Databases', 
+        'load_balancers': 'Load Balancers',
+        'decommissioning': 'Decommissioning'
+    };
+    return policyMap[policy] || policy.charAt(0).toUpperCase() + policy.slice(1);
+}
+
 // Route for /policies to show policy documentation landing page
 router.get('/', (_, res) => {
     const navigationSections = [
@@ -88,7 +99,7 @@ router.get('/:policy', (req, res) => {
             `;
 
             return res.status(404).render('policy.njk', {
-                breadcrumbs: [...policiesBreadcrumbs, { text: policy, href: `/policies/${policy}` }],
+                breadcrumbs: [...policiesBreadcrumbs, { text: getPolicyDisplayName(policy), href: `/policies/${policy}` }],
                 policyContent: errorContent,
                 navigationSections: navigationSections,
                 currentSection: "policies",
@@ -110,7 +121,7 @@ router.get('/:policy', (req, res) => {
         ];
 
         res.render('policy.njk', {
-            breadcrumbs: [...policiesBreadcrumbs, { text: policy, href: `/policies/${policy}` }],
+            breadcrumbs: [...policiesBreadcrumbs, { text: getPolicyDisplayName(policy), href: `/policies/${policy}` }],
             policyContent: htmlContent,
             navigationSections: navigationSections,
             currentSection: "policies",
