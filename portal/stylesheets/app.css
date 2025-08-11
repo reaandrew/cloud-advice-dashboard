@@ -226,3 +226,8 @@
     }
   }
 }
+
+/* Override GOV.UK footer border to match header green */
+.govuk-footer {
+  border-top: 10px solid var(--app-primary-green);
+}
