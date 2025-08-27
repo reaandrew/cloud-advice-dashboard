@@ -458,3 +458,13 @@ override.tf.json
 
 # kubeconfig file for the cluster
 kubeconfig
+
+# Configuration directory - users should copy from examples/
+configs/
+
+# Assets directory - user-specific assets like logos
+portal/assets/
+
+# Markdown directory - user-specific markdown content
+portal/markdown/
+venv

@@ -1,6 +1,12 @@
 
 function setupNoAuth(app) {
-
+    // No authentication setup needed
 }
 
-module.exports = setupNoAuth
+// No-op requiresAuth function
+const requiresAuth = () => (req, res, next) => next();
+
+module.exports = {
+    setupAuth: setupNoAuth,
+    requiresAuth
+};

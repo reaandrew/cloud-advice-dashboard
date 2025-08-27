@@ -7,6 +7,17 @@ const router = express.Router();
 // Import shared utilities
 const { policiesBreadcrumbs, markdownRoot } = require('../utils/shared');
 
+// Function to get proper display name for policy breadcrumbs
+function getPolicyDisplayName(policy) {
+    const policyMap = {
+        'tagging': 'Tagging',
+        'databases': 'Databases', 
+        'load_balancers': 'Load Balancers',
+        'decommissioning': 'Decommissioning'
+    };
+    return policyMap[policy] || policy.charAt(0).toUpperCase() + policy.slice(1);
+}
+
 // Route for /policies to show policy documentation landing page
 router.get('/', (_, res) => {
     const navigationSections = [
@@ -17,16 +28,6 @@ router.get('/', (_, res) => {
                 { text: "Databases", href: "/policies/databases" },
                 { text: "Load Balancers", href: "/policies/load_balancers" },
                 { text: "Decommissioning", href: "/policies/decommissioning" }
-            ]
-        },
-        {
-            title: "Compliance Reports",
-            items: [
-                { text: "Tagging", href: "/compliance/tagging" },
-                { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                { text: "Database", href: "/compliance/database" },
-                { text: "KMS Keys", href: "/compliance/kms" },
-                { text: "Auto Scaling", href: "/compliance/autoscaling" }
             ]
         }
     ];
@@ -81,16 +82,6 @@ router.get('/:policy', (req, res) => {
                         { text: "Load Balancers", href: "/policies/load_balancers" },
                         { text: "Decommissioning", href: "/policies/decommissioning" }
                     ]
-                },
-                {
-                    title: "Compliance Reports",
-                    items: [
-                        { text: "Tagging", href: "/compliance/tagging" },
-                        { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                        { text: "Database", href: "/compliance/database" },
-                        { text: "KMS Keys", href: "/compliance/kms" },
-                        { text: "Auto Scaling", href: "/compliance/autoscaling" }
-                    ]
                 }
             ];
 
@@ -108,7 +99,7 @@ router.get('/:policy', (req, res) => {
             `;
 
             return res.status(404).render('policy.njk', {
-                breadcrumbs: [...policiesBreadcrumbs, { text: policy, href: `/policies/${policy}` }],
+                breadcrumbs: [...policiesBreadcrumbs, { text: getPolicyDisplayName(policy), href: `/policies/${policy}` }],
                 policyContent: errorContent,
                 navigationSections: navigationSections,
                 currentSection: "policies",
@@ -126,21 +117,11 @@ router.get('/:policy', (req, res) => {
                     { text: "Load Balancers", href: "/policies/load_balancers" },
                     { text: "Decommissioning", href: "/policies/decommissioning" }
                 ]
-            },
-            {
-                title: "Compliance Reports",
-                items: [
-                    { text: "Tagging", href: "/compliance/tagging" },
-                    { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                    { text: "Database", href: "/compliance/database" },
-                    { text: "KMS Keys", href: "/compliance/kms" },
-                    { text: "Auto Scaling", href: "/compliance/autoscaling" }
-                ]
             }
         ];
 
         res.render('policy.njk', {
-            breadcrumbs: [...policiesBreadcrumbs, { text: policy, href: `/policies/${policy}` }],
+            breadcrumbs: [...policiesBreadcrumbs, { text: getPolicyDisplayName(policy), href: `/policies/${policy}` }],
             policyContent: htmlContent,
             navigationSections: navigationSections,
             currentSection: "policies",

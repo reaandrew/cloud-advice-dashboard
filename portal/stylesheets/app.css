@@ -115,7 +115,8 @@
   margin-right: 30px;
   text-decoration: none;
 
-  &:hover {
+  &:hover,
+  &.app-link--current {
     border-bottom: 3px solid;
     margin-bottom: -3px;
   }
@@ -224,4 +225,9 @@
       padding-bottom: 20px;
     }
   }
+}
+
+/* Override GOV.UK footer border to match header green */
+.govuk-footer {
+  border-top: 10px solid var(--app-primary-green);
 }

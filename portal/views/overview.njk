@@ -1,0 +1,41 @@
+{% extends "template.njk" %}
+
+{% block content %}
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <h1 class="govuk-heading-xl">Cloud Advice Dashboard</h1>
+        
+        <p class="govuk-body-l">
+            Welcome to the Cloud Advice Dashboard. This application provides insights into your cloud infrastructure compliance and policy management.
+        </p>
+
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-one-half">
+                <div class="govuk-panel govuk-panel--confirmation">
+                    <h2 class="govuk-panel__title">
+                        <a href="/compliance" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
+                            Reports
+                        </a>
+                    </h2>
+                    <div class="govuk-panel__body">
+                        View compliance reports and audit findings for your cloud resources.
+                    </div>
+                </div>
+            </div>
+
+            <div class="govuk-grid-column-one-half">
+                <div class="govuk-panel govuk-panel--confirmation">
+                    <h2 class="govuk-panel__title">
+                        <a href="/policies" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
+                            Policies
+                        </a>
+                    </h2>
+                    <div class="govuk-panel__body">
+                        Access policy documents and governance guidelines.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

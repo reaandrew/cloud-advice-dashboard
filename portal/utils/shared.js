@@ -1,10 +1,33 @@
-const fs = require('fs');
 const path = require('path');
-const yaml = require('yaml');
+const { get } = require('../libs/config-loader');
 
-// Load account mappings
-const mappings = yaml.parse(fs.readFileSync(path.join(__dirname, '../config/account_mappings.yaml'), 'utf8'));
+// Load account mappings from config
+const mappings = get('account_mappings', []);
+
+// Create lookup maps for different fields
 const accountIdToTeam = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping.Team]));
+const accountIdToService = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping.Service]));
+const accountIdToCode = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping.Code]));
+const accountIdToApplicationEnv = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping['Application Env']]));
+const accountIdToECSAccount = Object.fromEntries(mappings.map(mapping => [mapping.OwnerId, mapping['ECS Account']]));
+
+// Create a comprehensive lookup function
+const getAccountInfo = (accountId) => {
+    const mapping = mappings.find(m => m.OwnerId === accountId);
+    return mapping ? {
+        team: mapping.Team,
+        service: mapping.Service,
+        code: mapping.Code,
+        applicationEnv: mapping['Application Env'],
+        ecsAccount: mapping['ECS Account'],
+        description: mapping.description
+    } : null;
+};
+
+// Debug logging for account mappings
+const logger = require('../libs/logger');
+logger.debug('Account mappings loaded:', mappings);
+logger.debug('Account ID to Team lookup:', accountIdToTeam);
 
 // Breadcrumb configurations
 const baseBreadcrumbs = [
@@ -13,7 +36,7 @@ const baseBreadcrumbs = [
 
 const complianceBreadcrumbs = [
     ...baseBreadcrumbs,
-    { text: 'Compliance Reports', href: '/compliance' }
+    { text: 'Reports', href: '/compliance' }
 ];
 
 const policiesBreadcrumbs = [
@@ -23,49 +46,19 @@ const policiesBreadcrumbs = [
 
 // Configuration
 const markdownRoot = path.join(__dirname, '../markdown');
-const mandatoryTags = ["PRCode", "Source", "SN_ServiceID", "SN_Environment", "SN_Application", "BSP"];
+const mandatoryTags = get('compliance.tagging.mandatory_tags', ["PRCode", "Source", "SN_ServiceID", "SN_Environment", "SN_Application", "BSP"]);
 
 // Database deprecation checking function
 function checkDatabaseDeprecation(engine, version) {
     const issues = [];
+    const deprecatedVersions = get('compliance.database.deprecated_versions', {});
     
-    // MySQL deprecations
-    if (engine === 'mysql') {
-        if (version.startsWith('5.7')) {
-            issues.push('MySQL 5.7 reached end of standard support on February 29, 2024. Now on Extended Support (paid).');
-        }
-    }
-    
-    // PostgreSQL deprecations
-    if (engine === 'postgres') {
-        if (version.startsWith('9.6')) {
-            issues.push('PostgreSQL 9.6 reached end of life on November 11, 2021.');
-        }
-        if (version.startsWith('10.')) {
-            issues.push('PostgreSQL 10 reached end of life on November 10, 2022.');
-        }
-        if (version.startsWith('11.')) {
-            issues.push('PostgreSQL 11 reached end of life on November 9, 2023.');
-        }
-    }
-    
-    // Oracle deprecations
-    if (engine.startsWith('oracle')) {
-        if (version.includes('12.1') || version.includes('12.2')) {
-            issues.push('Oracle 12c is no longer supported. End of support was March 31, 2022.');
-        }
-        if (version.includes('11.2')) {
-            issues.push('Oracle 11g is no longer supported. Legacy version.');
-        }
-        if (version.includes('18.0')) {
-            issues.push('Oracle 18c is no longer supported. Legacy version.');
-        }
-    }
-    
-    // SQL Server deprecations
-    if (engine.startsWith('sqlserver')) {
-        if (version.includes('12.00')) {
-            issues.push('SQL Server 2014 reached end of support on July 9, 2024.');
+    // Check if this engine has deprecated versions configured
+    if (deprecatedVersions[engine]) {
+        for (const deprecated of deprecatedVersions[engine]) {
+            if (version.startsWith(deprecated.version) || version.includes(deprecated.version)) {
+                issues.push(deprecated.message);
+            }
         }
     }
     
@@ -74,6 +67,11 @@ function checkDatabaseDeprecation(engine, version) {
 
 module.exports = {
     accountIdToTeam,
+    accountIdToService,
+    accountIdToCode,
+    accountIdToApplicationEnv,
+    accountIdToECSAccount,
+    getAccountInfo,
     baseBreadcrumbs,
     complianceBreadcrumbs,
     policiesBreadcrumbs,
