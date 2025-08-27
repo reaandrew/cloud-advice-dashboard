@@ -467,3 +467,4 @@ portal/assets/
 
 # Markdown directory - user-specific markdown content
 portal/markdown/
+venv
