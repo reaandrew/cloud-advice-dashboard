@@ -1,24 +1,16 @@
 const express = require('express');
-const { MongoClient } = require('mongodb');
 const router = express.Router();
 
-const mongoHost = process.env.MONGO_HOST
-const mongoPort = process.env.MONGO_PORT
-const uri = `mongodb://${mongoHost ?? "localhost"}:${mongoPort ?? "27017"}`;
-const dbName = 'aws_data';
-
 const { accountIdToTeam, complianceBreadcrumbs, checkDatabaseDeprecation } = require('../../utils/shared');
+const dbQueries = require('../../queries/compliance/database');
+const mongoConnection = require('../../middleware/mongodb');
 
-router.get('/', async (_, res) => {
-    const client = new MongoClient(uri);
+// Apply MongoDB middleware to all routes
+router.use(mongoConnection);
+
+router.get('/', async (req, res) => {
     try {
-        await client.connect();
-        const db = client.db(dbName);
-
-        const latestDoc = await db.collection("rds").findOne({}, {
-            projection: { year: 1, month: 1, day: 1 },
-            sort: { year: -1, month: -1, day: -1 }
-        });
+        const latestDoc = await dbQueries.getLatestRdsDate(req.mongoClient);
 
         if (!latestDoc) {
             throw new Error("No data found in rds collection");
@@ -26,51 +18,7 @@ router.get('/', async (_, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const rdsCol = db.collection("rds");
-        const redshiftCol = db.collection("redshift_clusters");
-
-        const teamDatabases = new Map();
-
-        const ensureTeam = t => {
-            if (!teamDatabases.has(t))
-                teamDatabases.set(t, { engines: new Map() });
-            return teamDatabases.get(t);
-        };
-
-        const rdsCursor = rdsCol.find({
-            year: latestYear,
-            month: latestMonth,
-            day: latestDay
-        }, { projection: { account_id: 1, Configuration: 1 } });
-
-        for await (const doc of rdsCursor) {
-            const team = accountIdToTeam[doc.account_id] || "Unknown";
-            const rec = ensureTeam(team);
-
-            if (doc.Configuration) {
-                const engine = doc.Configuration.Engine || "Unknown";
-                const version = doc.Configuration.EngineVersion || "Unknown";
-                const key = `${engine}-${version}`;
-                rec.engines.set(key, (rec.engines.get(key) || 0) + 1);
-            }
-        }
-
-        const redshiftCursor = redshiftCol.find({
-            year: latestYear,
-            month: latestMonth,
-            day: latestDay
-        }, { projection: { account_id: 1, Configuration: 1 } });
-
-        for await (const doc of redshiftCursor) {
-            const team = accountIdToTeam[doc.account_id] || "Unknown";
-            const rec = ensureTeam(team);
-
-            if (doc.Configuration) {
-                const version = doc.Configuration.ClusterVersion || "Unknown";
-                const key = `redshift-${version}`;
-                rec.engines.set(key, (rec.engines.get(key) || 0) + 1);
-            }
-        }
+        const teamDatabases = await dbQueries.processDatabaseEngines(req.mongoClient, latestYear, latestMonth, latestDay);
 
         const data = [...teamDatabases.entries()].map(([team, rec]) => ({
             team,
@@ -90,25 +38,16 @@ router.get('/', async (_, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Internal Server Error");
-    } finally {
-        await client.close();
     }
 });
 
 router.get('/details', async (req, res) => {
-    const client = new MongoClient(uri);
     const { team, engine, version, search = '', page = 1 } = req.query;
     const pageSize = 25;
     const currentPage = parseInt(page);
 
     try {
-        await client.connect();
-        const db = client.db(dbName);
-
-        const latestDoc = await db.collection("rds").findOne({}, {
-            projection: { year: 1, month: 1, day: 1 },
-            sort: { year: -1, month: -1, day: -1 }
-        });
+        const latestDoc = await dbQueries.getLatestRdsDate(req.mongoClient);
 
         if (!latestDoc) {
             throw new Error("No data found in rds collection");
@@ -116,94 +55,7 @@ router.get('/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = [];
-
-        if (engine !== "redshift") {
-            const rdsCursor = db.collection("rds").find({
-                year: latestYear,
-                month: latestMonth,
-                day: latestDay
-            }, {
-                projection: { account_id: 1, resource_id: 1, Configuration: 1 }
-            });
-
-            for await (const doc of rdsCursor) {
-                const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-                if (docTeam !== team) continue;
-
-                if (doc.Configuration) {
-                    const docEngine = doc.Configuration.Engine || "Unknown";
-                    const docVersion = doc.Configuration.EngineVersion || "Unknown";
-
-                    const reconstructedKey = `${docEngine}-${docVersion}`;
-                    const expectedKey = `${engine}-${version}`;
-
-                    if (reconstructedKey === expectedKey) {
-                        allResources.push({
-                            resourceId: doc.resource_id,
-                            shortName: doc.Configuration.DBInstanceIdentifier || doc.resource_id,
-                            engine: docEngine,
-                            version: docVersion,
-                            accountId: doc.account_id,
-                            deprecationWarnings: checkDatabaseDeprecation(docEngine, docVersion),
-                            details: {
-                                instanceClass: doc.Configuration.DBInstanceClass,
-                                status: doc.Configuration.DBInstanceStatus,
-                                allocatedStorage: doc.Configuration.AllocatedStorage,
-                                storageType: doc.Configuration.StorageType,
-                                multiAZ: doc.Configuration.MultiAZ,
-                                publiclyAccessible: doc.Configuration.PubliclyAccessible,
-                                storageEncrypted: doc.Configuration.StorageEncrypted,
-                                availabilityZone: doc.Configuration.AvailabilityZone,
-                                endpoint: doc.Configuration.Endpoint?.Address,
-                                port: doc.Configuration.Endpoint?.Port
-                            }
-                        });
-                    }
-                }
-            }
-        }
-
-        if (engine === "redshift") {
-            const redshiftCursor = db.collection("redshift_clusters").find({
-                year: latestYear,
-                month: latestMonth,
-                day: latestDay
-            }, {
-                projection: { account_id: 1, resource_id: 1, Configuration: 1 }
-            });
-
-            for await (const doc of redshiftCursor) {
-                const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-                if (docTeam !== team) continue;
-
-                if (doc.Configuration) {
-                    const docVersion = doc.Configuration.ClusterVersion || "Unknown";
-
-                    if (docVersion === version) {
-                        allResources.push({
-                            resourceId: doc.resource_id,
-                            shortName: doc.Configuration.ClusterIdentifier || doc.resource_id,
-                            engine: "redshift",
-                            version: docVersion,
-                            accountId: doc.account_id,
-                            deprecationWarnings: checkDatabaseDeprecation("redshift", docVersion),
-                            details: {
-                                nodeType: doc.Configuration.NodeType,
-                                status: doc.Configuration.ClusterStatus,
-                                numberOfNodes: doc.Configuration.NumberOfNodes,
-                                publiclyAccessible: doc.Configuration.PubliclyAccessible,
-                                encrypted: doc.Configuration.Encrypted,
-                                availabilityZone: doc.Configuration.AvailabilityZone,
-                                endpoint: doc.Configuration.Endpoint?.Address,
-                                port: doc.Configuration.Endpoint?.Port,
-                                totalStorageGB: doc.Configuration.TotalStorageCapacityInMegaBytes ? Math.round(doc.Configuration.TotalStorageCapacityInMegaBytes / 1024) : null
-                            }
-                        });
-                    }
-                }
-            }
-        }
+        const allResources = await dbQueries.getDatabaseDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, engine, version);
 
         const filteredResources = search ?
             allResources.filter(r =>
@@ -247,8 +99,6 @@ router.get('/details', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Internal Server Error");
-    } finally {
-        await client.close();
     }
 });
 
