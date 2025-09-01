@@ -1,28 +1,20 @@
 const express = require('express');
-const { MongoClient } = require('mongodb');
 const router = express.Router();
 
-const mongoHost = process.env.MONGO_HOST
-const mongoPort = process.env.MONGO_PORT
-const uri = `mongodb://${mongoHost ?? "localhost"}:${mongoPort ?? "27017"}`;
-const dbName = 'aws_data';
-
 const { accountIdToTeam, complianceBreadcrumbs } = require('../../utils/shared');
+const asgQueries = require('../../queries/compliance/autoscaling');
+const mongoConnection = require('../../middleware/mongodb');
+
+// Apply MongoDB middleware to all routes
+router.use(mongoConnection);
 
 router.get('/', (req, res) => {
     res.redirect('/compliance/autoscaling/dimensions');
 });
 
 router.get('/dimensions', async (req, res) => {
-    const client = new MongoClient(uri);
     try {
-        await client.connect();
-        const db = client.db(dbName);
-
-        const latestDoc = await db.collection("autoscaling_groups").findOne({}, {
-            projection: { year: 1, month: 1, day: 1 },
-            sort: { year: -1, month: -1, day: -1 }
-        });
+        const latestDoc = await asgQueries.getLatestAutoscalingDate(req.mongoClient);
 
         if (!latestDoc) {
             throw new Error("No data found in autoscaling_groups collection");
@@ -30,34 +22,7 @@ router.get('/dimensions', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const asgCol = db.collection("autoscaling_groups");
-
-        const teamDimensions = new Map();
-
-        const ensureTeam = t => {
-            if (!teamDimensions.has(t))
-                teamDimensions.set(t, { dimensions: new Map() });
-            return teamDimensions.get(t);
-        };
-
-        const asgCursor = asgCol.find({
-            year: latestYear,
-            month: latestMonth,
-            day: latestDay
-        }, { projection: { account_id: 1, Configuration: 1 } });
-
-        for await (const doc of asgCursor) {
-            const team = accountIdToTeam[doc.account_id] || "Unknown";
-            const rec = ensureTeam(team);
-
-            if (doc.Configuration) {
-                const min = doc.Configuration.MinSize || 0;
-                const max = doc.Configuration.MaxSize || 0;
-                const desired = doc.Configuration.DesiredCapacity || 0;
-                const key = `${min}-${max}-${desired}`;
-                rec.dimensions.set(key, (rec.dimensions.get(key) || 0) + 1);
-            }
-        }
+        const teamDimensions = await asgQueries.processAutoscalingDimensions(req.mongoClient, latestYear, latestMonth, latestDay);
 
         const data = [...teamDimensions.entries()].map(([team, rec]) => ({
             team,
@@ -81,25 +46,16 @@ router.get('/dimensions', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Internal Server Error");
-    } finally {
-        await client.close();
     }
 });
 
 router.get('/dimensions/details', async (req, res) => {
-    const client = new MongoClient(uri);
     const { team, min, max, desired, search = '', page = 1 } = req.query;
     const pageSize = 25;
     const currentPage = parseInt(page);
 
     try {
-        await client.connect();
-        const db = client.db(dbName);
-
-        const latestDoc = await db.collection("autoscaling_groups").findOne({}, {
-            projection: { year: 1, month: 1, day: 1 },
-            sort: { year: -1, month: -1, day: -1 }
-        });
+        const latestDoc = await asgQueries.getLatestAutoscalingDate(req.mongoClient);
 
         if (!latestDoc) {
             throw new Error("No data found in autoscaling_groups collection");
@@ -107,50 +63,7 @@ router.get('/dimensions/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = [];
-
-        const asgCursor = db.collection("autoscaling_groups").find({
-            year: latestYear,
-            month: latestMonth,
-            day: latestDay
-        }, {
-            projection: { account_id: 1, resource_id: 1, Configuration: 1 }
-        });
-
-        for await (const doc of asgCursor) {
-            const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-            if (docTeam !== team) continue;
-
-            if (doc.Configuration) {
-                const docMin = doc.Configuration.MinSize || 0;
-                const docMax = doc.Configuration.MaxSize || 0;
-                const docDesired = doc.Configuration.DesiredCapacity || 0;
-
-                if (docMin == min && docMax == max && docDesired == desired) {
-                    allResources.push({
-                        resourceId: doc.resource_id,
-                        shortName: doc.Configuration?.AutoScalingGroupName || doc.resource_id,
-                        accountId: doc.account_id,
-                        dimensions: {
-                            min: docMin,
-                            max: docMax,
-                            desired: docDesired
-                        },
-                        details: {
-                            launchTemplate: doc.Configuration?.LaunchTemplate?.LaunchTemplateName || doc.Configuration?.LaunchConfigurationName || "N/A",
-                            instanceCount: doc.Configuration?.Instances?.length || 0,
-                            healthCheckType: doc.Configuration?.HealthCheckType || "Unknown",
-                            healthCheckGracePeriod: doc.Configuration?.HealthCheckGracePeriod || 0,
-                            availabilityZones: doc.Configuration?.AvailabilityZones?.join(", ") || "N/A",
-                            vpcZones: doc.Configuration?.VPCZoneIdentifier || "N/A",
-                            targetGroups: doc.Configuration?.TargetGroupARNs?.length || 0,
-                            createdTime: doc.Configuration?.CreatedTime,
-                            status: doc.Configuration?.Status || "Unknown"
-                        }
-                    });
-                }
-            }
-        }
+        const allResources = await asgQueries.getAutoscalingDimensionDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, min, max, desired);
 
         const filteredResources = search ?
             allResources.filter(r =>
@@ -196,21 +109,12 @@ router.get('/dimensions/details', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Internal Server Error");
-    } finally {
-        await client.close();
     }
 });
 
 router.get('/empty', async (req, res) => {
-    const client = new MongoClient(uri);
     try {
-        await client.connect();
-        const db = client.db(dbName);
-
-        const latestDoc = await db.collection("autoscaling_groups").findOne({}, {
-            projection: { year: 1, month: 1, day: 1 },
-            sort: { year: -1, month: -1, day: -1 }
-        });
+        const latestDoc = await asgQueries.getLatestAutoscalingDate(req.mongoClient);
 
         if (!latestDoc) {
             throw new Error("No data found in autoscaling_groups collection");
@@ -218,24 +122,7 @@ router.get('/empty', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const asgCol = db.collection("autoscaling_groups");
-
-        const teamCounts = new Map();
-
-        const asgCursor = asgCol.find(
-            {
-                year: latestYear,
-                month: latestMonth,
-                day: latestDay,
-                "Configuration.Instances": { $size: 0 }
-            },
-            { projection: { account_id: 1 } }
-        );
-
-        for await (const doc of asgCursor) {
-            const team = accountIdToTeam[doc.account_id] || "Unknown";
-            teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
-        }
+        const teamCounts = await asgQueries.countEmptyAutoscalingGroups(req.mongoClient, latestYear, latestMonth, latestDay);
 
         const data = [...teamCounts.entries()]
             .map(([team, count]) => ({ team, count }))
@@ -255,8 +142,6 @@ router.get('/empty', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send("Internal Server Error");
-    } finally {
-        await client.close();
     }
 });
 
