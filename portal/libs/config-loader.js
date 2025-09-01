@@ -57,7 +57,7 @@ class ConfigLoader {
             logger.debug('About to load default configuration...');
             if (fs.existsSync(this.defaultConfigPath)) {
                 logger.debug(`Reading default config from: ${this.defaultConfigPath}`);
-                const defaultConfig = yaml.load(fs.readFileSync(this.defaultConfigPath, 'utf8'));
+                const defaultConfig = yaml.safeLoad(fs.readFileSync(this.defaultConfigPath, 'utf8'));
                 this.config = this.deepMerge(this.config, defaultConfig);
                 logger.info('✓ Default configuration loaded');
             } else {
@@ -71,7 +71,7 @@ class ConfigLoader {
             this.configFiles.forEach((configPath, index) => {
                 logger.debug(`Loading config file ${index + 1}/${this.configFiles.length}: ${configPath}`);
                 if (fs.existsSync(configPath)) {
-                    const configData = yaml.load(fs.readFileSync(configPath, 'utf8'));
+                    const configData = yaml.safeLoad(fs.readFileSync(configPath, 'utf8'));
                     this.config = this.deepMerge(this.config, configData);
                     logger.info(`✓ Configuration loaded from ${path.relative(path.join(__dirname, '../..'), configPath)}`);
                 } else {
