@@ -1,12 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { accountIdToTeam, complianceBreadcrumbs } = require('../../utils/shared');
+const { complianceBreadcrumbs } = require('../../utils/shared');
 const lbQueries = require('../../queries/compliance/loadbalancers');
-const mongoConnection = require('../../middleware/mongodb');
-
-// Apply MongoDB middleware to all routes
-router.use(mongoConnection);
 
 router.get('/', (_, res) => {
     res.redirect('/compliance/loadbalancers/tls');
@@ -14,7 +10,7 @@ router.get('/', (_, res) => {
 
 router.get('/tls', async (req, res) => {
     try {
-        const latestDoc = await lbQueries.getLatestElbDate(req.mongoClient);
+        const latestDoc = await lbQueries.getLatestElbDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in elb_v2 collection");
@@ -22,7 +18,7 @@ router.get('/tls', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const teamTls = await lbQueries.processTlsConfigurations(req.mongoClient, latestYear, latestMonth, latestDay);
+        const teamTls = await lbQueries.processTlsConfigurations(req, latestYear, latestMonth, latestDay);
 
         const isDeprecatedPolicy = (version) => {
             return version.startsWith('ELBSecurityPolicy-2015') ||
@@ -81,7 +77,7 @@ router.get('/details', async (req, res) => {
     const currentPage = parseInt(page);
 
     try {
-        const latestDoc = await lbQueries.getLatestElbDate(req.mongoClient);
+        const latestDoc = await lbQueries.getLatestElbDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in elb_v2 collection");
@@ -89,7 +85,7 @@ router.get('/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = await lbQueries.getLoadBalancerDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, tlsVersion);
+        const allResources = await lbQueries.getLoadBalancerDetails(req, latestYear, latestMonth, latestDay, team, tlsVersion);
 
         const filteredResources = search ?
             allResources.filter(r =>
@@ -137,7 +133,7 @@ router.get('/details', async (req, res) => {
 
 router.get('/types', async (req, res) => {
     try {
-        const latestDoc = await lbQueries.getLatestElbDate(req.mongoClient);
+        const latestDoc = await lbQueries.getLatestElbDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in elb_v2 collection");
@@ -145,7 +141,7 @@ router.get('/types', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const teamTypes = await lbQueries.processLoadBalancerTypes(req.mongoClient, latestYear, latestMonth, latestDay);
+        const teamTypes = await lbQueries.processLoadBalancerTypes(req, latestYear, latestMonth, latestDay);
 
         const data = [...teamTypes.entries()].map(([team, rec]) => ({
             team,
@@ -178,7 +174,7 @@ router.get('/types/details', async (req, res) => {
     const currentPage = parseInt(page);
 
     try {
-        const latestDoc = await lbQueries.getLatestElbDate(req.mongoClient);
+        const latestDoc = await lbQueries.getLatestElbDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in elb_v2 collection");
@@ -186,7 +182,7 @@ router.get('/types/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = await lbQueries.getLoadBalancerTypeDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, type);
+        const allResources = await lbQueries.getLoadBalancerTypeDetails(req, latestYear, latestMonth, latestDay, team, type);
 
         const filteredResources = search ?
             allResources.filter(r =>

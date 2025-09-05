@@ -1,18 +1,12 @@
-const { accountIdToTeam } = require('../../utils/shared');
-
-const dbName = 'aws_data';
-
-async function getLatestKmsDate(client) {
-    const db = client.db(dbName);
-    return await db.collection("kms_key_metadata").findOne({}, {
+async function getLatestKmsDate(req) {
+    return await req.collection("kms_key_metadata").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
 }
 
-async function getKmsKeysForDate(client, year, month, day, projection = null) {
-    const db = client.db(dbName);
-    return db.collection("kms_key_metadata").find({
+async function getKmsKeysForDate(req, year, month, day, projection = null) {
+    return req.collection("kms_key_metadata").find({
         year: year,
         month: month,
         day: day
@@ -40,7 +34,7 @@ function getAgeDescription(creationDate) {
     return `${Math.floor(ageInDays / 365)} years`;
 }
 
-async function processKmsKeyAges(client, year, month, day) {
+async function processKmsKeyAges(req, year, month, day) {
     const teamKeyAges = new Map();
 
     const ensureTeam = t => {
@@ -49,52 +43,43 @@ async function processKmsKeyAges(client, year, month, day) {
         return teamKeyAges.get(t);
     };
 
-    const kmsCursor = await getKmsKeysForDate(client, year, month, day, { account_id: 1, Configuration: 1 });
+    const kmsCursor = await getKmsKeysForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of kmsCursor) {
-        const team = accountIdToTeam[doc.account_id] || "Unknown";
-        const rec = ensureTeam(team);
+        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         if (doc.Configuration?.CreationDate) {
             const bucket = getAgeBucket(doc.Configuration.CreationDate);
-            rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1);
+            recs.map(rec => rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1));
         }
     }
 
     return teamKeyAges;
 }
 
-async function getKmsKeyDetails(client, year, month, day, team, ageBucket) {
-    const db = client.db(dbName);
-    const teamAccountIds = Object.entries(accountIdToTeam)
-        .filter(([_, teamName]) => teamName === team)
-        .map(([accountId, _]) => accountId);
-
-    if (teamAccountIds.length === 0) {
-        throw new Error(`No account IDs found for team: ${team}`);
-    }
-
+async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
     const query = {
         year: year,
         month: month,
         day: day,
-        account_id: { $in: teamAccountIds }
     };
 
-    const kmsCol = db.collection("kms_key_metadata");
-    const cursor = kmsCol.find(query, { 
-        projection: { 
-            account_id: 1, 
+    const kmsCol = req.collection("kms_key_metadata");
+    const cursor = kmsCol.find(query, {
+        projection: {
+            account_id: 1,
             resource_id: 1,
             Configuration: 1,
             Tags: 1
-        } 
+        }
     });
 
     const allResources = [];
     for await (const doc of cursor) {
+        if (!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
+
         if (!doc.Configuration?.CreationDate) continue;
-        
+
         const resourceAgeBucket = getAgeBucket(doc.Configuration.CreationDate);
         if (resourceAgeBucket !== ageBucket) continue;
 

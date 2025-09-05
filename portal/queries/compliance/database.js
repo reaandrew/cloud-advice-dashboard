@@ -1,35 +1,29 @@
-const { accountIdToTeam, checkDatabaseDeprecation } = require('../../utils/shared');
+const { checkDatabaseDeprecation } = require('../../utils/shared');
 
-const dbName = 'aws_data';
-
-async function getLatestRdsDate(client) {
-    const db = client.db(dbName);
-    return await db.collection("rds").findOne({}, {
+async function getLatestRdsDate(req) {
+    return await req.collection("rds").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
 }
 
-async function getRdsForDate(client, year, month, day, projection = null) {
-    const db = client.db(dbName);
-    return db.collection("rds").find({
+async function getRdsForDate(req, year, month, day, projection = null) {
+    return req.collection("rds").find({
         year: year,
         month: month,
         day: day
     }, projection ? { projection } : {});
 }
 
-async function getRedshiftForDate(client, year, month, day, projection = null) {
-    const db = client.db(dbName);
-    return db.collection("redshift_clusters").find({
+async function getRedshiftForDate(req, year, month, day, projection = null) {
+    return req.collection("redshift_clusters").find({
         year: year,
         month: month,
         day: day
     }, projection ? { projection } : {});
 }
 
-async function processDatabaseEngines(client, year, month, day) {
-    const db = client.db(dbName);
+async function processDatabaseEngines(req, year, month, day) {
     const teamDatabases = new Map();
 
     const ensureTeam = t => {
@@ -39,46 +33,43 @@ async function processDatabaseEngines(client, year, month, day) {
     };
 
     // Process RDS instances
-    const rdsCursor = await getRdsForDate(client, year, month, day, { account_id: 1, Configuration: 1 });
+    const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of rdsCursor) {
-        const team = accountIdToTeam[doc.account_id] || "Unknown";
-        const rec = ensureTeam(team);
+        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         if (doc.Configuration) {
             const engine = doc.Configuration.Engine || "Unknown";
             const version = doc.Configuration.EngineVersion || "Unknown";
             const key = `${engine}-${version}`;
-            rec.engines.set(key, (rec.engines.get(key) || 0) + 1);
+            recs.forEach(rec => rec.engines.set(key, (rec.engines.get(key) || 0) + 1));
         }
     }
 
     // Process Redshift clusters
-    const redshiftCursor = await getRedshiftForDate(client, year, month, day, { account_id: 1, Configuration: 1 });
+    const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of redshiftCursor) {
-        const team = accountIdToTeam[doc.account_id] || "Unknown";
-        const rec = ensureTeam(team);
+        const recs = (await req.detailsByAccountId(doc.account_id)).teams.forEach(ensureTeam);
 
         if (doc.Configuration) {
             const version = doc.Configuration.ClusterVersion || "Unknown";
             const key = `redshift-${version}`;
-            rec.engines.set(key, (rec.engines.get(key) || 0) + 1);
+            recs.forEach(rec => rec.engines.set(key, (rec.engines.get(key) || 0) + 1));
         }
     }
 
     return teamDatabases;
 }
 
-async function getDatabaseDetails(client, year, month, day, team, engine, version) {
+async function getDatabaseDetails(req, year, month, day, team, engine, version) {
     const allResources = [];
 
     if (engine !== "redshift") {
-        const rdsCursor = await getRdsForDate(client, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
+        const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of rdsCursor) {
-            const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-            if (docTeam !== team) continue;
+            if(!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
                 const docEngine = doc.Configuration.Engine || "Unknown";
@@ -90,14 +81,14 @@ async function getDatabaseDetails(client, year, month, day, team, engine, versio
                 if (reconstructedKey === expectedKey) {
                     allResources.push({
                         resourceId: doc.resource_id,
-                        shortName: doc.Configuration.DBInstanceIdentifier || doc.resource_id,
+                        shortName: doc.Configuration.reqInstanceIdentifier || doc.resource_id,
                         engine: docEngine,
                         version: docVersion,
                         accountId: doc.account_id,
                         deprecationWarnings: checkDatabaseDeprecation(docEngine, docVersion),
                         details: {
-                            instanceClass: doc.Configuration.DBInstanceClass,
-                            status: doc.Configuration.DBInstanceStatus,
+                            instanceClass: doc.Configuration.reqInstanceClass,
+                            status: doc.Configuration.reqInstanceStatus,
                             allocatedStorage: doc.Configuration.AllocatedStorage,
                             storageType: doc.Configuration.StorageType,
                             multiAZ: doc.Configuration.MultiAZ,
@@ -114,11 +105,10 @@ async function getDatabaseDetails(client, year, month, day, team, engine, versio
     }
 
     if (engine === "redshift") {
-        const redshiftCursor = await getRedshiftForDate(client, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
+        const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of redshiftCursor) {
-            const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-            if (docTeam !== team) continue;
+            if(!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
                 const docVersion = doc.Configuration.ClusterVersion || "Unknown";
