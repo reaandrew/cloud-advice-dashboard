@@ -75,10 +75,13 @@ class DashboardRegistry {
         const calculations = metrics.map(async (metric) => {
             try {
                 const value = await metric.calculate(req, year, month, day);
+                const keyDetail = await metric.getKeyDetail(req, year, month, day);
+                
                 results[metric.id] = {
                     ...metric.getMetadata(),
                     value: value,
-                    formattedValue: metric.formatValue(value)
+                    formattedValue: metric.formatValue(value),
+                    keyDetail: keyDetail
                 };
             } catch (error) {
                 console.error(`❌ Error calculating metric ${metric.id}:`, error);
@@ -86,6 +89,7 @@ class DashboardRegistry {
                     ...metric.getMetadata(),
                     value: 0,
                     formattedValue: metric.formatValue(0),
+                    keyDetail: null,
                     error: error.message
                 };
             }
@@ -93,6 +97,43 @@ class DashboardRegistry {
         
         await Promise.all(calculations);
         return results;
+    }
+
+    /**
+     * Get all metrics summaries aggregated
+     * @param {Object} req - Express request object
+     * @param {number} year - Data year
+     * @param {number} month - Data month
+     * @param {number} day - Data day
+     * @returns {Promise<Array>} - Array of all summary objects
+     */
+    async getAllSummaries(req, year, month, day) {
+        const allSummaries = [];
+        const metrics = this.getMetrics();
+        
+        // Collect summaries from all metrics in parallel
+        const summaryCollections = metrics.map(async (metric) => {
+            try {
+                const summaries = await metric.getSummaries(req, year, month, day);
+                return summaries.map(summary => ({
+                    ...summary,
+                    category: metric.category,
+                    metricTitle: metric.title
+                }));
+            } catch (error) {
+                console.error(`❌ Error getting summaries for metric ${metric.id}:`, error);
+                return [];
+            }
+        });
+        
+        const results = await Promise.all(summaryCollections);
+        
+        // Flatten all summaries into a single array
+        results.forEach(summaries => {
+            allSummaries.push(...summaries);
+        });
+        
+        return allSummaries;
     }
 
     /**
