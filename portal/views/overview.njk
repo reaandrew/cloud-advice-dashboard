@@ -1,9 +1,11 @@
 {% extends "template.njk" %}
 
+{% block pageTitle %}{{ serviceName }}{% endblock %}
+
 {% block content %}
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-        <h1 class="govuk-heading-xl">Cloud Advice Dashboard</h1>
+        <h1 class="govuk-heading-xl">{{ serviceName }}</h1>
         
         <p class="govuk-body-l">
             Welcome to the Cloud Advice Dashboard. This application provides insights into your cloud infrastructure compliance and policy management.
@@ -20,119 +22,60 @@
           </div>
           
           <!-- Dashboard metrics grid -->
-          <div class="govuk-grid-row govuk-!-margin-bottom-6" style="display: flex; flex-wrap: wrap;">
-            <!-- Overall Compliance -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">Overall Compliance</h2>
-                </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.overallCompliance }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Resources with all mandatory tags</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {% if dashboardMetrics.metrics %}
+            {% set metricsArray = [] %}
+            {% for metricId, metric in dashboardMetrics.metrics %}
+              {% set metricsArray = (metricsArray.push(metric), metricsArray) %}
+            {% endfor %}
+            {% set sortedMetrics = metricsArray | sort(false, false, 'order') %}
             
-            <!-- Secure Load Balancers -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">Secure Load Balancers</h2>
-                </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.secureLoadBalancers }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Load balancers with HTTPS/TLS</p>
+            {% for metric in sortedMetrics %}
+              {% if loop.index0 % 4 == 0 %}
+                <div class="govuk-grid-row govuk-!-margin-bottom-6" style="display: flex; flex-wrap: wrap;">
+              {% endif %}
+              
+              <div class="govuk-grid-column-one-quarter">
+                <div class="govuk-summary-card">
+                  <div class="govuk-summary-card__title-wrapper">
+                    <h2 class="govuk-summary-card__title">{{ metric.title }}</h2>
+                  </div>
+                  <div class="govuk-summary-card__content">
+                    <div style="text-align: center; padding: 8px 16px;">
+                      {% set colorClass = 'var(--app-primary-green)' %}
+                      {% if metric.colorScheme == 'success' %}
+                        {% set colorClass = 'var(--govuk-colour-green)' %}
+                      {% elif metric.colorScheme == 'warning' %}
+                        {% set colorClass = 'var(--govuk-colour-orange)' %}
+                      {% elif metric.colorScheme == 'error' %}
+                        {% set colorClass = 'var(--govuk-colour-red)' %}
+                      {% endif %}
+                      
+                      <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: {{ colorClass }};">
+                        {{ metric.formattedValue or (metric.value + '%') }}
+                      </div>
+                      <p class="govuk-body-s govuk-!-margin-bottom-0">{{ metric.description }}</p>
+                      {% if metric.error %}
+                        <p class="govuk-body-s govuk-!-margin-top-2" style="color: var(--govuk-colour-red);">
+                          Error: {{ metric.error }}
+                        </p>
+                      {% endif %}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            
-            <!-- Current DB Versions -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">Current DB Versions</h2>
+              
+              {% if loop.index % 4 == 0 or loop.last %}
+                {% for i in range(loop.index % 4, 4) %}
+                  {% if not loop.last %}
+                    <div class="govuk-grid-column-one-quarter">
+                      <!-- Empty column for alignment -->
+                    </div>
+                  {% endif %}
+                {% endfor %}
                 </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.currentDbVersions }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Databases on supported versions</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- KMS Keys with Rotation -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">KMS Key Rotation</h2>
-                </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.kmsKeysWithRotation }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Keys with rotation enabled</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="govuk-grid-row govuk-!-margin-bottom-6" style="display: flex; flex-wrap: wrap;">
-            <!-- Active ALBs -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">Active ALBs</h2>
-                </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.activeAlbs }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Application Load Balancers in active state</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Correctly Configured ALBs -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">Correct ALB Config</h2>
-                </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.correctlyConfiguredAlbs }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Internet-facing ALBs with HTTPS</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Modern Load Balancers -->
-            <div class="govuk-grid-column-one-quarter">
-              <div class="govuk-summary-card">
-                <div class="govuk-summary-card__title-wrapper">
-                  <h2 class="govuk-summary-card__title">Modern Load Balancers</h2>
-                </div>
-                <div class="govuk-summary-card__content">
-                  <div style="text-align: center; padding: 20px;">
-                    <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: var(--app-primary-green);">{{ dashboardMetrics.modernLbs }}%</div>
-                    <p class="govuk-body-s govuk-!-margin-bottom-0">Using ALB/NLB instead of Classic ELB</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Placeholder for future metric -->
-            <div class="govuk-grid-column-one-quarter">
-              <!-- Empty column for alignment -->
-            </div>
-          </div>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
           
           <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
         {% else %}
