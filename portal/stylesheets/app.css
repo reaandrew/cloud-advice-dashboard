@@ -231,3 +231,23 @@
 .govuk-footer {
   border-top: 10px solid var(--app-primary-green);
 }
+
+/* Dashboard metrics cards - ensure consistent height */
+.govuk-summary-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.govuk-summary-card__title-wrapper {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.govuk-summary-card__content {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+}
+
