@@ -1,27 +1,20 @@
-const { accountIdToTeam } = require('../../utils/shared');
-
-const dbName = 'aws_data';
-
-async function getLatestAutoscalingDate(client) {
-    const db = client.db(dbName);
-    return await db.collection("autoscaling_groups").findOne({}, {
+async function getLatestAutoscalingDate(req) {
+    return await req.collection("autoscaling_groups").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
 }
 
-async function getAutoscalingGroupsForDate(client, year, month, day, projection = null) {
-    const db = client.db(dbName);
-    return db.collection("autoscaling_groups").find({
+async function getAutoscalingGroupsForDate(req, year, month, day, projection = null) {
+    return req.collection("autoscaling_groups").find({
         year: year,
         month: month,
         day: day
     }, projection ? { projection } : {});
 }
 
-async function getEmptyAutoscalingGroups(client, year, month, day) {
-    const db = client.db(dbName);
-    return db.collection("autoscaling_groups").find(
+async function getEmptyAutoscalingGroups(req, year, month, day) {
+    return req.collection("autoscaling_groups").find(
         {
             year: year,
             month: month,
@@ -32,7 +25,7 @@ async function getEmptyAutoscalingGroups(client, year, month, day) {
     );
 }
 
-async function processAutoscalingDimensions(client, year, month, day) {
+async function processAutoscalingDimensions(req, year, month, day) {
     const teamDimensions = new Map();
 
     const ensureTeam = t => {
@@ -41,32 +34,30 @@ async function processAutoscalingDimensions(client, year, month, day) {
         return teamDimensions.get(t);
     };
 
-    const asgCursor = await getAutoscalingGroupsForDate(client, year, month, day, { account_id: 1, Configuration: 1 });
+    const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of asgCursor) {
-        const team = accountIdToTeam[doc.account_id] || "Unknown";
-        const rec = ensureTeam(team);
+        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         if (doc.Configuration) {
             const min = doc.Configuration.MinSize || 0;
             const max = doc.Configuration.MaxSize || 0;
             const desired = doc.Configuration.DesiredCapacity || 0;
             const key = `${min}-${max}-${desired}`;
-            rec.dimensions.set(key, (rec.dimensions.get(key) || 0) + 1);
+            recs.forEach(rec => rec.dimensions.set(key, (rec.dimensions.get(key) || 0) + 1));
         }
     }
 
     return teamDimensions;
 }
 
-async function getAutoscalingDimensionDetails(client, year, month, day, team, min, max, desired) {
+async function getAutoscalingDimensionDetails(req, year, month, day, team, min, max, desired) {
     const allResources = [];
 
-    const asgCursor = await getAutoscalingGroupsForDate(client, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
+    const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
     for await (const doc of asgCursor) {
-        const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-        if (docTeam !== team) continue;
+        if (!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
         if (doc.Configuration) {
             const docMin = doc.Configuration.MinSize || 0;
@@ -102,14 +93,13 @@ async function getAutoscalingDimensionDetails(client, year, month, day, team, mi
     return allResources;
 }
 
-async function countEmptyAutoscalingGroups(client, year, month, day) {
+async function countEmptyAutoscalingGroups(req, year, month, day) {
     const teamCounts = new Map();
 
-    const asgCursor = await getEmptyAutoscalingGroups(client, year, month, day);
+    const asgCursor = await getEmptyAutoscalingGroups(req, year, month, day);
 
     for await (const doc of asgCursor) {
-        const team = accountIdToTeam[doc.account_id] || "Unknown";
-        teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
+        (await req.detailsByAccountId(doc.account_id)).teams.forEach(team => teamCounts.set(team, (teamCounts.get(team) || 0) + 1));
     }
 
     return teamCounts;

@@ -1,12 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const { accountIdToTeam, complianceBreadcrumbs } = require('../../utils/shared');
+const { complianceBreadcrumbs } = require('../../utils/shared');
 const asgQueries = require('../../queries/compliance/autoscaling');
-const mongoConnection = require('../../middleware/mongodb');
-
-// Apply MongoDB middleware to all routes
-router.use(mongoConnection);
 
 router.get('/', (req, res) => {
     res.redirect('/compliance/autoscaling/dimensions');
@@ -14,7 +10,7 @@ router.get('/', (req, res) => {
 
 router.get('/dimensions', async (req, res) => {
     try {
-        const latestDoc = await asgQueries.getLatestAutoscalingDate(req.mongoClient);
+        const latestDoc = await asgQueries.getLatestAutoscalingDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in autoscaling_groups collection");
@@ -22,7 +18,7 @@ router.get('/dimensions', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const teamDimensions = await asgQueries.processAutoscalingDimensions(req.mongoClient, latestYear, latestMonth, latestDay);
+        const teamDimensions = await asgQueries.processAutoscalingDimensions(req, latestYear, latestMonth, latestDay);
 
         const data = [...teamDimensions.entries()].map(([team, rec]) => ({
             team,
@@ -55,7 +51,7 @@ router.get('/dimensions/details', async (req, res) => {
     const currentPage = parseInt(page);
 
     try {
-        const latestDoc = await asgQueries.getLatestAutoscalingDate(req.mongoClient);
+        const latestDoc = await asgQueries.getLatestAutoscalingDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in autoscaling_groups collection");
@@ -63,7 +59,7 @@ router.get('/dimensions/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = await asgQueries.getAutoscalingDimensionDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, min, max, desired);
+        const allResources = await asgQueries.getAutoscalingDimensionDetails(req, latestYear, latestMonth, latestDay, team, min, max, desired);
 
         const filteredResources = search ?
             allResources.filter(r =>
@@ -114,7 +110,7 @@ router.get('/dimensions/details', async (req, res) => {
 
 router.get('/empty', async (req, res) => {
     try {
-        const latestDoc = await asgQueries.getLatestAutoscalingDate(req.mongoClient);
+        const latestDoc = await asgQueries.getLatestAutoscalingDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in autoscaling_groups collection");
@@ -122,7 +118,7 @@ router.get('/empty', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const teamCounts = await asgQueries.countEmptyAutoscalingGroups(req.mongoClient, latestYear, latestMonth, latestDay);
+        const teamCounts = await asgQueries.countEmptyAutoscalingGroups(req, latestYear, latestMonth, latestDay);
 
         const data = [...teamCounts.entries()]
             .map(([team, count]) => ({ team, count }))
