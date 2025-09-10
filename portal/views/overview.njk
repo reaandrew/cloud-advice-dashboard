@@ -77,6 +77,52 @@
             {% endfor %}
           {% endif %}
           
+          <!-- Key Metrics Table -->
+          {% if dashboardMetrics.metrics %}
+          <div class="govuk-grid-row govuk-!-margin-top-6">
+            <div class="govuk-grid-column-full">
+              <h2 class="govuk-heading-l">Key Metrics</h2>
+              
+              <table class="govuk-table">
+                <thead class="govuk-table__head">
+                  <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Metric</th>
+                    <th scope="col" class="govuk-table__header">Value</th>
+                  </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                  {% for metricId, metric in dashboardMetrics.metrics %}
+                    {% if metric.keyDetail %}
+                    <tr class="govuk-table__row">
+                      {% if metricId == 'overall-compliance' %}
+                        <th scope="row" class="govuk-table__header">Resources missing mandatory tags</th>
+                      {% elif metricId == 'secure-loadbalancers' %}
+                        <th scope="row" class="govuk-table__header">Load balancers with deprecated TLS</th>
+                      {% elif metricId == 'current-db-versions' %}
+                        <th scope="row" class="govuk-table__header">Databases with deprecated versions</th>
+                      {% elif metricId == 'kms-rotation' %}
+                        <th scope="row" class="govuk-table__header">KMS keys over 2 years old</th>
+                      {% elif metricId == 'auto-scaling-efficiency' %}
+                        <th scope="row" class="govuk-table__header">Empty auto scaling groups</th>
+                      {% elif metricId == 'modern-loadbalancers' %}
+                        <th scope="row" class="govuk-table__header">Load balancers using deprecated Classic ELB</th>
+                      {% elif metricId == 'active-albs' %}
+                        <th scope="row" class="govuk-table__header">Inactive ALBs</th>
+                      {% elif metricId == 'configured-albs' %}
+                        <th scope="row" class="govuk-table__header">Misconfigured ALBs</th>
+                      {% else %}
+                        <th scope="row" class="govuk-table__header">{{ metric.title }}</th>
+                      {% endif %}
+                      <td class="govuk-table__cell">{{ metric.keyDetail }}</td>
+                    </tr>
+                    {% endif %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+          
           <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
         {% else %}
           <div class="govuk-warning-text">

@@ -50,6 +50,20 @@ class DashboardMetric {
     formatValue(value) {
         return `${value}%`;
     }
+
+    /**
+     * Get key metric detail for this component
+     * @param {Object} req - Express request object with database access
+     * @param {number} year - Data year
+     * @param {number} month - Data month  
+     * @param {number} day - Data day
+     * @returns {Promise<string|null>} - Key detail string or null
+     */
+    async getKeyDetail(req, year, month, day) {
+        // Default implementation returns null
+        // Subclasses can override to provide specific detail
+        return null;
+    }
 }
 
 module.exports = DashboardMetric;
