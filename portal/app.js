@@ -1,38 +1,39 @@
 const express = require('express');
 const nunjucks = require('nunjucks');
 const path = require('path');
-const { config, get, getLoadedFiles } = require('./libs/config-loader');
+const config = require('./libs/config-loader');
 const logger = require('./libs/logger');
 
-// Will get both setupAuth and requiresAuth from auth modules
-let setupAuth, requiresAuth;
+// Configure logger
+logger.setLevel(config.get('monitoring.logging.level', 'info'));
+logger.setFormat(config.get('monitoring.logging.format', 'console'));
 
 logger.debug('Creating express app...');
 const app = express();
 logger.debug('✓ Express app created');
 
-// Get auth type from config
-const AUTH_TYPE = get('auth.type', 'none');
-logger.info(`Auth type: ${AUTH_TYPE}`);
-
-// Choose the authentication based on the config
-logger.debug('Setting up authentication...');
-switch (AUTH_TYPE) {
-    case 'none':
-        const noneAuth = require('./libs/auth-config-none');
-        setupAuth = noneAuth.setupAuth;
-        requiresAuth = noneAuth.requiresAuth;
-        break;
-    case 'oidc':
-    default:
-        const oidcAuth = require('./libs/auth-config-oidc');
-        setupAuth = oidcAuth.setupAuth;
-        requiresAuth = oidcAuth.requiresAuth;
-        break;
+// Configure middleware
+app.use(require('./libs/middleware/mongo.js'));
+let requiresAuth = () => (_, __, next) => { next(); };
+if (config.get('features.auth')) {
+    requiresAuth = require('express-openid-connect').requiresAuth;
+    switch (config.get('auth.type')) {
+        case 'mock':
+            logger.debug("Using mock auth middleware")
+            app.use(require('./libs/middleware/authenticationMock.js'));
+            break;
+        case 'oidc':
+            logger.debug("Using oidc auth middleware")
+            app.use(require('./libs/middleware/authentication.js'));
+            break;
+        default:
+            logger.error(`Failed to setup auth. Unknown auth type: ${config.get('auth.type')}`);
+            exit(1);
+    }
+    app.use(require('./libs/middleware/authorizationImpl.js'));
+} else {
 }
-
-setupAuth(app);
-logger.info('✓ Authentication configured');
+logger.info('✓ Auth and DB Middleware configured');
 
 // Configure Nunjucks using config
 logger.debug('Configuring Nunjucks...');
@@ -40,13 +41,13 @@ const nunjucksEnv = nunjucks.configure([
     path.join(__dirname, 'node_modules/govuk-frontend/dist'),
     path.join(__dirname, 'views')
 ], {
-    autoescape: get('frontend.templates.autoescape', true),
+    autoescape: true,
     express: app,
-    cache: get('frontend.templates.cache', false),
+    cache: config.get('frontend.templates.cache', false),
 });
-nunjucksEnv.addGlobal('govukRebrand', get('frontend.govuk.rebrand', true));
-nunjucksEnv.addGlobal('serviceName', get('frontend.govuk.service_name', 'Cloud Advice Dashboard'));
-nunjucksEnv.addGlobal('logoUrl', get('frontend.govuk.logo_url', '/assets/LOGO.png'));
+nunjucksEnv.addGlobal('govukRebrand', true);
+nunjucksEnv.addGlobal('serviceName', config.get('app.name', 'Cloud Advice Dashboard'));
+nunjucksEnv.addGlobal('logoUrl', config.get('frontend.govuk.logo_url', '/assets/LOGO.png'));
 nunjucksEnv.addGlobal('config', config);
 logger.debug('✓ Nunjucks configured');
 
@@ -97,14 +98,14 @@ logger.debug('✓ Routes configured');
 logger.debug('Setting up error handling...');
 
 // 404 handler - must be after all other routes
-app.use((req, res, next) => {
+app.use((req, res, _) => {
     res.status(404);
-    
+
     // Respond with 404 page
     if (req.accepts('html')) {
-        res.render('errors/404.njk', { 
+        res.render('errors/404.njk', {
             url: req.url,
-            currentSection: null 
+            currentSection: null
         });
         return;
     }
@@ -128,17 +129,17 @@ app.use((err, req, res, next) => {
 
     // Respond with 500 page
     if (req.accepts('html')) {
-        res.render('errors/500.njk', { 
-            error: get('development.debug', false) ? err : {},
-            currentSection: null 
+        res.render('errors/500.njk', {
+            error: config.get('development.debug', false) ? err : {},
+            currentSection: null
         });
         return;
     }
 
     // Respond with JSON for API requests
     if (req.accepts('json')) {
-        res.json({ 
-            error: get('development.debug', false) ? err.message : 'Internal server error'
+        res.json({
+            error: config.get('development.debug', false) ? err.message : 'Internal server error'
         });
         return;
     }
@@ -149,18 +150,18 @@ app.use((err, req, res, next) => {
 
 logger.debug('✓ Error handling configured');
 
-// Get port from config
-const port = get('app.port', 3000);
-const appName = get('app.name', 'Cloud Advice Dashboard');
-const environment = get('app.environment', 'development');
+// config.get port from config
+const port = config.get('app.port', 3000);
+const appName = config.get('app.name', 'Cloud Advice Dashboard');
+const environment = config.get('app.environment', 'development');
 
 logger.debug('Starting server...');
 app.listen(port, () => {
     logger.info(`✓ ${appName} (${environment}) is running on http://localhost:${port}`);
     logger.info('✓ Application startup complete');
-    
-    if (get('development.debug', false)) {
+
+    if (config.get('development.debug', false)) {
         logger.debug('Debug mode enabled');
-        logger.debug('Loaded configuration files:', getLoadedFiles().map(f => path.relative(__dirname, f)));
+        logger.debug('Loaded configuration files:', config.getLoadedFiles().map(f => path.relative(__dirname, f)));
     }
 });

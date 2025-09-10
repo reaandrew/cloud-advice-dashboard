@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const { accountIdToTeam, complianceBreadcrumbs, checkDatabaseDeprecation } = require('../../utils/shared');
+const { complianceBreadcrumbs } = require('../../utils/shared');
 const dbQueries = require('../../queries/compliance/database');
-const mongoConnection = require('../../middleware/mongodb');
-
-// Apply MongoDB middleware to all routes
-router.use(mongoConnection);
 
 router.get('/', async (req, res) => {
     try {
-        const latestDoc = await dbQueries.getLatestRdsDate(req.mongoClient);
+        const latestDoc = await dbQueries.getLatestRdsDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in rds collection");
@@ -18,7 +14,7 @@ router.get('/', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const teamDatabases = await dbQueries.processDatabaseEngines(req.mongoClient, latestYear, latestMonth, latestDay);
+        const teamDatabases = await dbQueries.processDatabaseEngines(req, latestYear, latestMonth, latestDay);
 
         const data = [...teamDatabases.entries()].map(([team, rec]) => ({
             team,
@@ -47,7 +43,7 @@ router.get('/details', async (req, res) => {
     const currentPage = parseInt(page);
 
     try {
-        const latestDoc = await dbQueries.getLatestRdsDate(req.mongoClient);
+        const latestDoc = await dbQueries.getLatestRdsDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in rds collection");
@@ -55,7 +51,7 @@ router.get('/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = await dbQueries.getDatabaseDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, engine, version);
+        const allResources = await dbQueries.getDatabaseDetails(req, latestYear, latestMonth, latestDay, team, engine, version);
 
         const filteredResources = search ?
             allResources.filter(r =>

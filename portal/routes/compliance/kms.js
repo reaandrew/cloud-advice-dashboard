@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const { accountIdToTeam, complianceBreadcrumbs } = require('../../utils/shared');
+const { complianceBreadcrumbs } = require('../../utils/shared');
 const kmsQueries = require('../../queries/compliance/kms');
-const mongoConnection = require('../../middleware/mongodb');
-
-// Apply MongoDB middleware to all routes
-router.use(mongoConnection);
 
 router.get('/', async (req, res) => {
     try {
-        const latestDoc = await kmsQueries.getLatestKmsDate(req.mongoClient);
+        const latestDoc = await kmsQueries.getLatestKmsDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in kms_key_metadata collection");
@@ -18,7 +14,7 @@ router.get('/', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const teamKeyAges = await kmsQueries.processKmsKeyAges(req.mongoClient, latestYear, latestMonth, latestDay);
+        const teamKeyAges = await kmsQueries.processKmsKeyAges(req, latestYear, latestMonth, latestDay);
 
         const bucketOrder = ["0-30 days", "30-90 days", "90-180 days", "180-365 days", "1-2 years", "2+ years", "Unknown"];
         const data = [...teamKeyAges.entries()].map(([team, rec]) => ({
@@ -53,7 +49,7 @@ router.get('/details', async (req, res) => {
         }
 
         // Get the latest data
-        const latestDoc = await kmsQueries.getLatestKmsDate(req.mongoClient);
+        const latestDoc = await kmsQueries.getLatestKmsDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in kms_key_metadata collection");
@@ -61,13 +57,13 @@ router.get('/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = await kmsQueries.getKmsKeyDetails(req.mongoClient, latestYear, latestMonth, latestDay, team, ageBucket);
+        const allResources = await kmsQueries.getKmsKeyDetails(req, latestYear, latestMonth, latestDay, team, ageBucket);
 
         // Apply search filter
         let filteredResources = allResources;
         if (search && search.trim()) {
             const searchLower = search.toLowerCase();
-            filteredResources = allResources.filter(resource => 
+            filteredResources = allResources.filter(resource =>
                 (resource.keyName && resource.keyName.toLowerCase().includes(searchLower)) ||
                 (resource.keyId && resource.keyId.toLowerCase().includes(searchLower)) ||
                 (resource.description && resource.description.toLowerCase().includes(searchLower)) ||

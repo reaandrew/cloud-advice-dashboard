@@ -1,0 +1,70 @@
+# Cloud Advice Dashboard Default Configuration
+# This file contains an example of all default configuration settings for the dashboard application
+
+# Application Settings
+app:
+  name: "Cloud Advice Dashboard"
+  port: 3000
+  base_url: "http://localhost:3000"  # BASE_URL for OIDC redirects
+
+# Authentication Configuration
+auth:
+  type: "oidc"  # Options: mock, oidc
+  mock:
+    groups: []
+  oidc:
+    client_id: ""  # OIDC_CLIENT_ID
+    client_secret: ""  # OIDC_CLIENT_SECRET
+    issuer_url: ""  # OIDC_ISSUER_URL
+    scope: "openid profile email"
+    response_type: "code"
+
+# MongoDB Database Configuration
+database:
+  mongodb:
+    host: "localhost"  # MONGO_HOST
+    port: 27017  # MONGO_PORT
+    database_name: "data"
+    connection_string: ""  # Optional: full connection string override
+
+# Compliance Configuration
+compliance:
+  # Tagging Policy
+  tagging:
+    mandatory_tags:
+      - "MyCode"
+      - "Source"
+      - "BSP"  # Requires BillingID and (Service OR Project)
+
+  # Database Compliance
+  database:
+    # Deprecated versions to flag
+    deprecated_versions:
+      mysql:
+        - version: "5.7"
+          message: "MySQL 5.7 reached end of standard support on February 29, 2024"
+
+# Frontend Configuration
+frontend:
+  # Template settings
+  templates:
+    cache: false  # Set to true in production
+
+  # GOV.UK settings
+  govuk:
+    logo_url: "/assets/LOGO.png"  # Path to site logo
+
+# Monitoring and Logging
+monitoring:
+  # Logging configuration
+  logging:
+    level: "info"  # Options: debug, info, warn, error
+    format: "json"
+
+# Feature Flags
+features:
+  auth: false
+
+# Development Settings
+development:
+  debug: true

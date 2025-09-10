@@ -2,12 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 // Import shared utilities
-const { accountIdToTeam, complianceBreadcrumbs, mandatoryTags } = require('../../utils/shared');
+const { complianceBreadcrumbs, mandatoryTags } = require('../../utils/shared');
 const taggingQueries = require('../../queries/compliance/tagging');
-const mongoConnection = require('../../middleware/mongodb');
-
-// Apply MongoDB middleware to all routes
-router.use(mongoConnection);
 
 // Main tagging route redirects to teams
 router.get('/', (_, res) => {
@@ -17,7 +13,7 @@ router.get('/', (_, res) => {
 router.get('/teams', async (req, res) => {
     try {
         // Get the latest date from tags collection
-        const latestDoc = await taggingQueries.getLatestTagsDate(req.mongoClient);
+        const latestDoc = await taggingQueries.getLatestTagsDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in tags collection");
@@ -26,9 +22,9 @@ router.get('/teams', async (req, res) => {
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
         // Check tags collection for latest date only
-        const cursor = await taggingQueries.getTagsForDate(req.mongoClient, latestYear, latestMonth, latestDay);
+        const cursor = await taggingQueries.getTagsForDate(req, latestYear, latestMonth, latestDay);
 
-        const teamAgg = await taggingQueries.processTeamsTagCompliance(cursor);
+        const teamAgg = await taggingQueries.processTeamsTagCompliance(req, cursor);
 
         // Format data for view
         const data = [...teamAgg.entries()].map(([team, rec]) => ({
@@ -75,7 +71,7 @@ router.get('/details', async (req, res) => {
 
     try {
         // Get the latest date from tags collection
-        const latestDoc = await taggingQueries.getLatestTagsDate(req.mongoClient);
+        const latestDoc = await taggingQueries.getLatestTagsDate(req);
 
         if (!latestDoc) {
             throw new Error("No data found in tags collection");
@@ -83,9 +79,9 @@ router.get('/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const cursor = await taggingQueries.getTagsForDateWithProjection(req.mongoClient, latestYear, latestMonth, latestDay);
+        const cursor = await taggingQueries.getTagsForDateWithProjection(req, latestYear, latestMonth, latestDay);
 
-        const allResources = await taggingQueries.processTagDetailsForTeam(cursor, team, resourceType, tag);
+        const allResources = await taggingQueries.processTagDetailsForTeam(req, cursor, team, resourceType, tag);
 
         // Apply search filter
         const filteredResources = search ?

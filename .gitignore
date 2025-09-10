@@ -459,8 +459,8 @@ override.tf.json
 # kubeconfig file for the cluster
 kubeconfig
 
-# Configuration directory - users should copy from examples/
-configs/
+# Configuration directory
+configs/*.yaml
 
 # Assets directory - user-specific assets like logos
 portal/assets/
@@ -468,3 +468,7 @@ portal/assets/
 # Markdown directory - user-specific markdown content
 portal/markdown/
 venv
+
+# Authorization implementation - user-specified custom authorization logic
+portal/libs/middleware/authorizationImpl.js
+portal/libs/middleware/authorizationImpl.test.js

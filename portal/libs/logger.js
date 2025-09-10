@@ -1,21 +1,21 @@
-const { get } = require('./config-loader');
+const config = require('./config-loader');
 
 class Logger {
-    constructor() {
+    constructor(level, format) {
         this.levels = {
             debug: 0,
             info: 1,
             warn: 2,
             error: 3
-        };
-        this.currentLevel = this.levels[get('monitoring.logging.level', 'info')];
-        this.format = get('monitoring.logging.format', 'console');
+        }
+        this.currentLevel = this.levels[level];
+        this.format = format;
     }
 
     log(level, message, ...args) {
         if (this.levels[level] >= this.currentLevel) {
             const timestamp = new Date().toISOString();
-            
+
             if (this.format === 'json') {
                 const logEntry = {
                     timestamp,
@@ -51,6 +51,10 @@ class Logger {
         if (this.levels[level] !== undefined) {
             this.currentLevel = this.levels[level];
         }
+    }
+
+    setFormat(format) {
+        this.format = format;
     }
 }
 

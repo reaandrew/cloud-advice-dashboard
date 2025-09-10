@@ -1,18 +1,15 @@
-const { accountIdToTeam, mandatoryTags } = require('../../utils/shared');
+const { mandatoryTags } = require('../../utils/shared');
 
-const dbName = 'aws_data';
-
-async function getLatestTagsDate(client) {
-    const db = client.db(dbName);
-    return await db.collection("tags").findOne({}, {
+async function getLatestTagsDate(req) {
+    const collection = await req.collection("tags");
+    return await collection.findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
 }
 
-async function getTagsForDate(client, year, month, day) {
-    const db = client.db(dbName);
-    return db.collection("tags").find({
+async function getTagsForDate(req, year, month, day) {
+    return req.collection("tags").find({
         year: year,
         month: month,
         day: day
@@ -21,9 +18,8 @@ async function getTagsForDate(client, year, month, day) {
     });
 }
 
-async function getTagsForDateWithProjection(client, year, month, day) {
-    const db = client.db(dbName);
-    return db.collection("tags").find({
+async function getTagsForDateWithProjection(req, year, month, day) {
+    return req.collection("tags").find({
         year: year,
         month: month,
         day: day
@@ -32,9 +28,9 @@ async function getTagsForDateWithProjection(client, year, month, day) {
     });
 }
 
-async function processTeamsTagCompliance(cursor) {
+async function processTeamsTagCompliance(req, cursor) {
     const teamAgg = new Map();
-    
+
     const ensureTeam = t => {
         if (!teamAgg.has(t)) {
             teamAgg.set(t, { resourceTypes: new Map(), _seen: new Set() });
@@ -59,15 +55,15 @@ async function processTeamsTagCompliance(cursor) {
     for await (const doc of cursor) {
         if (doc.resource_type === "bucket" && bucketStartsWithAccountId(doc.resource_id)) continue;
 
-        const team = accountIdToTeam[doc.account_id] || "Unknown";
-        const rec = ensureTeam(team);
+        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         const resourceType = doc.resource_type || "Unknown";
-        const tagMissing = ensureResourceType(rec, resourceType);
 
         const uniqueKey = `${doc.account_id}-${doc.resource_id}`;
-        if (rec._seen.has(uniqueKey)) continue;
-        rec._seen.add(uniqueKey);
+        const recsUnseen = recs.filter(rec => !rec._seen.has(uniqueKey));
+        if (recsUnseen.length === 0) continue;
+        recsUnseen.forEach(rec => rec._seen.add(uniqueKey));
+        const tagMissings = recsUnseen.map(rec => ensureResourceType(rec, resourceType));
 
         const tags = {};
         if (doc.Tags && Array.isArray(doc.Tags)) {
@@ -86,11 +82,11 @@ async function processTeamsTagCompliance(cursor) {
                 const hasProject = !isMissing(tags["project"]);
                 const bspValid = hasBillingID && (hasService || hasProject);
                 if (!bspValid) {
-                    tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1);
+                    tagMissings.forEach(tagMissing => tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1));
                 }
             } else {
                 if (isMissing(tags[tagName])) {
-                    tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1);
+                    tagMissings.forEach(tagMissing => tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1));
                 }
             }
         }
@@ -99,7 +95,7 @@ async function processTeamsTagCompliance(cursor) {
     return teamAgg;
 }
 
-async function processTagDetailsForTeam(cursor, team, resourceType, tag) {
+async function processTagDetailsForTeam(req, cursor, team, resourceType, tag) {
     const allResources = [];
     const isMissing = v => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
     const bucketStartsWithAccountId = arn => /^\d{12}/.test((arn.split(":::")[1] || ""));
@@ -107,8 +103,7 @@ async function processTagDetailsForTeam(cursor, team, resourceType, tag) {
     for await (const doc of cursor) {
         if (doc.resource_type === "bucket" && bucketStartsWithAccountId(doc.resource_id)) continue;
 
-        const docTeam = accountIdToTeam[doc.account_id] || "Unknown";
-        if (docTeam !== team || doc.resource_type !== resourceType) continue;
+        if (!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
         const tags = {};
         if (doc.Tags && Array.isArray(doc.Tags)) {
