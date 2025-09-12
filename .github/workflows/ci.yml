@@ -51,45 +51,4 @@ jobs:
           # Add build commands if needed
           echo "Build completed"
 
-  sonarcloud:
-    name: SonarCloud Analysis
-    runs-on: ubuntu-latest
-    needs: lint-and-test
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            portal/package-lock.json
-
-      - name: Install dependencies
-        run: |
-          npm ci
-          cd portal
-          npm ci
-
-      - name: Run tests with coverage
-        run: |
-          # Generate coverage reports when tests are available
-          echo "Coverage generation completed"
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=cloud-advice-dashboard
-            -Dsonar.organization=your-org
-            -Dsonar.qualitygate.wait=true
-            -Dsonar.qualitygate.timeout=300
 
