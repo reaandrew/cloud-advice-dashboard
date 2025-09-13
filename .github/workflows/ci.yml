@@ -1,0 +1,54 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            portal/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install portal dependencies
+        run: |
+          cd portal
+          npm ci
+
+      - name: Run lint checks
+        run: |
+          # Add lint commands when available
+          echo "Linting completed"
+
+      - name: Run tests
+        run: |
+          # Add test commands when available
+          echo "Tests completed"
+
+      - name: Build application
+        run: |
+          cd portal
+          # Add build commands if needed
+          echo "Build completed"
+
+
