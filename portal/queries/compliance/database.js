@@ -50,7 +50,7 @@ async function processDatabaseEngines(req, year, month, day) {
     const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of redshiftCursor) {
-        const recs = (await req.detailsByAccountId(doc.account_id)).teams.forEach(ensureTeam);
+        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         if (doc.Configuration) {
             const version = doc.Configuration.ClusterVersion || "Unknown";

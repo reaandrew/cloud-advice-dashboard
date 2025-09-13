@@ -68,3 +68,42 @@ features:
 # Development Settings
 development:
   debug: true
+
+# Account Mappings - Map AWS account IDs to team information
+account_mappings:
+  # Use the actual keys from your data: 'Application Env', 'Code', 'ECS Account', 'OwnerId', 'Service', 'Team'
+  - OwnerId: "930086875935"
+    Team: "DevOps"
+    Service: "Development Operations"
+    Code: "DOPS947"
+    "Application Env": "development"
+    "ECS Account": "backup"
+    description: "DevOps team AWS account"
+  - OwnerId: "868570220212"
+    Team: "Security"
+    Service: "Security Ops"
+    Code: "SECU198"
+    "Application Env": "sandbox"
+    "ECS Account": "secondary"
+    description: "Security team AWS account"
+  - OwnerId: "633229661713"
+    Team: "CloudOps"
+    Service: "Cloud Operations"
+    Code: "CLOP794"
+    "Application Env": "testing"
+    "ECS Account": "disaster-recovery"
+    description: "CloudOps team AWS account"
+  - OwnerId: "602276804025"
+    Team: "ML"
+    Service: "ML Services"
+    Code: "MLSV079"
+    "Application Env": "production"
+    "ECS Account": "primary"
+    description: "ML team AWS account"
+  - OwnerId: "016525808631"
+    Team: "ML"
+    Service: "ML Services"
+    Code: "MLSV908"
+    "Application Env": "testing"
+    "ECS Account": "backup"
+    description: "ML team AWS account"
