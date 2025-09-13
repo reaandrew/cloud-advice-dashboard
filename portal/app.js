@@ -31,7 +31,6 @@ if (config.get('features.auth')) {
             exit(1);
     }
     app.use(require('./libs/middleware/authorizationImpl.js'));
-} else {
 }
 logger.info('✓ Auth and DB Middleware configured');
 

@@ -146,7 +146,12 @@ router.get('/types', async (req, res) => {
         const data = [...teamTypes.entries()].map(([team, rec]) => ({
             team,
             types: [...rec.types.entries()].map(([type, count]) => ({
-                type: type === "application" ? "ALB" : type === "network" ? "NLB" : type === "classic" ? "Classic" : type,
+                type: (() => {
+                    if (type === "application") return "ALB";
+                    if (type === "network") return "NLB";
+                    if (type === "classic") return "Classic";
+                    return type;
+                })(),
                 count
             }))
         })).filter(t => t.types.length > 0);
@@ -199,7 +204,14 @@ router.get('/types/details', async (req, res) => {
         const endIndex = startIndex + pageSize;
         const paginatedResources = filteredResources.slice(startIndex, endIndex);
 
-        const displayType = type === "application" ? "ALB" : type === "network" ? "NLB" : "Classic";
+        let displayType;
+        if (type === "application") {
+            displayType = "ALB";
+        } else if (type === "network") {
+            displayType = "NLB";
+        } else {
+            displayType = "Classic";
+        }
 
         res.render('policies/loadbalancers/types/details.njk', {
             breadcrumbs: [...complianceBreadcrumbs,

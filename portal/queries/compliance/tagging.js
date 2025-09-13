@@ -84,10 +84,8 @@ async function processTeamsTagCompliance(req, cursor) {
                 if (!bspValid) {
                     tagMissings.forEach(tagMissing => tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1));
                 }
-            } else {
-                if (isMissing(tags[tagName])) {
-                    tagMissings.forEach(tagMissing => tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1));
-                }
+            } else if (isMissing(tags[tagName])) {
+                tagMissings.forEach(tagMissing => tagMissing.set(originalTagName, tagMissing.get(originalTagName) + 1));
             }
         }
     }

@@ -64,11 +64,11 @@ router.get('/details', async (req, res) => {
         if (search && search.trim()) {
             const searchLower = search.toLowerCase();
             filteredResources = allResources.filter(resource =>
-                (resource.keyName && resource.keyName.toLowerCase().includes(searchLower)) ||
-                (resource.keyId && resource.keyId.toLowerCase().includes(searchLower)) ||
-                (resource.description && resource.description.toLowerCase().includes(searchLower)) ||
-                (resource.keyUsage && resource.keyUsage.toLowerCase().includes(searchLower)) ||
-                (resource.keyState && resource.keyState.toLowerCase().includes(searchLower))
+                resource.keyName?.toLowerCase().includes(searchLower) ||
+                resource.keyId?.toLowerCase().includes(searchLower) ||
+                resource.description?.toLowerCase().includes(searchLower) ||
+                resource.keyUsage?.toLowerCase().includes(searchLower) ||
+                resource.keyState?.toLowerCase().includes(searchLower)
             );
         }
 
