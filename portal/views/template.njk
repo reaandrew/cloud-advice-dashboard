@@ -6,8 +6,23 @@
 {% block head %}
 <link rel="stylesheet" href="/stylesheets/govuk-frontend.min.css">
 <link rel="stylesheet" href="/stylesheets/app.css">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzAwODY3MCIvPgo8cGF0aCBkPSJNOCAxMkgxNlYyMEg4VjEyWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIwIDhIMjRWMjRIMjBWOFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xMCA2SDE0VjEwSDEwVjZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjEgMTJIMjNWMTZIMjFWMTJaIiBmaWxsPSIjMDA4NjcwIi8+Cjwvc3ZnPg==" type="image/svg+xml">
 <style>
+/* Fix horizontal scroll bar issue */
+body {
+    overflow-x: hidden;
+}
 
+.app-width-container {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Ensure GOV.UK containers don't exceed viewport width */
+.govuk-width-container {
+    max-width: 100%;
+    box-sizing: border-box;
+}
 </style>
 {% endblock %}
 
