@@ -44,11 +44,8 @@ function checkDatabaseDeprecation(engine, version) {
     return issues;
 }
 
-module.exports = {
-    baseBreadcrumbs,
-    complianceBreadcrumbs,
-    policiesBreadcrumbs,
-    markdownRoot,
-    mandatoryTags,
-    checkDatabaseDeprecation
-};
+module.exports.baseBreadcrumbs = baseBreadcrumbs;
+module.exports.complianceBreadcrumbs = complianceBreadcrumbs;
+module.exports.policiesBreadcrumbs = policiesBreadcrumbs;
+module.exports.markdownRoot = markdownRoot;
+module.exports.mandatoryTags = mandatoryTags;

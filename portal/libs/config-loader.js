@@ -260,6 +260,9 @@ function parseConfigArgs() {
 const configLoader = new ConfigLoader();
 
 const configFiles = parseConfigArgs();
+if (process.env.CONFIG_FILE !== undefined) {
+    configFiles.push(process.env.CONFIG_FILE);
+}
 if (configFiles.length > 0) {
     configLoader.setConfigFiles(configFiles);
 }
