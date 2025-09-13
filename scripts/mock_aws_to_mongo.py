@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+from datetime import timezone
 import random
 import string
 from dataclasses import dataclass
@@ -64,7 +65,7 @@ def pick(seq):
     return random.choice(seq)
 
 def iso_now():
-    return dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return dt.datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 def ensure_indexes(coll):
     try:
@@ -281,7 +282,7 @@ def gen_kms(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict]]:
             "AWSAccountId": ctx.account,
             "KeyId": kid,
             "Arn": karn,
-            "CreationDate": dt.datetime.utcnow(),
+            "CreationDate": dt.datetime.now(timezone.utc),
             "Enabled": True,
             "KeyUsage": "ENCRYPT_DECRYPT",
             "KeyState": "Enabled",
@@ -348,7 +349,7 @@ def gen_s3_buckets(n: int) -> List[Dict]:
     out = []
     for _ in range(n):
         name = f"{rand_str(8)}-bucket"
-        cfg = {"Name": name, "CreationDate": dt.datetime.utcnow()}
+        cfg = {"Name": name, "CreationDate": dt.datetime.now(timezone.utc)}
         out.append(cfg)
     return out
 
@@ -651,7 +652,7 @@ def main():
         y, m, d = map(int, args.date.split("-"))
         date = dt.date(y, m, d)
     else:
-        today = dt.datetime.utcnow().date()
+        today = dt.datetime.now(timezone.utc).date()
         date = today
 
     client = MongoClient(args.mongo_uri)

@@ -96,7 +96,7 @@ class ConfigLoader {
      * Deep merge two objects, with source overriding target
      */
     deepMerge(target, source) {
-        const output = Object.assign({}, target);
+        const output = { ...target };
 
         if (this.isObject(target) && this.isObject(source)) {
             Object.keys(source).forEach(key => {
