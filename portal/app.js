@@ -123,7 +123,11 @@ app.use((req, res, _) => {
 // 500 error handler - must be last middleware
 app.use((err, req, res, next) => {
     // Log the error
-    logger.error('Application error:', err);
+    if (err["message"] !== undefined) {
+        logger.error(`Application error`, { message: err.message, stack: err.stack });
+    } else {
+        logger.error(`Application error`, err);
+    }
 
     res.status(err.status || 500);
 

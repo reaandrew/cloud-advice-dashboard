@@ -66,6 +66,7 @@ function createAuthorizationMiddleware(getAccountIds, getDetailsByAccountId) {
     return async function authorizationMiddleware(req, _, next) {
         if (!req.oidc.user) {
             next();
+            return;
         }
         req.collection = createAccountScopedCollectionProxy(req.unsafeDb, await getAccountIds(req.oidc.user, req.unsafeDb));
         req.detailsByAccountId = async (id) => await getDetailsByAccountId(id, req.unsafeDb);
