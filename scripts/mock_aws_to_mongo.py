@@ -19,7 +19,7 @@ ingestion pipeline produces:
 NEW:
 - Support for generating N accounts (`--accounts`) or a fixed list (`--account-ids`).
 - After insert completes, prints and writes a YAML `account_mappings` block with fields:
-  OwnerId, Team, Service, Code, "Application Env", "ECS Account", description
+  AccountId, Team, Tenant (Id, Name, Description), Environment
 
 Usage:
   python mock_aws_to_mongo.py \
@@ -529,8 +529,7 @@ def generate_team_choices(num_teams):
     
     return teams
 
-ENV_CHOICES = ["production", "staging", "development", "testing", "integration", "sandbox"]
-ECS_ACCOUNT_CHOICES = ["primary", "secondary", "tertiary", "quaternary", "disaster-recovery", "backup"]
+ENV_CHOICES = ["production", "staging", "development", "testing", "integration", "sandbox", "pre-production", "test"]
 
 def gen_account_ids(args) -> list[str]:
     if args.account_ids:
@@ -545,29 +544,29 @@ def build_account_mapping(owner_id: str) -> dict:
     team, service, code_prefix = random.choice(TEAM_CHOICES)
     code = f"{code_prefix}{random.randint(1, 999):03d}"
     app_env = random.choice(ENV_CHOICES)
-    ecs_acct = random.choice(ECS_ACCOUNT_CHOICES)
     return {
-        "OwnerId": owner_id,
+        "AccountId": owner_id,
         "Team": team,
-        "Service": service,
-        "Code": code,
-        "Application Env": app_env,
-        "ECS Account": ecs_acct,
-        "description": f"{team} team AWS account",
+        "Tenant": {
+            "Id": code,
+            "Name": service,
+            "Description": f"{team} team AWS account"
+        },
+        "Environment": app_env,
     }
 
 def dump_account_mappings_yaml(mappings: list[dict]) -> str:
     lines = ["account_mappings:"]
     lines.append("  # Map AWS account IDs to team information")
-    lines.append("  # Use the actual keys from your data: 'Application Env', 'Code', 'ECS Account', 'OwnerId', 'Service', 'Team'")
+    lines.append("  # Use the actual keys from your data: 'AccountId', 'Team', 'Tenant.Id', 'Tenant.Name', 'Tenant.Description', 'Environment'")
     for m in mappings:
-        lines.append(f"  - OwnerId: \"{m['OwnerId']}\"")
+        lines.append(f"  - AccountId: \"{m['AccountId']}\"")
         lines.append(f"    Team: \"{m['Team']}\"")
-        lines.append(f"    Service: \"{m['Service']}\"")
-        lines.append(f"    Code: \"{m['Code']}\"")
-        lines.append(f"    \"Application Env\": \"{m['Application Env']}\"")
-        lines.append(f"    \"ECS Account\": \"{m['ECS Account']}\"")
-        lines.append(f"    description: \"{m['description']}\"")
+        lines.append(f"    Tenant:")
+        lines.append(f"      Id: \"{m['Tenant']['Id']}\"")
+        lines.append(f"      Name: \"{m['Tenant']['Name']}\"")
+        lines.append(f"      Description: \"{m['Tenant']['Description']}\"")
+        lines.append(f"    Environment: \"{m['Environment']}\"")
     return "\n".join(lines)
 
 # ──────────────────────────────────────────────────────────────────────────────

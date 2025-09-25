@@ -9,7 +9,12 @@ router.get('/', async (req, res) => {
         const latestDoc = await dbQueries.getLatestRdsDate(req);
 
         if (!latestDoc) {
-            throw new Error("No data found in rds collection");
+            return res.render('errors/no-data.njk', {
+                breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
+                policy_title: "Database Engines and Versions",
+                currentSection: "compliance",
+                currentPath: "/compliance/database"
+            });
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
@@ -33,7 +38,12 @@ router.get('/', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        return res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
+            policy_title: "Database Engines and Versions",
+            currentSection: "compliance",
+            currentPath: "/compliance/database"
+        });
     }
 });
 
@@ -46,7 +56,15 @@ router.get('/details', async (req, res) => {
         const latestDoc = await dbQueries.getLatestRdsDate(req);
 
         if (!latestDoc) {
-            throw new Error("No data found in rds collection");
+            return res.render('errors/no-data.njk', {
+                breadcrumbs: [...complianceBreadcrumbs,
+                    { text: "Database", href: "/compliance/database" },
+                    { text: `${team} - ${engine} ${version}`, href: "#" }
+                ],
+                policy_title: `${engine} ${version} Instances - ${team} Team`,
+                currentSection: "compliance",
+                currentPath: "/compliance/database/details"
+            });
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
@@ -94,7 +112,15 @@ router.get('/details', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        return res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs,
+                { text: "Database", href: "/compliance/database" },
+                { text: "Database Details", href: "#" }
+            ],
+            policy_title: "Database Details",
+            currentSection: "compliance",
+            currentPath: "/compliance/database/details"
+        });
     }
 });
 

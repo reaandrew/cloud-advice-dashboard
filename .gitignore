@@ -473,4 +473,4 @@ venv
 portal/libs/middleware/authorizationImpl.js
 portal/libs/middleware/authorizationImpl.test.js
 
-scripts/account_mappings.yaml
+account_mappings.yaml

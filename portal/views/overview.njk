@@ -11,7 +11,7 @@
             Welcome to the Cloud Advice Dashboard. This application provides insights into your cloud infrastructure compliance and policy management.
         </p>
 
-        {% if dashboardMetrics %}
+        {% if dashboardMetrics and dashboardMetrics.metrics and not dashboardMetrics.error %}
           <div class="govuk-grid-row">
             <div class="govuk-grid-column-full">
               <h2 class="govuk-heading-l">Compliance Overview</h2>
@@ -125,13 +125,40 @@
           
           <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
         {% else %}
-          <div class="govuk-warning-text">
-            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
-            <strong class="govuk-warning-text__text">
-              <span class="govuk-warning-text__assistive">Warning</span>
-              Dashboard metrics are currently unavailable. Please check back later.
-            </strong>
+          <div class="govuk-grid-row">
+            <div class="govuk-grid-column-two-thirds">
+              <h2 class="govuk-heading-l">Dashboard Data Unavailable</h2>
+
+              {% from "govuk/components/warning-text/macro.njk" import govukWarningText %}
+              {{ govukWarningText({
+                text: "There is currently no dashboard data available.",
+                iconFallbackText: "Warning"
+              }) }}
+
+              <p class="govuk-body">This could be because:</p>
+
+              <ul class="govuk-list govuk-list--bullet">
+                <li>No AWS resources have been scanned yet</li>
+                <li>The data collection process has not completed</li>
+                <li>The system is still processing your cloud inventory</li>
+                <li>There may be a connectivity issue with your AWS accounts</li>
+              </ul>
+
+              <h3 class="govuk-heading-m">What you can do</h3>
+
+              <ul class="govuk-list govuk-list--bullet">
+                <li>Check back in a few minutes once data collection completes</li>
+                <li>Verify that your AWS accounts are properly configured</li>
+                <li>Contact your administrator if this problem persists</li>
+              </ul>
+
+              <p class="govuk-body">
+                In the meantime, you can still access individual compliance reports and policy documents using the links below.
+              </p>
+            </div>
           </div>
+
+          <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
         {% endif %}
 
         <div class="govuk-grid-row">
