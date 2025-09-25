@@ -50,6 +50,42 @@ body {
 <h1 class="govuk-heading-xl">Default page template</h1>
 {% endblock %}
 
+{% block footer %}
+<footer class="govuk-footer" role="contentinfo">
+  <div class="govuk-width-container">
+    <div class="govuk-footer__meta">
+      <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+        <h2 class="govuk-visually-hidden">Support links</h2>
+        <ul class="govuk-footer__inline-list govuk-!-margin-left-3">
+          <li class="govuk-footer__inline-list-item">
+            <a class="govuk-footer__link" href="/help">Help</a>
+          </li>
+          <li class="govuk-footer__inline-list-item">
+            <a class="govuk-footer__link" href="/privacy">Privacy Policy</a>
+          </li>
+          <li class="govuk-footer__inline-list-item">
+            <a class="govuk-footer__link" href="/contact">Contact</a>
+          </li>
+          <li class="govuk-footer__inline-list-item">
+            <a class="govuk-footer__link" href="/support">Support</a>
+          </li>
+        </ul>
+        <div class="govuk-footer__meta-custom">
+          <p class="govuk-body govuk-!-font-size-16 govuk-!-margin-left-3">
+            All content is available under the
+            <a class="govuk-footer__link" href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="license">Open Government Licence v3.0</a>,
+            except where otherwise stated
+          </p>
+        </div>
+      </div>
+      <div class="govuk-footer__meta-item">
+        <a class="govuk-footer__link govuk-footer__copyright-logo govuk-!-margin-right-3" href="https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/">© Crown copyright</a>
+      </div>
+    </div>
+  </div>
+</footer>
+{% endblock %}
+
 {% block bodyEnd %}
 {# Run JavaScript at end of the
 
