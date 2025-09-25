@@ -75,7 +75,18 @@ class ConfiguredAlbsMetric extends DashboardMetric {
             }
         }
         
-        return totalALBs === 0 ? 0 : Math.round((correctlyConfiguredALBs / totalALBs) * 100);
+        // Return N/A if no ALBs exist
+        if (totalALBs === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all ALBs are correctly configured (no misconfigured ALBs)
+        const misconfiguredALBs = totalALBs - correctlyConfiguredALBs;
+        if (misconfiguredALBs === 0) {
+            return 100;
+        }
+
+        return Math.round((correctlyConfiguredALBs / totalALBs) * 100);
     }
 
     async getKeyDetail(req, year, month, day) {
@@ -136,7 +147,16 @@ class ConfiguredAlbsMetric extends DashboardMetric {
             }
         }
         
+        // Return appropriate message for special cases
+        if (totalALBs === 0) {
+            return 'No ALBs to evaluate';
+        }
+
         const misconfiguredALBs = totalALBs - correctlyConfiguredALBs;
+        if (misconfiguredALBs === 0) {
+            return `All ${totalALBs.toLocaleString()} ALBs are correctly configured`;
+        }
+
         return `${misconfiguredALBs.toLocaleString()} of ${totalALBs.toLocaleString()} ALBs misconfigured`;
     }
 }

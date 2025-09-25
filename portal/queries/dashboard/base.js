@@ -44,10 +44,13 @@ class DashboardMetric {
 
     /**
      * Format the calculated value for display
-     * @param {number} value - The calculated value
+     * @param {number|string} value - The calculated value or special string like 'N/A'
      * @returns {string} - Formatted display value
      */
     formatValue(value) {
+        if (value === 'N/A') {
+            return 'N/A';
+        }
         return `${value}%`;
     }
 

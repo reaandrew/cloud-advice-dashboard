@@ -15,19 +15,19 @@ class OverallComplianceMetric extends DashboardMetric {
 
     async calculate(req, year, month, day) {
         const tagsCollection = req.collection("tags");
-        
+
         const totalResourcesCursor = await tagsCollection.find({
             year: year,
             month: month,
             day: day
         });
-        
+
         let totalResources = 0;
         let compliantResources = 0;
-        
+
         for await (const doc of totalResourcesCursor) {
             totalResources++;
-            
+
             const tags = doc.Tags || {};
             const hasAllMandatoryTags = mandatoryTags.every(tag => {
                 if (tag === 'BSP') {
@@ -36,13 +36,24 @@ class OverallComplianceMetric extends DashboardMetric {
                 }
                 return tags[tag];
             });
-            
+
             if (hasAllMandatoryTags) {
                 compliantResources++;
             }
         }
-        
-        return totalResources === 0 ? 0 : Math.round((compliantResources / totalResources) * 100);
+
+        // Return N/A if no resources exist
+        if (totalResources === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all resources are compliant (no noncompliant resources)
+        const nonCompliantResources = totalResources - compliantResources;
+        if (nonCompliantResources === 0) {
+            return 100;
+        }
+
+        return Math.round((compliantResources / totalResources) * 100);
     }
 
     async getSummaries(req, year, month, day) {
@@ -102,19 +113,19 @@ class OverallComplianceMetric extends DashboardMetric {
 
     async getKeyDetail(req, year, month, day) {
         const tagsCollection = req.collection("tags");
-        
+
         const totalResourcesCursor = await tagsCollection.find({
             year: year,
             month: month,
             day: day
         });
-        
+
         let totalResources = 0;
         let compliantResources = 0;
-        
+
         for await (const doc of totalResourcesCursor) {
             totalResources++;
-            
+
             const tags = doc.Tags || {};
             const hasAllMandatoryTags = mandatoryTags.every(tag => {
                 if (tag === 'BSP') {
@@ -122,13 +133,22 @@ class OverallComplianceMetric extends DashboardMetric {
                 }
                 return tags[tag];
             });
-            
+
             if (hasAllMandatoryTags) {
                 compliantResources++;
             }
         }
-        
+
+        // Return appropriate message for special cases
+        if (totalResources === 0) {
+            return 'No resources to evaluate';
+        }
+
         const nonCompliantResources = totalResources - compliantResources;
+        if (nonCompliantResources === 0) {
+            return `All ${totalResources.toLocaleString()} resources have mandatory tags`;
+        }
+
         return `${nonCompliantResources.toLocaleString()} of ${totalResources.toLocaleString()} resources missing mandatory tags`;
     }
 }

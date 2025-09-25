@@ -40,7 +40,18 @@ class KmsRotationMetric extends DashboardMetric {
             }
         }
         
-        return totalKeys === 0 ? 0 : Math.round((rotationEnabledKeys / totalKeys) * 100);
+        // Return N/A if no customer-managed keys exist
+        if (totalKeys === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all keys have rotation enabled (no keys without rotation)
+        const keysWithoutRotation = totalKeys - rotationEnabledKeys;
+        if (keysWithoutRotation === 0) {
+            return 100;
+        }
+
+        return Math.round((rotationEnabledKeys / totalKeys) * 100);
     }
 
     async getKeyDetail(req, year, month, day) {
@@ -76,6 +87,15 @@ class KmsRotationMetric extends DashboardMetric {
             }
         }
         
+        // Return appropriate message for special cases
+        if (totalKeys === 0) {
+            return 'No KMS keys to evaluate';
+        }
+
+        if (oldKeys === 0) {
+            return `All ${totalKeys.toLocaleString()} KMS keys are less than 2 years old`;
+        }
+
         return `${oldKeys.toLocaleString()} of ${totalKeys.toLocaleString()} KMS keys over 2 years old`;
     }
 }

@@ -69,7 +69,18 @@ class SecureLoadBalancersMetric extends DashboardMetric {
             }
         }
         
-        return totalLBs === 0 ? 0 : Math.round((secureLBs / totalLBs) * 100);
+        // Return N/A if no load balancers exist
+        if (totalLBs === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all load balancers are secure (no insecure LBs)
+        const insecureLBs = totalLBs - secureLBs;
+        if (insecureLBs === 0) {
+            return 100;
+        }
+
+        return Math.round((secureLBs / totalLBs) * 100);
     }
 
     async getSummaries(req, year, month, day) {
@@ -218,6 +229,15 @@ class SecureLoadBalancersMetric extends DashboardMetric {
             }
         }
         
+        // Return appropriate message for special cases
+        if (totalLBs === 0) {
+            return 'No load balancers to evaluate';
+        }
+
+        if (deprecatedTlsLBs === 0) {
+            return `All ${totalLBs.toLocaleString()} load balancers use modern TLS`;
+        }
+
         return `${deprecatedTlsLBs.toLocaleString()} of ${totalLBs.toLocaleString()} load balancers with deprecated TLS`;
     }
 }

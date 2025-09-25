@@ -52,7 +52,18 @@ class CurrentDbVersionsMetric extends DashboardMetric {
             }
         }
         
-        return totalInstances === 0 ? 0 : Math.round((currentVersionInstances / totalInstances) * 100);
+        // Return N/A if no RDS instances exist
+        if (totalInstances === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all instances are current (no deprecated versions)
+        const deprecatedInstances = totalInstances - currentVersionInstances;
+        if (deprecatedInstances === 0) {
+            return 100;
+        }
+
+        return Math.round((currentVersionInstances / totalInstances) * 100);
     }
 
     async getKeyDetail(req, year, month, day) {
@@ -95,7 +106,16 @@ class CurrentDbVersionsMetric extends DashboardMetric {
             }
         }
         
+        // Return appropriate message for special cases
+        if (totalInstances === 0) {
+            return 'No databases to evaluate';
+        }
+
         const deprecatedInstances = totalInstances - currentVersionInstances;
+        if (deprecatedInstances === 0) {
+            return `All ${totalInstances.toLocaleString()} databases are running current versions`;
+        }
+
         return `${deprecatedInstances.toLocaleString()} of ${totalInstances.toLocaleString()} databases with deprecated versions`;
     }
 }
