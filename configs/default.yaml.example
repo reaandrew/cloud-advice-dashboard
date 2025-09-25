@@ -76,18 +76,21 @@ account_mappings:
     Team: "DevOps"
     Tenant:
       Id: "DVOP116"
-      Description: "DevOps internal team"
+      Name: "HKL Ops Team"
+      Description: "DevOps internal team for HKL products"
     Environment: "development"
   - AccountId: "868570220212"
     Team: "Security"
     Tenant:
       Id: "SECU198"
+      Name: "SecuHeroes"
       Description: "Security team AWS account"
     Environment: "production"
   - AccountId: "633229661713"
     Team: "CloudOps"
     Tenant:
       Id: "CLOP794"
+      Name: "Clouders"
       Description: "CloudOps team AWS account for Disaster Recovery"
     Environment: "test"
   - AccountId: "602276804025"
@@ -99,5 +102,6 @@ account_mappings:
     Team: "ML"
     Tenant:
       Id: "MLSV908"
+      Name: "ML Monsters"
       Description: "ML team AWS account"
     Environment: "pre-production"
