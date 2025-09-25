@@ -68,3 +68,36 @@ features:
 # Development Settings
 development:
   debug: true
+
+# Account mappings when using the default authorization implementation.
+account_mappings:
+  # Use the actual keys from your data: 'AccountId', 'Team', 'Tenant.Id', 'Tenant.Description', 'Environment'
+  - AccountId: "930086875935"
+    Team: "DevOps"
+    Tenant:
+      Id: "DVOP116"
+      Description: "DevOps internal team"
+    Environment: "development"
+  - AccountId: "868570220212"
+    Team: "Security"
+    Tenant:
+      Id: "SECU198"
+      Description: "Security team AWS account"
+    Environment: "production"
+  - AccountId: "633229661713"
+    Team: "CloudOps"
+    Tenant:
+      Id: "CLOP794"
+      Description: "CloudOps team AWS account for Disaster Recovery"
+    Environment: "test"
+  - AccountId: "602276804025"
+    Team: "ML"
+    Tenant:
+      Id: "MLSV079"
+      Description: "ML team AWS account"
+  - OwnerId: "016525808631"
+    Team: "ML"
+    Tenant:
+      Id: "MLSV908"
+      Description: "ML team AWS account"
+    Environment: "pre-production"

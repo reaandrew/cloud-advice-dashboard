@@ -25,24 +25,4 @@ async function getAccountIds(claims, db) {
     return Array.from(allowedAccountIds);
 }
 
-/**
- * @param {string} id
- * @param {Db} db
- * @returns {Promise<{environments: Array<string>, teams: Array<string>, tenants: Array<{ id: string, name: string, description: string }> }>}
- */
-async function getDetailsByAccountId(id, db) {
-    const idToDetailsCollection = db.collection('id_to_details');
-
-    const details = await(idToDetailsCollection.find({
-        $elemMatch: {
-            account_id: id
-        }
-    }).toArray())[0];
-    return {
-        environments: details.environments,
-        teams: [details.team],
-        tenants: details.tenants,
-    }
-}
-
-module.exports = createAuthorizationMiddleware(getAccountIds, getDetailsByAccountId)
+module.exports = createAuthorizationMiddleware(getAccountIds);
