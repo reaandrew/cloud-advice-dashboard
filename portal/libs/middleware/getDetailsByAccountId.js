@@ -19,7 +19,7 @@ async function getDetailsByAccountId(id, _) {
         if (!environments.has(mapping.Environments)) environments.add(mapping.Environments);
         if (!seenTenantIds.has(mapping.Tenant.Id)) {
             seenTenantIds.add(mapping.Tenant.Id);
-            tenants.push(mapping.Tenants);
+            tenants.push(mapping.Tenant);
         }
     }
 
