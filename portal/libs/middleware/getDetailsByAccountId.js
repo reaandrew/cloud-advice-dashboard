@@ -3,9 +3,9 @@ const config = require('../config-loader.js');
 
 /**
  * @param {string} id
- * @returns {{environments: Array<string>, teams: Array<string>, tenants: Array<{ id: string, name: string, description: string}}
+ * @returns {Promise<{environments: Array<string>, teams: Array<string>, tenants: Array<{ id: string, name: string, description: string}>}
  */
-function getDetailsByAccountId(id, _) {
+async function getDetailsByAccountId(id, _) {
     const environments = new Set();
     const teams = new Set();
     const tenants = [];
@@ -25,7 +25,7 @@ function getDetailsByAccountId(id, _) {
 
     return {
         environments: Array.from(environments),
-        teams: teams.length == 0 ? ["Unknown"] : Array.from(teams),
+        teams: teams.size == 0 ? ["Unknown"] : Array.from(teams),
         tenants
     };
 }

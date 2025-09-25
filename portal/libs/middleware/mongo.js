@@ -19,7 +19,7 @@ async function mongo(req, _, next) {
     }
     req.unsafeDb = db;
     req.collection = (name) => db.collection(name);
-    req.detailsByAccountId = (id) => getDetailsByAccountId(id, db);
+    req.detailsByAccountId = async (id) => await getDetailsByAccountId(id, db);
     next();
 }
 
