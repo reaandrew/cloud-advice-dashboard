@@ -305,7 +305,11 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
                 allResources.push({
                     resourceId: doc.resource_id,
                     shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
-                    type: docType === "application" ? "ALB" : docType === "network" ? "NLB" : docType,
+                    type: (() => {
+                        if (docType === "application") return "ALB";
+                        if (docType === "network") return "NLB";
+                        return docType;
+                    })(),
                     scheme: doc.Configuration?.Scheme || "Unknown",
                     accountId: doc.account_id,
                     details: {
