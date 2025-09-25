@@ -43,7 +43,18 @@ class ModernLoadBalancersMetric extends DashboardMetric {
             // Don't increment modernLBs for classic ELBs
         }
         
-        return totalLBs === 0 ? 0 : Math.round((modernLBs / totalLBs) * 100);
+        // Return N/A if no load balancers exist
+        if (totalLBs === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all load balancers are modern (no classic ELBs)
+        const classicLBs = totalLBs - modernLBs;
+        if (classicLBs === 0) {
+            return 100;
+        }
+
+        return Math.round((modernLBs / totalLBs) * 100);
     }
 
     async getKeyDetail(req, year, month, day) {
@@ -77,7 +88,16 @@ class ModernLoadBalancersMetric extends DashboardMetric {
             // Don't increment modernLBs for classic ELBs
         }
         
+        // Return appropriate message for special cases
+        if (totalLBs === 0) {
+            return 'No load balancers to evaluate';
+        }
+
         const classicLBs = totalLBs - modernLBs;
+        if (classicLBs === 0) {
+            return `All ${totalLBs.toLocaleString()} load balancers are modern (ALB/NLB)`;
+        }
+
         return `${classicLBs.toLocaleString()} of ${totalLBs.toLocaleString()} load balancers using deprecated Classic ELB`;
     }
 }

@@ -14,22 +14,22 @@ class ActiveAlbsMetric extends DashboardMetric {
 
     async calculate(req, year, month, day) {
         const elbV2Collection = req.collection("elb_v2");
-        
+
         const elbV2Cursor = await elbV2Collection.find({
             year: year,
             month: month,
             day: day
         });
-        
+
         let totalALBs = 0;
         let activeALBs = 0;
-        
+
         for await (const doc of elbV2Cursor) {
             // Only count Application Load Balancers
             const type = doc.Configuration?.Type;
             if (type === 'application') {
                 totalALBs++;
-                
+
                 // Check if ALB is active (provisioning or active state)
                 const state = doc.Configuration?.State?.Code;
                 if (state === 'active' || state === 'provisioning') {
@@ -37,8 +37,19 @@ class ActiveAlbsMetric extends DashboardMetric {
                 }
             }
         }
-        
-        return totalALBs === 0 ? 0 : Math.round((activeALBs / totalALBs) * 100);
+
+        // Return N/A if no ALBs exist
+        if (totalALBs === 0) {
+            return 'N/A';
+        }
+
+        // Return 100% if all ALBs are active (no inactive ALBs)
+        const inactiveALBs = totalALBs - activeALBs;
+        if (inactiveALBs === 0) {
+            return 100;
+        }
+
+        return Math.round((activeALBs / totalALBs) * 100);
     }
 
     async getKeyDetail(req, year, month, day) {
@@ -96,7 +107,16 @@ class ActiveAlbsMetric extends DashboardMetric {
             }
         }
         
+        // Return appropriate message for special cases
+        if (totalALBs === 0) {
+            return 'No ALBs to evaluate';
+        }
+
         const inactiveALBs = totalALBs - activeALBs;
+        if (inactiveALBs === 0) {
+            return `All ${totalALBs.toLocaleString()} ALBs are active`;
+        }
+
         return `${inactiveALBs.toLocaleString()} of ${totalALBs.toLocaleString()} ALBs are inactive`;
     }
 }
