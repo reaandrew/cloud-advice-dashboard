@@ -60,7 +60,12 @@ router.get('/teams', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance/tagging" }],
+            policy_title: "Tagging Compliance by Team",
+            currentSection: "compliance",
+            currentPath: "/compliance/tagging/teams"
+        });
     }
 });
 
@@ -128,7 +133,16 @@ router.get('/details', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs,
+                { text: "Tagging", href: "/compliance/tagging" },
+                { text: "Teams", href: "/compliance/tagging/teams" },
+                { text: `${team || 'Team'} - ${resourceType || 'Resource'} - ${tag || 'Tag'}`, href: "#" }
+            ],
+            policy_title: `Missing ${tag || 'Tag'} Tags - ${team || 'Team'} Team`,
+            currentSection: "compliance",
+            currentPath: "/compliance/tagging/details"
+        });
     }
 });
 

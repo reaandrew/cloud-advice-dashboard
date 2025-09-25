@@ -41,7 +41,12 @@ router.get('/dimensions', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Auto Scaling", href: "/compliance/autoscaling" }],
+            policy_title: "Auto Scaling Group Dimensions",
+            currentSection: "compliance",
+            currentPath: "/compliance/autoscaling/dimensions"
+        });
     }
 });
 
@@ -112,7 +117,16 @@ router.get('/dimensions/details', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs,
+                { text: "Auto Scaling", href: "/compliance/autoscaling" },
+                { text: "Dimensions", href: "/compliance/autoscaling/dimensions" },
+                { text: `${team || 'Details'} - ${min || 'N/A'}/${max || 'N/A'}/${desired || 'N/A'}`, href: "#" }
+            ],
+            policy_title: `Auto Scaling Groups${team ? ` (${min}/${max}/${desired}) - ${team} Team` : ' - Details'}`,
+            currentSection: "compliance",
+            currentPath: "/compliance/autoscaling/dimensions/details"
+        });
     }
 });
 
@@ -145,7 +159,12 @@ router.get('/empty', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Auto Scaling", href: "/compliance/autoscaling" }],
+            policy_title: "Auto Scaling Groups with No Instances",
+            currentSection: "compliance",
+            currentPath: "/compliance/autoscaling/empty"
+        });
     }
 });
 

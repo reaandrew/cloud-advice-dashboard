@@ -67,7 +67,12 @@ router.get('/tls', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
+            policy_title: "Load Balancer TLS Configurations",
+            currentSection: "compliance",
+            currentPath: "/compliance/loadbalancers/tls"
+        });
     }
 });
 
@@ -127,7 +132,15 @@ router.get('/details', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs,
+                { text: "Load Balancers", href: "/compliance/loadbalancers" },
+                { text: `${team} - ${tlsVersion}`, href: "#" }
+            ],
+            policy_title: `Load Balancers with ${tlsVersion} - ${team} Team`,
+            currentSection: "compliance",
+            currentPath: "/compliance/loadbalancers/details"
+        });
     }
 });
 
@@ -169,7 +182,12 @@ router.get('/types', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
+            policy_title: "Load Balancer Types by Team",
+            currentSection: "compliance",
+            currentPath: "/compliance/loadbalancers/types"
+        });
     }
 });
 
@@ -240,7 +258,16 @@ router.get('/types/details', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs,
+                { text: "Load Balancers", href: "/compliance/loadbalancers" },
+                { text: "Types", href: "/compliance/loadbalancers/types" },
+                { text: `${team} - ${displayType}`, href: "#" }
+            ],
+            policy_title: `${displayType} Load Balancers - ${team} Team`,
+            currentSection: "compliance",
+            currentPath: "/compliance/loadbalancers/types/details"
+        });
     }
 });
 

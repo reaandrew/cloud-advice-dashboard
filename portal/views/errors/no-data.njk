@@ -1,0 +1,49 @@
+{% extends "../template.njk" %}
+
+{% block content %}
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        {% if breadcrumbs %}
+            {% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
+            {{ govukBreadcrumbs({
+                items: breadcrumbs
+            }) }}
+        {% endif %}
+
+        <h1 class="govuk-heading-l">{{ policy_title or "No Data Available" }}</h1>
+
+        {% from "govuk/components/warning-text/macro.njk" import govukWarningText %}
+        {{ govukWarningText({
+            text: "There is currently no data available for this report.",
+            iconFallbackText: "Warning"
+        }) }}
+
+        <p class="govuk-body">This could be because:</p>
+
+        <ul class="govuk-list govuk-list--bullet">
+            <li>No AWS resources have been scanned yet</li>
+            <li>The data collection process has not completed</li>
+            <li>There are no resources matching the selected criteria</li>
+            <li>The data may still be processing</li>
+        </ul>
+
+        <h2 class="govuk-heading-m">What you can do</h2>
+
+        <ul class="govuk-list govuk-list--bullet">
+            <li>Check back later once the data collection has completed</li>
+            <li>Verify that AWS resources exist in your accounts</li>
+            <li>Contact your administrator if this problem persists</li>
+        </ul>
+
+        <p class="govuk-body">
+            <a href="/" class="govuk-link">Return to overview</a>
+        </p>
+
+        {% if currentSection == "compliance" %}
+        <p class="govuk-body">
+            <a href="/compliance" class="govuk-link">View other compliance reports</a>
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

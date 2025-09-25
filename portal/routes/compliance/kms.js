@@ -33,7 +33,12 @@ router.get('/', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs, { text: "KMS Keys", href: "/compliance/kms" }],
+            policy_title: "KMS Key Ages",
+            currentSection: "compliance",
+            currentPath: "/compliance/kms"
+        });
     }
 });
 
@@ -107,7 +112,15 @@ router.get('/details', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.render('errors/no-data.njk', {
+            breadcrumbs: [...complianceBreadcrumbs,
+                { text: "KMS Keys", href: "/compliance/kms" },
+                { text: "KMS Key Details", href: "#" }
+            ],
+            policy_title: "KMS Key Details",
+            currentSection: "compliance",
+            currentPath: "/compliance/kms/details"
+        });
     }
 });
 
