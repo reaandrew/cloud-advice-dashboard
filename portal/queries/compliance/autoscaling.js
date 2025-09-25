@@ -51,7 +51,8 @@ async function processAutoscalingDimensions(req, year, month, day) {
     return teamDimensions;
 }
 
-async function getAutoscalingDimensionDetails(req, year, month, day, team, min, max, desired) {
+async function getAutoscalingDimensionDetails(req, params) {
+    const { year, month, day, team, min, max, desired } = params;
     const allResources = [];
 
     const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });

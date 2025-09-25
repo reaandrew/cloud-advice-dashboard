@@ -59,7 +59,15 @@ router.get('/dimensions/details', async (req, res) => {
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
 
-        const allResources = await asgQueries.getAutoscalingDimensionDetails(req, latestYear, latestMonth, latestDay, team, min, max, desired);
+        const allResources = await asgQueries.getAutoscalingDimensionDetails(req, {
+            year: latestYear,
+            month: latestMonth,
+            day: latestDay,
+            team,
+            min,
+            max,
+            desired
+        });
 
         const filteredResources = search ?
             allResources.filter(r =>
