@@ -59,17 +59,15 @@ function createAccountScopedCollectionProxy(db, accountIds) {
  * The caller must implement the functions to get account ids that are scoped to users and to get details about the account by using the acconut id.
  *
  * @param {function(Object<string, *>, Db): Promise<Array<string>>} getAccountIds
- * @param {function(string, Db): Promise<AccountDetails>} getDetailsByAccountId
  * @returns {function(*,*,*)}
  */
-function createAuthorizationMiddleware(getAccountIds, getDetailsByAccountId) {
+function createAuthorizationMiddleware(getAccountIds) {
     return async function authorizationMiddleware(req, _, next) {
         if (!req.oidc.user) {
             next();
             return;
         }
         req.collection = createAccountScopedCollectionProxy(req.unsafeDb, await getAccountIds(req.oidc.user, req.unsafeDb));
-        req.detailsByAccountId = async (id) => await getDetailsByAccountId(id, req.unsafeDb);
         next();
     }
 }

@@ -69,41 +69,39 @@ features:
 development:
   debug: true
 
-# Account Mappings - Map AWS account IDs to team information
+# Account mappings when using the default authorization implementation.
 account_mappings:
-  # Use the actual keys from your data: 'Application Env', 'Code', 'ECS Account', 'OwnerId', 'Service', 'Team'
-  - OwnerId: "930086875935"
+  # Use the actual keys from your data: 'AccountId', 'Team', 'Tenant.Id', 'Tenant.Description', 'Environment'
+  - AccountId: "930086875935"
     Team: "DevOps"
-    Service: "Development Operations"
-    Code: "DOPS947"
-    "Application Env": "development"
-    "ECS Account": "backup"
-    description: "DevOps team AWS account"
-  - OwnerId: "868570220212"
+    Tenant:
+      Id: "DVOP116"
+      Name: "HKL Ops Team"
+      Description: "DevOps internal team for HKL products"
+    Environment: "development"
+  - AccountId: "868570220212"
     Team: "Security"
-    Service: "Security Ops"
-    Code: "SECU198"
-    "Application Env": "sandbox"
-    "ECS Account": "secondary"
-    description: "Security team AWS account"
-  - OwnerId: "633229661713"
+    Tenant:
+      Id: "SECU198"
+      Name: "SecuHeroes"
+      Description: "Security team AWS account"
+    Environment: "production"
+  - AccountId: "633229661713"
     Team: "CloudOps"
-    Service: "Cloud Operations"
-    Code: "CLOP794"
-    "Application Env": "testing"
-    "ECS Account": "disaster-recovery"
-    description: "CloudOps team AWS account"
-  - OwnerId: "602276804025"
+    Tenant:
+      Id: "CLOP794"
+      Name: "Clouders"
+      Description: "CloudOps team AWS account for Disaster Recovery"
+    Environment: "test"
+  - AccountId: "602276804025"
     Team: "ML"
-    Service: "ML Services"
-    Code: "MLSV079"
-    "Application Env": "production"
-    "ECS Account": "primary"
-    description: "ML team AWS account"
+    Tenant:
+      Id: "MLSV079"
+      Description: "ML team AWS account"
   - OwnerId: "016525808631"
     Team: "ML"
-    Service: "ML Services"
-    Code: "MLSV908"
-    "Application Env": "testing"
-    "ECS Account": "backup"
-    description: "ML team AWS account"
+    Tenant:
+      Id: "MLSV908"
+      Name: "ML Monsters"
+      Description: "ML team AWS account"
+    Environment: "pre-production"

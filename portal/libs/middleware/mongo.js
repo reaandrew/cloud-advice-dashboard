@@ -1,6 +1,7 @@
 const { MongoClient } = require('mongodb');
 const config = require('../config-loader');
 const logger = require('../logger');
+const getDetailsByAccountId = require('./getDetailsByAccountId');
 
 let db = undefined;
 
@@ -18,18 +19,7 @@ async function mongo(req, _, next) {
     }
     req.unsafeDb = db;
     req.collection = (name) => db.collection(name);
-    req.detailsByAccountId = (accountId) => {
-        const mappings = config.get('account_mappings', []);
-        const mapping = mappings.find(m => m.OwnerId === accountId);
-        if (mapping) {
-            return {
-                environments: [mapping["Application Env"] || "unknown"],
-                teams: [mapping.Team || "Unknown"],
-                tenants: [mapping.Service || "unknown"]
-            };
-        }
-        return { environments: [], teams: ["Unknown"], tenants: [] };
-    };
+    req.detailsByAccountId = async (id) => await getDetailsByAccountId(id, db);
     next();
 }
 
