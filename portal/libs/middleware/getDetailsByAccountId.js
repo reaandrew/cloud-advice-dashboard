@@ -15,10 +15,10 @@ async function getDetailsByAccountId(id, _) {
 
     for (mapping of accountMappings) {
         if (mapping.AccountId != id) continue;
-        if (!teams.has(mapping.Team)) teams.push(mapping.Team);
-        if (!environments.has(mapping.Environments)) environments.push(mapping.Environments);
+        if (!teams.has(mapping.Team)) teams.add(mapping.Team);
+        if (!environments.has(mapping.Environments)) environments.add(mapping.Environments);
         if (!seenTenantIds.has(mapping.Tenant.Id)) {
-            seenTenantIds.push(mapping.Tenant.Id);
+            seenTenantIds.add(mapping.Tenant.Id);
             tenants.push(mapping.Tenants);
         }
     }
