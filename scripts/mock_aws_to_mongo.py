@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-from datetime import timezone
+from datetime import timezone, timedelta
 import random
 import string
 from dataclasses import dataclass
@@ -128,15 +128,19 @@ class Context:
     m: int
     d: int
 
-def gen_ec2_instances(n: int, ctx: Context) -> List[Dict]:
+def gen_ec2_instances(n: int, ami_ids: List[str], ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
         iid = f"i-{rand_hex(17)}"
         az = f"{ctx.region}{pick(list('abc'))}"
         sgid = f"sg-{rand_hex(8)}"
+
+        # Pick an AMI ID from the available ones, or generate if none available
+        image_id = pick(ami_ids) if ami_ids else f"ami-{rand_hex(8)}"
+
         cfg = {
             "InstanceId": iid,
-            "ImageId": f"ami-{rand_hex(8)}",
+            "ImageId": image_id,
             "InstanceType": pick(["t3.micro", "t3.small", "m5.large", "c6g.large"]),
             "PrivateIpAddress": f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}",
             "State": {"Code": 16, "Name": "running"},
@@ -147,6 +151,50 @@ def gen_ec2_instances(n: int, ctx: Context) -> List[Dict]:
             "LaunchTime": iso_now(),
             "Arn": arn_ec2_instance(iid, ctx.region, ctx.account),
             "Tags": [{"Key": "Name", "Value": f"mock-{rand_str(6)}"}],
+        }
+        out.append(cfg)
+    return out
+
+def gen_amis(n: int, ctx: Context) -> List[Dict]:
+    out = []
+    # Generate AMIs with various ages for testing
+    base_date = dt.datetime.now(timezone.utc)
+    for i in range(n):
+        ami_id = f"ami-{rand_hex(8)}"
+
+        # Create AMIs with different ages:
+        # 25% very recent (< 30 days)
+        # 25% recent (30-90 days)
+        # 25% old (90-180 days)
+        # 25% very old (> 180 days)
+        if i < n * 0.25:
+            days_old = random.randint(0, 30)
+        elif i < n * 0.5:
+            days_old = random.randint(31, 90)
+        elif i < n * 0.75:
+            days_old = random.randint(91, 180)
+        else:
+            days_old = random.randint(181, 365)
+
+        creation_date = base_date - dt.timedelta(days=days_old)
+
+        cfg = {
+            "ImageId": ami_id,
+            "Name": f"mock-ami-{rand_str(6)}",
+            "Description": f"Mock AMI created {days_old} days ago",
+            "Architecture": pick(["x86_64", "arm64"]),
+            "CreationDate": creation_date.isoformat(),
+            "ImageType": "machine",
+            "Public": False,
+            "OwnerId": ctx.account,
+            "State": "available",
+            "RootDeviceName": "/dev/sda1",
+            "RootDeviceType": "ebs",
+            "VirtualizationType": "hvm",
+            "Tags": [
+                {"Key": "Name", "Value": f"mock-ami-{rand_str(6)}"},
+                {"Key": "Environment", "Value": pick(["dev", "staging", "prod"])},
+            ],
         }
         out.append(cfg)
     return out
@@ -391,6 +439,7 @@ def gen_tags(resources: List[str]) -> List[Dict]:
 
 RESOURCE_ID_MAP = {
     "ec2": "InstanceId",
+    "amis": "ImageId",
     "autoscaling_groups": "AutoScalingGroupARN",
     "elb_v2": "LoadBalancerArn",
     "elb_classic": "LoadBalancerName",
@@ -628,6 +677,7 @@ def main():
 
     # Counts (apply per account) - increased defaults
     ap.add_argument("--ec2", type=int, default=50, help="Max EC2 instances (default: 50)")
+    ap.add_argument("--amis", type=int, default=20, help="Max AMIs (default: 20)")
     ap.add_argument("--asg", type=int, default=15, help="Max Auto Scaling Groups (default: 15)")
     ap.add_argument("--elb", type=int, default=20, help="Max ELBv2 load balancers (default: 20)")
     ap.add_argument("--classic-elb", type=int, default=10, help="Max Classic ELBs (default: 10)")
@@ -668,6 +718,7 @@ def main():
         # Determine resource counts (random or fixed)
         if args.random:
             ec2_count = random.randint(1, args.ec2)
+            amis_count = random.randint(1, args.amis)
             volumes_count = random.randint(1, args.volumes)
             asg_count = random.randint(1, args.asg)
             classic_elb_count = random.randint(1, args.classic_elb)
@@ -681,6 +732,7 @@ def main():
             sg_count = random.randint(1, args.sg)
         else:
             ec2_count = args.ec2
+            amis_count = args.amis
             volumes_count = args.volumes
             asg_count = args.asg
             classic_elb_count = args.classic_elb
@@ -694,7 +746,11 @@ def main():
             sg_count = args.sg
 
         # Generate for this account
-        ec2_cfgs = gen_ec2_instances(ec2_count, ctx)
+        # Generate AMIs first so EC2 instances can reference them
+        ami_cfgs = gen_amis(amis_count, ctx)
+        ami_ids = [ami["ImageId"] for ami in ami_cfgs]
+
+        ec2_cfgs = gen_ec2_instances(ec2_count, ami_ids, ctx)
         vols_cfgs = gen_volumes(volumes_count, ctx)
         asg_cfgs = gen_autoscaling_groups(asg_count, ec2_cfgs, ctx)
         elb_classic_cfgs = gen_elb_classic(classic_elb_count, ctx)
@@ -726,6 +782,7 @@ def main():
             total_counts[coll_name] = total_counts.get(coll_name, 0) + len(docs)
             print(f"[{acct_id}] Inserted {len(docs):4d} → {coll_name}")
 
+        insert_cfgs("amis", ami_cfgs)
         insert_cfgs("ec2", ec2_cfgs)
         insert_cfgs("volumes", vols_cfgs)
         insert_cfgs("autoscaling_groups", asg_cfgs)
