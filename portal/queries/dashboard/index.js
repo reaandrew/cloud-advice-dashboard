@@ -166,17 +166,26 @@ const dashboardRegistry = new DashboardRegistry();
 async function getLatestDate(req) {
     const collections = ['tags', 'elb_v2', 'rds', 'kms_keys'];
     let latestDate = null;
-    
+
+    // Get current date to filter by current year and month
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+
     for (const collectionName of collections) {
         try {
             const collection = req.collection(collectionName);
-            const date = await collection.findOne({}, {
+            // Only look for data in the current year and month
+            const date = await collection.findOne({
+                year: currentYear,
+                month: currentMonth
+            }, {
                 projection: { year: 1, month: 1, day: 1 },
-                sort: { year: -1, month: -1, day: -1 }
+                sort: { day: -1 }  // Just sort by day since year/month are fixed
             });
-            
-            if (date && (!latestDate || 
-                date.year > latestDate.year || 
+
+            if (date && (!latestDate ||
+                date.year > latestDate.year ||
                 (date.year === latestDate.year && date.month > latestDate.month) ||
                 (date.year === latestDate.year && date.month === latestDate.month && date.day > latestDate.day))) {
                 latestDate = date;
@@ -185,7 +194,32 @@ async function getLatestDate(req) {
             console.error(`Error getting latest date from ${collectionName}:`, error);
         }
     }
-    
+
+    // If no data found in current month, fall back to previous month
+    if (!latestDate) {
+        const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+        const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+        for (const collectionName of collections) {
+            try {
+                const collection = req.collection(collectionName);
+                const date = await collection.findOne({
+                    year: prevYear,
+                    month: prevMonth
+                }, {
+                    projection: { year: 1, month: 1, day: 1 },
+                    sort: { day: -1 }
+                });
+
+                if (date && (!latestDate || date.day > latestDate.day)) {
+                    latestDate = date;
+                }
+            } catch (error) {
+                console.error(`Error getting latest date from ${collectionName} (fallback):`, error);
+            }
+        }
+    }
+
     return latestDate;
 }
 

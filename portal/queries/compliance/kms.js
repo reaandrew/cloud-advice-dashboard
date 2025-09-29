@@ -1,8 +1,33 @@
 async function getLatestKmsDate(req) {
-    return await req.collection("kms_key_metadata").findOne({}, {
+    // Get current date to filter by current year and month
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+
+    // First try current month
+    let date = await req.collection("kms_key_metadata").findOne({
+        year: currentYear,
+        month: currentMonth
+    }, {
         projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
+        sort: { day: -1 }  // Just sort by day since year/month are fixed
     });
+
+    // If no data found in current month, fall back to previous month
+    if (!date) {
+        const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+        const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+        date = await req.collection("kms_key_metadata").findOne({
+            year: prevYear,
+            month: prevMonth
+        }, {
+            projection: { year: 1, month: 1, day: 1 },
+            sort: { day: -1 }
+        });
+    }
+
+    return date;
 }
 
 async function getKmsKeysForDate(req, year, month, day, projection = null) {
