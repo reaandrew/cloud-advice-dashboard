@@ -4,6 +4,7 @@ const router = express.Router();
 
 // Import dashboard queries
 const { getDashboardMetrics } = require('../queries/dashboard');
+const { requiresAuth } = require('express-openid-connect');
 
 // Route for the homepage
 router.get('/', async (req, res) => {
@@ -13,13 +14,14 @@ router.get('/', async (req, res) => {
         return;
     }
     try {
-        const dashboardMetrics = await getDashboardMetrics(req);
+        const authenticated = (config.get("features.auth") && !!req.oidc.user) || !config.get("features.auth")
+        const dashboardMetrics = authenticated ? await getDashboardMetrics(req) : null;
 
         res.render('overview.njk', {
+            authenticated,
             currentSection: 'overview',
             currentPath: '/',
             dashboardMetrics,
-            enableCompliance
         });
     } catch (error) {
         console.error('Error fetching dashboard metrics:', error);
