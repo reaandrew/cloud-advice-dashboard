@@ -12,10 +12,14 @@ logger.debug('Creating express app...');
 const app = express();
 logger.debug('✓ Express app created');
 
-// Configure middleware
-app.use(require('./libs/middleware/mongo.js'));
+// Configure database
+if (config.get("features.compliance", true)) {
+    app.use(require('./libs/middleware/mongo.js'));
+}
+
+// Configure auth
 let requiresAuth = () => (_, __, next) => { next(); };
-if (config.get('features.auth')) {
+if (config.get('features.auth', false)) {
     requiresAuth = require('express-openid-connect').requiresAuth;
     switch (config.get('auth.type')) {
         case 'mock':
@@ -43,11 +47,12 @@ const nunjucksEnv = nunjucks.configure([
     autoescape: true,
     express: app,
     cache: config.get('frontend.templates.cache', false),
+
 });
 nunjucksEnv.addGlobal('govukRebrand', true);
 nunjucksEnv.addGlobal('serviceName', config.get('app.name', 'Cloud Advice Dashboard'));
 nunjucksEnv.addGlobal('logoUrl', config.get('frontend.govuk.logo_url', '/assets/LOGO.png'));
-nunjucksEnv.addGlobal('config', config);
+nunjucksEnv.addGlobal('complianceEnabled', config.get('features.compliance', false));
 logger.debug('✓ Nunjucks configured');
 
 // Serve GOV.UK Frontend assets
@@ -84,13 +89,16 @@ logger.debug('✓ Route modules loaded');
 // Use the routes
 logger.debug('Configuring routes...');
 app.use('/', indexRoutes);
-app.use('/compliance', requiresAuth(), complianceRoutes);
 app.use('/policies', policiesRoutes);
-app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
-app.use('/compliance/database', requiresAuth(), databaseRoutes);
-app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
-app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
-app.use('/compliance/kms', requiresAuth(), kmsRoutes);
+if (config.get("features.compliance", true)) {
+    logger.debug('✓ Compliance Routes configured');
+    app.use('/compliance', requiresAuth(), complianceRoutes);
+    app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
+    app.use('/compliance/database', requiresAuth(), databaseRoutes);
+    app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
+    app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
+    app.use('/compliance/kms', requiresAuth(), kmsRoutes);
+}
 logger.debug('✓ Routes configured');
 
 // Error handling middleware

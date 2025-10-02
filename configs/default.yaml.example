@@ -64,6 +64,7 @@ monitoring:
 # Feature Flags
 features:
   auth: false
+  compliance: true
 
 # Development Settings
 development:
