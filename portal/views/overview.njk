@@ -6,7 +6,7 @@
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
         <h1 class="govuk-heading-xl">{{ serviceName }}</h1>
-        
+
         <p class="govuk-body-l">
             Welcome to the Cloud Advice Dashboard. This application provides insights into your cloud infrastructure compliance and policy management.
         </p>
@@ -20,7 +20,7 @@
               {% endif %}
             </div>
           </div>
-          
+
           <!-- Dashboard metrics grid -->
           {% if dashboardMetrics.metrics %}
             {% set metricsArray = [] %}
@@ -28,12 +28,12 @@
               {% set metricsArray = (metricsArray.push(metric), metricsArray) %}
             {% endfor %}
             {% set sortedMetrics = metricsArray | sort(false, false, 'order') %}
-            
+
             {% for metric in sortedMetrics %}
               {% if loop.index0 % 4 == 0 %}
                 <div class="govuk-grid-row govuk-!-margin-bottom-6" style="display: flex; flex-wrap: wrap; max-width: 100%; box-sizing: border-box;">
               {% endif %}
-              
+
               <div class="govuk-grid-column-one-quarter" style="display: flex; box-sizing: border-box; max-width: 25%;">
                 <div class="govuk-summary-card" style="flex: 1; display: flex; flex-direction: column; box-sizing: border-box;">
                   <div class="govuk-summary-card__title-wrapper">
@@ -49,7 +49,7 @@
                       {% elif metric.colorScheme == 'error' %}
                         {% set colorClass = 'var(--govuk-colour-red)' %}
                       {% endif %}
-                      
+
                       <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: {{ colorClass }};">
                         {{ metric.formattedValue or (metric.value + '%') }}
                       </div>
@@ -63,7 +63,7 @@
                   </div>
                 </div>
               </div>
-              
+
               {% if loop.index % 4 == 0 or loop.last %}
                 {% for i in range(loop.index % 4, 4) %}
                   {% if not loop.last %}
@@ -76,13 +76,13 @@
               {% endif %}
             {% endfor %}
           {% endif %}
-          
+
           <!-- Key Metrics Table -->
           {% if dashboardMetrics.metrics %}
           <div class="govuk-grid-row govuk-!-margin-top-6">
             <div class="govuk-grid-column-full">
               <h2 class="govuk-heading-l">Key Metrics</h2>
-              
+
               <table class="govuk-table">
                 <thead class="govuk-table__head">
                   <tr class="govuk-table__row">
@@ -122,8 +122,18 @@
             </div>
           </div>
           {% endif %}
-          
+
           <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
+        {% elif authenticated == false %}
+            <div class="govuk-grid-row">
+              <div class="govuk-grid-column-full">
+                <h2 class="govuk-heading-l">Compliance Overview</h2>
+                <p class="govuk-body-l">To view your personalised dashboard, please sign in. Signing in helps us keep your data secure and tailored to your needs.</p>
+              </div>
+            </div>
+
+            {% from "govuk/components/button/macro.njk" import govukButton %}
+            {{ govukButton({ text: "Sign In", href: "/signin?redirect=/" }) }}
         {% else %}
           <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
@@ -160,34 +170,35 @@
 
           <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
         {% endif %}
+        {% if authenticated == true %}
+          <div class="govuk-grid-row">
+                  <div class="govuk-grid-column-one-half">
+                      <div class="govuk-panel govuk-panel--confirmation">
+                          <h2 class="govuk-panel__title">
+                              <a href="/compliance" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
+                                  Reports
+                              </a>
+                          </h2>
+                          <div class="govuk-panel__body">
+                              View compliance reports and audit findings for your cloud resources.
+                          </div>
+                      </div>
+                  </div>
 
-        <div class="govuk-grid-row">
-            <div class="govuk-grid-column-one-half">
-                <div class="govuk-panel govuk-panel--confirmation">
-                    <h2 class="govuk-panel__title">
-                        <a href="/compliance" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
-                            Reports
-                        </a>
-                    </h2>
-                    <div class="govuk-panel__body">
-                        View compliance reports and audit findings for your cloud resources.
-                    </div>
-                </div>
-            </div>
-
-            <div class="govuk-grid-column-one-half">
-                <div class="govuk-panel govuk-panel--confirmation">
-                    <h2 class="govuk-panel__title">
-                        <a href="/policies" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
-                            Policies
-                        </a>
-                    </h2>
-                    <div class="govuk-panel__body">
-                        Access policy documents and governance guidelines.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                  <div class="govuk-grid-column-one-half">
+                      <div class="govuk-panel govuk-panel--confirmation">
+                          <h2 class="govuk-panel__title">
+                              <a href="/policies" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
+                                  Policies
+                              </a>
+                          </h2>
+                          <div class="govuk-panel__body">
+                              Access policy documents and governance guidelines.
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        {% endif %}
 </div>
 {% endblock %}

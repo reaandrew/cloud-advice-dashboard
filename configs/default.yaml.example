@@ -11,6 +11,7 @@ app:
 auth:
   type: "oidc"  # Options: mock, oidc
   mock:
+    silent_login: false # Simulate silent logins with auth broker
     groups: []
   oidc:
     client_id: ""  # OIDC_CLIENT_ID
@@ -64,6 +65,7 @@ monitoring:
 # Feature Flags
 features:
   auth: false
+  compliance: true
 
 # Development Settings
 development:

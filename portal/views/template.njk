@@ -39,8 +39,10 @@ body {
   </button>
 </header>
 <nav class="app-nav" aria-label="menu">
+  {% if complianceEnabled %}
   <a class="app-link{% if currentSection == 'overview' %} app-link--current{% endif %}" href="/">Overview</a>
   <a class="app-link{% if currentSection == 'compliance' %} app-link--current{% endif %}" href="/compliance">Reports</a>
+  {% endif %}
   <a class="app-link{% if currentSection == 'policies' %} app-link--current{% endif %}" href="/policies">Policies</a>
 </nav>
 {% endblock %}

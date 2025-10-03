@@ -12,19 +12,28 @@ logger.debug('Creating express app...');
 const app = express();
 logger.debug('✓ Express app created');
 
-// Configure middleware
-app.use(require('./libs/middleware/mongo.js'));
+// Configure database
+if (config.get('features.compliance', true)) {
+    app.use(require('./libs/middleware/mongo.js'));
+}
+
+// Configure auth
+let attemptSilentLogin = () => (_, __, next) => { next(); };
 let requiresAuth = () => (_, __, next) => { next(); };
-if (config.get('features.auth')) {
-    requiresAuth = require('express-openid-connect').requiresAuth;
+if (config.get('features.auth', false)) {
     switch (config.get('auth.type')) {
         case 'mock':
-            logger.debug("Using mock auth middleware")
-            app.use(require('./libs/middleware/authenticationMock.js'));
+            logger.debug('Using mock auth middleware');
+            const authMock = require('./libs/middleware/authenticationMock.js');
+            app.use(authMock.auth);
+            attemptSilentLogin = authMock.attemptSilentLogin;
+            requiresAuth = authMock.requiresAuth;
             break;
         case 'oidc':
-            logger.debug("Using oidc auth middleware")
+            logger.debug('Using oidc auth middleware')
             app.use(require('./libs/middleware/authentication.js'));
+            attemptSilentLogin = require('express-openid-connect').attemptSilentLogin;
+            requiresAuth = require('express-openid-connect').requiresAuth;
             break;
         default:
             logger.error(`Failed to setup auth. Unknown auth type: ${config.get('auth.type')}`);
@@ -43,11 +52,12 @@ const nunjucksEnv = nunjucks.configure([
     autoescape: true,
     express: app,
     cache: config.get('frontend.templates.cache', false),
+
 });
 nunjucksEnv.addGlobal('govukRebrand', true);
 nunjucksEnv.addGlobal('serviceName', config.get('app.name', 'Cloud Advice Dashboard'));
 nunjucksEnv.addGlobal('logoUrl', config.get('frontend.govuk.logo_url', '/assets/LOGO.png'));
-nunjucksEnv.addGlobal('config', config);
+nunjucksEnv.addGlobal('complianceEnabled', config.get('features.compliance', false));
 logger.debug('✓ Nunjucks configured');
 
 // Serve GOV.UK Frontend assets
@@ -83,14 +93,29 @@ logger.debug('✓ Route modules loaded');
 
 // Use the routes
 logger.debug('Configuring routes...');
-app.use('/', indexRoutes);
-app.use('/compliance', requiresAuth(), complianceRoutes);
+app.use('/', attemptSilentLogin(), indexRoutes);
 app.use('/policies', policiesRoutes);
-app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
-app.use('/compliance/database', requiresAuth(), databaseRoutes);
-app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
-app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
-app.use('/compliance/kms', requiresAuth(), kmsRoutes);
+if (config.get('features.auth', false)) {
+    const allowedRedirects = new Set(['/','/compliance','/policies']);
+    app.use('/signin', requiresAuth(), (req, res) => {
+        const redirect = req.query.redirect;
+        if (allowedRedirects.has(redirect)) {
+            res.redirect(redirect);
+        } else {
+            res.redirect("/");
+        }
+    });
+    logger.debug('✓ Auth Routes configured');
+}
+if (config.get('features.compliance', true)) {
+    app.use('/compliance', requiresAuth(), complianceRoutes);
+    app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
+    app.use('/compliance/database', requiresAuth(), databaseRoutes);
+    app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
+    app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
+    app.use('/compliance/kms', requiresAuth(), kmsRoutes);
+    logger.debug('✓ Compliance Routes configured');
+}
 logger.debug('✓ Routes configured');
 
 // Error handling middleware
@@ -122,7 +147,7 @@ app.use((req, res, _) => {
 // 500 error handler - must be last middleware
 app.use((err, req, res, next) => {
     // Log the error
-    if (err["message"] !== undefined) {
+    if (err['message'] !== undefined) {
         logger.error(`Application error`, { message: err.message, stack: err.stack });
     } else {
         logger.error(`Application error`, err);
