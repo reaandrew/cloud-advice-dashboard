@@ -96,9 +96,14 @@ logger.debug('Configuring routes...');
 app.use('/', attemptSilentLogin(), indexRoutes);
 app.use('/policies', policiesRoutes);
 if (config.get('features.auth', false)) {
+    const allowedRedirects = new Set(['/','/compliance','/policies']);
     app.use('/signin', requiresAuth(), (req, res) => {
-        const allowedRedirects = new Set(['/','/compliance','/policies']);
-        res.redirect(allowedRedirects.has(req.query.redirect) ? req.query.redirect : "/");
+        const redirect = req.query.redirect;
+        if (allowedRedirects.has(redirect)) {
+            res.redirect(redirect);
+        } else {
+            res.redirect("/");
+        }
     });
     logger.debug('✓ Auth Routes configured');
 }
