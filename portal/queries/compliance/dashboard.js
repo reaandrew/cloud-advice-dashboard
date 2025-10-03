@@ -1,26 +1,11 @@
 const { mandatoryTags } = require('../../utils/shared');
 const { get } = require('../../libs/config-loader');
+const { getLatestDateAcrossCollections } = require('../../utils/getLatestDate');
 
 async function getLatestDate(req) {
     // Get the latest date across all collections
     const collections = ['tags', 'elb_v2', 'rds', 'kms_keys'];
-    let latestDate = null;
-    
-    for (const collectionName of collections) {
-        const collection = req.collection(collectionName);
-        const date = await collection.findOne({}, {
-            projection: { year: 1, month: 1, day: 1 },
-            sort: { year: -1, month: -1, day: -1 }
-        });
-        if (date && (!latestDate || 
-            date.year > latestDate.year || 
-            (date.year === latestDate.year && date.month > latestDate.month) ||
-            (date.year === latestDate.year && date.month === latestDate.month && date.day > latestDate.day))) {
-            latestDate = date;
-        }
-    }
-    
-    return latestDate;
+    return getLatestDateAcrossCollections(req, collections);
 }
 
 async function getOverallCompliancePercentage(req, year, month, day) {

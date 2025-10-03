@@ -1,8 +1,7 @@
+const { getLatestDateForCollection } = require('../../utils/getLatestDate');
+
 async function getLatestKmsDate(req) {
-    return await req.collection("kms_key_metadata").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
+    return getLatestDateForCollection(req, "kms_key_metadata");
 }
 
 async function getKmsKeysForDate(req, year, month, day, projection = null) {

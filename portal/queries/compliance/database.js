@@ -1,10 +1,8 @@
 const { checkDatabaseDeprecation } = require('../../utils/shared');
+const { getLatestDateForCollection } = require('../../utils/getLatestDate');
 
 async function getLatestRdsDate(req) {
-    return await req.collection("rds").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
+    return getLatestDateForCollection(req, "rds");
 }
 
 async function getRdsForDate(req, year, month, day, projection = null) {
