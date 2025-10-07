@@ -1,7 +1,7 @@
 const { MongoClient } = require('mongodb');
 const config = require('../config-loader');
 const logger = require('../logger');
-const getDetailsByAccountId = require('./getDetailsByAccountId');
+const { getDetailsByAccountId, getDetailsForAllAccounts } = require('./getDetailsByAccountId');
 
 let db = undefined;
 
@@ -20,6 +20,8 @@ async function mongo(req, _, next) {
     req.unsafeDb = db;
     req.collection = (name) => db.collection(name);
     req.detailsByAccountId = async (id) => await getDetailsByAccountId(id, db);
+    req.getDetailsForAllAccounts = async () => await getDetailsForAllAccounts(db);
+    
     next();
 }
 

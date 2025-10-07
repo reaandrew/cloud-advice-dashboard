@@ -52,10 +52,12 @@ async function processTeamsTagCompliance(req, cursor) {
 
     const bucketStartsWithAccountId = arn => /^\d{12}/.test((arn.split(":::")[1] || ""));
 
+    const results = await req.getDetailsForAllAccounts();
+
     for await (const doc of cursor) {
         if (doc.resource_type === "bucket" && bucketStartsWithAccountId(doc.resource_id)) continue;
 
-        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
+	const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         const resourceType = doc.resource_type || "Unknown";
 
