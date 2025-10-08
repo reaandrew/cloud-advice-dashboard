@@ -1,0 +1,30 @@
+services:
+  portal:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: docker.io/library/mongo:8.0-noble
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - 27017:27017
+
+  mongo-express:
+    image: docker.io/library/mongo-express:1.0.2-20-alpine3.19
+    restart: always
+    ports:
+      - 9090:8081
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH_ENABLED: true
+      ME_CONFIG_BASICAUTH_USERNAME: mongoexpressuser
+      ME_CONFIG_BASICAUTH_PASSWORD: mongoexpresspass
+
+volumes:
+  mongo-data:
