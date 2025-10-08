@@ -1,11 +1,8 @@
 const { mandatoryTags } = require('../../utils/shared');
+const { getLatestDateForCollection } = require('../../utils/getLatestDate');
 
 async function getLatestTagsDate(req) {
-    const collection = await req.collection("tags");
-    return await collection.findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
+    return getLatestDateForCollection(req, "tags");
 }
 
 async function getTagsForDate(req, year, month, day) {

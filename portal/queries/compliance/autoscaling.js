@@ -1,8 +1,7 @@
+const { getLatestDateForCollection } = require('../../utils/getLatestDate');
+
 async function getLatestAutoscalingDate(req) {
-    return await req.collection("autoscaling_groups").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
+    return getLatestDateForCollection(req, "autoscaling_groups");
 }
 
 async function getAutoscalingGroupsForDate(req, year, month, day, projection = null) {

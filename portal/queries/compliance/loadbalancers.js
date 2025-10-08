@@ -1,8 +1,7 @@
+const { getLatestDateForCollection } = require('../../utils/getLatestDate');
+
 async function getLatestElbDate(req) {
-    return await req.collection("elb_v2").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
+    return getLatestDateForCollection(req, "elb_v2");
 }
 
 async function getElbV2ForDate(req, year, month, day, projection = null) {

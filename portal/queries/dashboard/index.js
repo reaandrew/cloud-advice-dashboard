@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { getLatestDateAcrossCollections } = require('../../utils/getLatestDate');
 
 /**
  * Dashboard Registry
@@ -165,28 +166,7 @@ const dashboardRegistry = new DashboardRegistry();
  */
 async function getLatestDate(req) {
     const collections = ['tags', 'elb_v2', 'rds', 'kms_keys'];
-    let latestDate = null;
-    
-    for (const collectionName of collections) {
-        try {
-            const collection = req.collection(collectionName);
-            const date = await collection.findOne({}, {
-                projection: { year: 1, month: 1, day: 1 },
-                sort: { year: -1, month: -1, day: -1 }
-            });
-            
-            if (date && (!latestDate || 
-                date.year > latestDate.year || 
-                (date.year === latestDate.year && date.month > latestDate.month) ||
-                (date.year === latestDate.year && date.month === latestDate.month && date.day > latestDate.day))) {
-                latestDate = date;
-            }
-        } catch (error) {
-            console.error(`Error getting latest date from ${collectionName}:`, error);
-        }
-    }
-    
-    return latestDate;
+    return getLatestDateAcrossCollections(req, collections);
 }
 
 /**
