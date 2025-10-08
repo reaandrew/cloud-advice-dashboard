@@ -5,29 +5,45 @@ const config = require('../config-loader.js');
  * @param {string} id
  * @returns {Promise<{environments: Array<string>, teams: Array<string>, tenants: Array<{ id: string, name: string, description: string}>}
  */
-async function getDetailsByAccountId(id, _) {
-    const environments = new Set();
-    const teams = new Set();
-    const tenants = [];
-    const seenTenantIds = new Set();
+function getDetailsByAccountId(id, _) {
+  const environments = new Set();
+  const teams = new Set();
+  const tenants = [];
+  const seenTenantIds = new Set();
 
-    const accountMappings = config.get('account_mappings', []);
+  const accountMappings = config.get('account_mappings', []);
 
-    for (mapping of accountMappings) {
-        if (mapping.AccountId != id) continue;
-        if (!teams.has(mapping.Team)) teams.add(mapping.Team);
-        if (!environments.has(mapping.Environments)) environments.add(mapping.Environments);
-        if (!seenTenantIds.has(mapping.Tenant.Id)) {
-            seenTenantIds.add(mapping.Tenant.Id);
-            tenants.push(mapping.Tenant);
-        }
+  for (mapping of accountMappings) {
+    if (mapping.AccountId != id) continue;
+    if (!teams.has(mapping.Team)) teams.add(mapping.Team);
+    if (!environments.has(mapping.Environments)) environments.add(mapping.Environments);
+    if (!seenTenantIds.has(mapping.Tenant.Id)) {
+      seenTenantIds.add(mapping.Tenant.Id);
+      tenants.push(mapping.Tenant);
     }
+  }
 
-    return {
-        environments: Array.from(environments),
-        teams: teams.size == 0 ? ["Unknown"] : Array.from(teams),
-        tenants
-    };
+  return {
+    environments: Array.from(environments),
+    teams: teams.size == 0 ? ["Unknown"] : Array.from(teams),
+    tenants
+  };
 }
 
-module.exports = getDetailsByAccountId;
+
+function getDetailsForAllAccounts(db) {
+  return (function () {
+    return {
+      findByAccountId: (account_id) => {
+        return getDetailsByAccountId(account_id, db)
+      }
+    }
+  })();
+}
+
+
+module.exports = {
+  getDetailsByAccountId: getDetailsByAccountId,
+  getDetailsForAllAccounts: getDetailsForAllAccounts
+};
+

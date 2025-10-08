@@ -20,13 +20,35 @@ A web application for monitoring AWS cloud compliance and providing policy advic
 
 ## Quick Start
 
-### Prerequisites
+### Docker Compose
+
+The quickest way to get up and running is by using docker compose:
+
+```sh
+docker-compose up
+```
+
+Once the services are up and running, you can see the database using the [mock_aws_to_mongo.py](./scripts/mock_aws_to_mongo.py) script.
+
+```
+python3 scripts/mock_aws_to_mongo.py \
+    --mongo-uri "mongodb://localhost:27017/" \
+    --db aws_data \
+    --region eu-west-2 \
+    --date 2025-08-12 \
+    --accounts 2 \
+    --ec2 10 --asg 3 --elb 3 --efs 2 --kms 5 --rds 2 --redshift 1 --zones 2 --buckets 4 --sg 6 --volumes 10
+```
+
+### Manual Installation
+
+#### Prerequisites
 
 - Node.js 20+ (required for semantic-release)
 - MongoDB instance with compliance data
 - (Optional) OIDC provider for authentication
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
@@ -41,11 +63,13 @@ cd portal && npm ci   # Portal dependencies
 ### Configuration
 
 1. Copy the example configuration:
+
    ```bash
    cp configs/default.yaml.example configs/default.yaml
    ```
 
 2. Edit `configs/default.yaml` with your settings:
+
    - MongoDB connection details
    - Authentication configuration (if enabling auth)
    - Mandatory tags for your organization
@@ -97,12 +121,12 @@ app:
 
 # Enable/disable major features
 features:
-  auth: false              # Enable authentication
-  compliance: true         # Enable compliance monitoring
+  auth: false # Enable authentication
+  compliance: true # Enable compliance monitoring
 
 # Authentication (when features.auth is true)
 auth:
-  type: "oidc"            # Options: mock, oidc
+  type: "oidc" # Options: mock, oidc
   oidc:
     client_id: ""
     client_secret: ""
@@ -114,7 +138,7 @@ database:
     host: "localhost"
     port: 27017
     database_name: "aws_data"
-    connection_string: ""  # Optional override
+    connection_string: "" # Optional override
 
 # Compliance policies
 compliance:
@@ -127,8 +151,8 @@ compliance:
 # Logging
 monitoring:
   logging:
-    level: "info"         # Options: debug, info, warn, error
-    format: "json"        # Options: json, console
+    level: "info" # Options: debug, info, warn, error
+    format: "json" # Options: json, console
 ```
 
 ### Environment Variables
@@ -158,7 +182,7 @@ For local development without an OIDC provider:
 
 ```yaml
 features:
-  auth: false  # No authentication required
+  auth: false # No authentication required
 ```
 
 Or with mock authentication:
@@ -169,7 +193,7 @@ features:
 auth:
   type: "mock"
   mock:
-    groups: ["admin", "team-alpha"]  # Simulated user groups
+    groups: ["admin", "team-alpha"] # Simulated user groups
 ```
 
 ### Production Mode (OIDC)
@@ -276,6 +300,7 @@ See individual query files in `portal/queries/compliance/` for specific field re
 ### Adding a New Compliance Policy
 
 1. **Create MongoDB query module**: `portal/queries/compliance/newpolicy.js`
+
    ```javascript
    async function getLatestDate(req) {
      const db = req.app.locals.mongodb;
@@ -285,12 +310,13 @@ See individual query files in `portal/queries/compliance/` for specific field re
    ```
 
 2. **Create route handler**: `portal/routes/compliance/newpolicy.js`
-   ```javascript
-   const express = require('express');
-   const router = express.Router();
-   const queries = require('../../queries/compliance/newpolicy');
 
-   router.get('/', async (req, res) => {
+   ```javascript
+   const express = require("express");
+   const router = express.Router();
+   const queries = require("../../queries/compliance/newpolicy");
+
+   router.get("/", async (req, res) => {
      // Route logic...
    });
 
@@ -298,9 +324,10 @@ See individual query files in `portal/queries/compliance/` for specific field re
    ```
 
 3. **Register route in app.js**:
+
    ```javascript
-   const newpolicyRoutes = require('./routes/compliance/newpolicy');
-   app.use('/compliance/newpolicy', requiresAuth(), newpolicyRoutes);
+   const newpolicyRoutes = require("./routes/compliance/newpolicy");
+   app.use("/compliance/newpolicy", requiresAuth(), newpolicyRoutes);
    ```
 
 4. **Create Nunjucks template**: `portal/views/policies/newpolicy/*.njk`
@@ -331,11 +358,13 @@ Breaking changes should include `BREAKING CHANGE:` in the commit body.
 The project uses [semantic-release](https://github.com/semantic-release/semantic-release) for automated versioning and releases.
 
 Releases are automatically created when:
+
 1. Changes are pushed to the `main` branch
 2. CI checks pass
 3. Conventional commits are present
 
 The release process:
+
 - Analyzes commit messages
 - Determines version bump (major/minor/patch)
 - Generates `CHANGELOG.md`
@@ -357,5 +386,6 @@ The release process:
 ## Support
 
 For issues and questions:
+
 - Open an issue on [GitHub](https://github.com/reaandrew/cloud-advice-dashboard/issues)
 - Refer to `CLAUDE.md` for detailed architecture documentation
