@@ -32,11 +32,13 @@ async function processDatabaseEngines(req, year, month, day) {
         return teamDatabases.get(t);
     };
 
+    const results = await req.getDetailsForAllAccounts();
+
     // Process RDS instances
     const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of rdsCursor) {
-        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
+        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration) {
             const engine = doc.Configuration.Engine || "Unknown";
@@ -50,7 +52,7 @@ async function processDatabaseEngines(req, year, month, day) {
     const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of redshiftCursor) {
-        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
+        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration) {
             const version = doc.Configuration.ClusterVersion || "Unknown";
@@ -65,11 +67,13 @@ async function processDatabaseEngines(req, year, month, day) {
 async function getDatabaseDetails(req, year, month, day, team, engine, version) {
     const allResources = [];
 
+    const results = await req.getDetailsForAllAccounts();
+
     if (engine !== "redshift") {
         const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of rdsCursor) {
-            if(!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
+            if(!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
                 const docEngine = doc.Configuration.Engine || "Unknown";
@@ -108,7 +112,7 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
         const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of redshiftCursor) {
-            if(!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
+            if(!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
                 const docVersion = doc.Configuration.ClusterVersion || "Unknown";
