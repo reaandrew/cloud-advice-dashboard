@@ -34,10 +34,12 @@ async function processAutoscalingDimensions(req, year, month, day) {
         return teamDimensions.get(t);
     };
 
+    const results = await req.getDetailsForAllAccounts();
+
     const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of asgCursor) {
-        const recs = (await req.detailsByAccountId(doc.account_id)).teams.map(ensureTeam);
+        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration) {
             const min = doc.Configuration.MinSize || 0;
@@ -55,10 +57,12 @@ async function getAutoscalingDimensionDetails(req, params) {
     const { year, month, day, team, min, max, desired } = params;
     const allResources = [];
 
+    const results = await req.getDetailsForAllAccounts();
+
     const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
     for await (const doc of asgCursor) {
-        if (!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
+        if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
         if (doc.Configuration) {
             const docMin = doc.Configuration.MinSize || 0;
@@ -97,10 +101,12 @@ async function getAutoscalingDimensionDetails(req, params) {
 async function countEmptyAutoscalingGroups(req, year, month, day) {
     const teamCounts = new Map();
 
+    const results = await req.getDetailsForAllAccounts();
+
     const asgCursor = await getEmptyAutoscalingGroups(req, year, month, day);
 
     for await (const doc of asgCursor) {
-        (await req.detailsByAccountId(doc.account_id)).teams.forEach(team => teamCounts.set(team, (teamCounts.get(team) || 0) + 1));
+        results.findByAccountId(doc.account_id).teams.forEach(team => teamCounts.set(team, (teamCounts.get(team) || 0) + 1));
     }
 
     return teamCounts;
