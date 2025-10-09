@@ -474,3 +474,4 @@ portal/libs/middleware/authorizationImpl.js
 portal/libs/middleware/authorizationImpl.test.js
 
 account_mappings.yaml
+ca-bundle.crt
