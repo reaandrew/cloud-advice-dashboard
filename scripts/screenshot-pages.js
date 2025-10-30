@@ -36,9 +36,9 @@ const DEVICES = {
     mobile: {
         // iPhone 15 Pro dimensions
         viewport: { width: 393, height: 852 },
-        deviceScaleFactor: 1,  // Use 1 to avoid scaling issues with frame
+        deviceScaleFactor: 1,  // Use 1 to avoid scaling issues
         suffix: '-mobile',
-        useFrame: true,
+        useFrame: false,  // No frame - show full scrollable content
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
         hasTouch: true
     }
