@@ -12,7 +12,14 @@
         <!-- Left-hand Navigation -->
         <div class="govuk-grid-column-one-third">
           <div class="app-split-pane__nav">
-            <nav class="app-subnav" aria-labelledby="app-subnav-heading">
+            <button class="app-mobile-menu-toggle govuk-button govuk-button--secondary"
+                    data-module="mobile-menu-toggle"
+                    aria-expanded="false"
+                    aria-controls="compliance-mobile-menu">
+              Menu
+              <span class="app-mobile-menu-toggle__icon"></span>
+            </button>
+            <nav class="app-subnav" id="compliance-mobile-menu" aria-labelledby="app-subnav-heading">
               <h2 class="govuk-visually-hidden" id="app-subnav-heading">Pages in this section</h2>
               {% for section in navigationSections %}
                 <h3 class="app-subnav__theme govuk-heading-m">{{ section.title }}</h3>
