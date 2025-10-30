@@ -47,12 +47,9 @@ router.get('/teams', async (req, res) => {
         });
 
         res.render('policies/tagging/teams.njk', {
-            breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance/tagging" }],
-            policy_title: "Tagging Compliance by Team",
-            menu_items: [
-                { href: "/compliance/tagging/teams", text: "Teams Overview" },
-                { href: "/compliance/tagging/services", text: "Services Overview" }
-            ],
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance" }],
+            policy_title: "Tagging",
+            menu_items: [],
             data,
             mandatoryTags,
             currentSection: "compliance",
@@ -61,8 +58,8 @@ router.get('/teams', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.render('errors/no-data.njk', {
-            breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance/tagging" }],
-            policy_title: "Tagging Compliance by Team",
+            breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance" }],
+            policy_title: "Tagging",
             currentSection: "compliance",
             currentPath: "/compliance/tagging/teams"
         });

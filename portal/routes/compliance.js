@@ -3,14 +3,15 @@ const router = express.Router();
 
 // Import shared utilities
 const { complianceBreadcrumbs } = require('../utils/shared');
+const overviewQueries = require('../queries/compliance/overview');
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     const navigationSections = [
         {
             title: "Compliance Overview",
             items: [
-                { text: "By Services", href: "#" },
-                { text: "By Teams", href: "#" }
+                { text: "By Tenants", href: "/compliance/tenants" },
+                { text: "By Teams", href: "/compliance/teams" }
             ]
         },
         {
@@ -30,12 +31,26 @@ router.get('/', (req, res) => {
         }
     ];
 
-    res.render('compliance.njk', {
-        breadcrumbs: complianceBreadcrumbs,
-        navigationSections: navigationSections,
-        currentSection: "compliance",
-        currentPath: "/compliance"
-    });
+    try {
+        const overview = await overviewQueries.getComplianceOverview(req);
+
+        res.render('compliance.njk', {
+            breadcrumbs: complianceBreadcrumbs,
+            navigationSections: navigationSections,
+            overview: overview,
+            currentSection: "compliance",
+            currentPath: "/compliance"
+        });
+    } catch (err) {
+        console.error('Error loading compliance overview:', err);
+        res.render('compliance.njk', {
+            breadcrumbs: complianceBreadcrumbs,
+            navigationSections: navigationSections,
+            overview: null,
+            currentSection: "compliance",
+            currentPath: "/compliance"
+        });
+    }
 });
 
 module.exports = router;

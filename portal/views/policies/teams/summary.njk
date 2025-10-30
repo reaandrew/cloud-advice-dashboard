@@ -1,0 +1,232 @@
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<h1 class="govuk-heading-l" id="top">{{ policy_title }}</h1>
+<p class="govuk-body">This page provides a comprehensive view of compliance metrics across all teams. Each table shows summary statistics for a different compliance area.</p>
+
+{% if teams %}
+    <p class="govuk-body">
+        <strong>Jump to section:</strong>
+        <a class="govuk-link" href="#tagging">Tagging</a> |
+        <a class="govuk-link" href="#database">Database</a> |
+        <a class="govuk-link" href="#loadbalancers">Load Balancers</a> |
+        <a class="govuk-link" href="#kms">KMS Keys</a> |
+        <a class="govuk-link" href="#autoscaling">Auto Scaling</a>
+    </p>
+
+    {# Tagging Compliance Table #}
+    <h2 class="govuk-heading-m" id="tagging">
+        Tagging Compliance
+        <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+    </h2>
+    <p class="govuk-body-s">
+        Shows the compliance status of resources with mandatory tags. Non-compliant resources are missing one or more required tags.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header" style="width: 25%">Team</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Total Resources</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Compliant</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Non-Compliant</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Compliance Rate</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for team in teams %}
+                {% if team.tagging.totalResources > 0 %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <strong>{{ team.teamName }}</strong>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.tagging.totalResources }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric" style="background-color: #f0f9f0;">
+                        {{ team.tagging.totalResources - team.tagging.nonCompliantResources }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric"{% if team.tagging.nonCompliantResources > 0 %} style="background-color: #fef2f2;"{% endif %}>
+                        {{ team.tagging.nonCompliantResources }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">
+                        {% if team.tagging.complianceRate != 'N/A' %}
+                            {{ team.tagging.complianceRate }}%
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# Database Compliance Table #}
+    <h2 class="govuk-heading-m" id="database">
+        Database Compliance
+        <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+    </h2>
+    <p class="govuk-body-s">
+        Shows the status of database instances. Deprecated databases are running versions that have reached end-of-support.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header" style="width: 25%">Team</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Total Databases</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Current Versions</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Deprecated Versions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for team in teams %}
+                {% if team.database.totalDatabases > 0 %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <strong>{{ team.teamName }}</strong>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.database.totalDatabases }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric" style="background-color: #f0f9f0;">
+                        {{ team.database.currentVersions }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric"{% if team.database.deprecatedDatabases > 0 %} style="background-color: #fef2f2;"{% endif %}>
+                        {{ team.database.deprecatedDatabases }}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# Load Balancer Compliance Table #}
+    <h2 class="govuk-heading-m" id="loadbalancers">
+        Load Balancer Compliance
+        <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+    </h2>
+    <p class="govuk-body-s">
+        Shows load balancer distribution and security status. Secure load balancers have HTTPS/TLS listeners configured.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header" style="width: 25%">Team</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Total LBs</th>
+                <th class="govuk-table__header govuk-table__header--numeric">ALB</th>
+                <th class="govuk-table__header govuk-table__header--numeric">NLB</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Classic</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Secure</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Secure Rate</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for team in teams %}
+                {% if team.loadbalancers.totalLoadBalancers > 0 %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <strong>{{ team.teamName }}</strong>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.loadbalancers.totalLoadBalancers }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.loadbalancers.albCount }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.loadbalancers.nlbCount }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric"{% if team.loadbalancers.classicCount > 0 %} style="background-color: #fff3cd;"{% endif %}>
+                        {{ team.loadbalancers.classicCount }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric" style="background-color: #f0f9f0;">
+                        {{ team.loadbalancers.secureLoadBalancers }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">
+                        {% if team.loadbalancers.secureRate != 'N/A' %}
+                            {{ team.loadbalancers.secureRate }}%
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# KMS Key Compliance Table #}
+    <h2 class="govuk-heading-m" id="kms">
+        KMS Key Compliance
+        <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+    </h2>
+    <p class="govuk-body-s">
+        Shows KMS key rotation status. Keys with rotation enabled automatically rotate cryptographic material annually.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header" style="width: 25%">Team</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Total Keys</th>
+                <th class="govuk-table__header govuk-table__header--numeric">With Rotation</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Without Rotation</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Rotation Rate</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for team in teams %}
+                {% if team.kms.totalKeys > 0 %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <strong>{{ team.teamName }}</strong>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.kms.totalKeys }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric" style="background-color: #f0f9f0;">
+                        {{ team.kms.keysWithRotation }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric"{% if (team.kms.totalKeys - team.kms.keysWithRotation) > 0 %} style="background-color: #fef2f2;"{% endif %}>
+                        {{ team.kms.totalKeys - team.kms.keysWithRotation }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">
+                        {% if team.kms.rotationRate != 'N/A' %}
+                            {{ team.kms.rotationRate }}%
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# Auto Scaling Compliance Table #}
+    <h2 class="govuk-heading-m" id="autoscaling">
+        Auto Scaling Group Compliance
+        <a class="govuk-link govuk-body-s" href="#top" style="float: right; font-weight: normal;">Back to top</a>
+    </h2>
+    <p class="govuk-body-s">
+        Shows Auto Scaling Group status. Empty ASGs have no running instances and may represent cost optimization opportunities.
+    </p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header" style="width: 25%">Team</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Total ASGs</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Active ASGs</th>
+                <th class="govuk-table__header govuk-table__header--numeric">Empty ASGs</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for team in teams %}
+                {% if team.autoscaling.totalAsgs > 0 %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <strong>{{ team.teamName }}</strong>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">{{ team.autoscaling.totalAsgs }}</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric" style="background-color: #f0f9f0;">
+                        {{ team.autoscaling.activeAsgs }}
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric"{% if team.autoscaling.emptyAsgs > 0 %} style="background-color: #fff3cd;"{% endif %}>
+                        {{ team.autoscaling.emptyAsgs }}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+{% else %}
+    <p class="govuk-body">No team data available.</p>
+{% endif %}
+{% endblock %}
