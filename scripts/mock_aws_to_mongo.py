@@ -15,10 +15,8 @@ ingestion pipeline produces:
     autoscaling_groups, ec2, efs_filesystems, elb_classic, elb_v2,
     elb_v2_certificates, elb_v2_listeners, kms_key_metadata, kms_keys,
     rds, redshift_clusters, route53_zones, s3_buckets, security_groups, tags, volumes
-
-NEW:
 - Support for generating N accounts (`--accounts`) or a fixed list (`--account-ids`).
-- After insert completes, prints and writes a YAML `account_mappings` block with fields:
+- After insert completes, creates `account_details` Collection with fields:
   AccountId, Team, Tenant (Id, Name, Description), Environment
 
 Usage:
@@ -47,12 +45,13 @@ import string
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-from pymongo import MongoClient, ASCENDING
+from pymongo import DESCENDING, MongoClient
 from pymongo.errors import OperationFailure
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────────────
+iso_now = dt.datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 def rand_hex(n: int) -> str:
     return "".join(random.choices("0123456789abcdef", k=n))
@@ -61,21 +60,17 @@ def rand_str(n: int) -> str:
     alphabet = string.ascii_lowercase + string.digits
     return "".join(random.choices(alphabet, k=n))
 
-def pick(seq):
-    return random.choice(seq)
-
-def iso_now():
-    return dt.datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
+created_indexes = []
 def ensure_indexes(coll):
+    if coll in created_indexes:
+        return
     try:
         coll.create_index(
-            [("year", ASCENDING), ("month", ASCENDING), ("day", ASCENDING),
-             ("account_id", ASCENDING), ("resource_id", ASCENDING)],
-            unique=True
+            [("year", DESCENDING), ("month", DESCENDING), ("day", DESCENDING)]
         )
         coll.create_index("account_id")
         coll.create_index("resource_type")
+        created_indexes.append(coll)
     except OperationFailure as e:
         print(f"[WARN] Index creation failed for {coll.name}: {e}")
 
@@ -87,10 +82,10 @@ def arn(service: str, region: str, account: str, suffix: str) -> str:
     return f"arn:aws:{service}:{region}:{account}:{suffix}"
 
 def arn_s3_bucket(name: str) -> str:
-    return f"arn:aws:s3:::{name}"
+    return arn("s3", "", "", name)
 
 def arn_route53_zone(zone_id: str) -> str:
-    return f"arn:aws:route53:::hostedzone/{zone_id}"
+    return arn("route53", "", "", f"hostedzone/{zone_id}")
 
 def arn_elb_classic(name: str, region: str, account: str) -> str:
     return arn("elasticloadbalancing", region, account, f"loadbalancer/{name}")
@@ -132,19 +127,19 @@ def gen_ec2_instances(n: int, ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
         iid = f"i-{rand_hex(17)}"
-        az = f"{ctx.region}{pick(list('abc'))}"
+        az = f"{ctx.region}{random.choices(list('abc'))}"
         sgid = f"sg-{rand_hex(8)}"
         cfg = {
             "InstanceId": iid,
             "ImageId": f"ami-{rand_hex(8)}",
-            "InstanceType": pick(["t3.micro", "t3.small", "m5.large", "c6g.large"]),
+            "InstanceType": random.choices(["t3.micro", "t3.small", "m5.large", "c6g.large"]),
             "PrivateIpAddress": f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}",
             "State": {"Code": 16, "Name": "running"},
             "Placement": {"AvailabilityZone": az},
             "SecurityGroups": [{"GroupName": f"sg-{rand_str(5)}", "GroupId": sgid}],
             "VpcId": f"vpc-{rand_hex(8)}",
             "SubnetId": f"subnet-{rand_hex(8)}",
-            "LaunchTime": iso_now(),
+            "LaunchTime": iso_now,
             "Arn": arn_ec2_instance(iid, ctx.region, ctx.account),
             "Tags": [{"Key": "Name", "Value": f"mock-{rand_str(6)}"}],
         }
@@ -159,10 +154,10 @@ def gen_volumes(n: int, ctx: Context) -> List[Dict]:
             "VolumeId": vid,
             "Size": random.choice([8, 20, 100, 200, 500]),
             "State": "in-use",
-            "CreateTime": iso_now(),
-            "AvailabilityZone": f"{ctx.region}{pick(list('abc'))}",
+            "CreateTime": iso_now,
+            "AvailabilityZone": f"{ctx.region}{random.choices(list('abc'))}",
             "Attachments": [],
-            "Tags": [{"Key": "env", "Value": pick(["dev", "stage", "prod"])}],
+            "Tags": [{"Key": "env", "Value": random.choices(["dev", "stage", "prod"])}],
             "Arn": arn("ec2", ctx.region, ctx.account, f"volume/{vid}"),
         }
         out.append(cfg)
@@ -183,7 +178,7 @@ def gen_autoscaling_groups(n: int, instances: List[Dict], ctx: Context) -> List[
             "AvailabilityZones": [f"{ctx.region}{z}" for z in "abc"],
             "VPCZoneIdentifier": ",".join({f"subnet-{rand_hex(8)}" for _ in range(2)}),
             "HealthCheckType": "EC2",
-            "CreatedTime": iso_now(),
+            "CreatedTime": iso_now,
             "Tags": [{"Key": "app", "Value": "web"}],
             "Instances": [{"InstanceId": iid, "HealthStatus": "Healthy", "LifecycleState": "InService"} for iid in member_iids],
         }
@@ -206,7 +201,7 @@ def gen_elb_classic(n: int, ctx: Context) -> List[Dict]:
             "AvailabilityZones": [f"{ctx.region}{z}" for z in "ab"],
             "VPCId": f"vpc-{rand_hex(8)}",
             "Instances": [],
-            "CreatedTime": iso_now(),
+            "CreatedTime": iso_now,
             "Scheme": "internet-facing",
         }
         out.append(cfg)
@@ -217,17 +212,17 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
     for i in range(n):
         name = f"app/{rand_str(8)}/{rand_hex(12)}"
         lb_arn = arn("elasticloadbalancing", ctx.region, ctx.account, f"loadbalancer/{name}")
-        scheme = pick(["internet-facing", "internal"])
+        scheme = random.choices(["internet-facing", "internal"])
         lb = {
             "LoadBalancerArn": lb_arn,
             "DNSName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
             "CanonicalHostedZoneId": rand_hex(12),
-            "CreatedTime": iso_now(),
+            "CreatedTime": iso_now,
             "LoadBalancerName": name.split('/')[1],
             "Scheme": scheme,
             "VpcId": f"vpc-{rand_hex(8)}",
-            "Type": pick(["application", "network"]),
-            "IpAddressType": pick(["ipv4", "dualstack"]),
+            "Type": random.choices(["application", "network"]),
+            "IpAddressType": random.choices(["ipv4", "dualstack"]),
             "AvailabilityZones": [{"ZoneName": f"{ctx.region}{z}", "SubnetId": f"subnet-{rand_hex(8)}"} for z in "ab"],
         }
         lbs.append(lb)
@@ -241,7 +236,7 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
                 "Protocol": proto,
                 "DefaultActions": [{"Type": "forward", "TargetGroupArn": arn('elasticloadbalancing', ctx.region, ctx.account, f"targetgroup/{rand_str(8)}/{rand_hex(12)}")}],
                 "Certificates": [] if proto == "HTTP" else [{"CertificateArn": arn('acm', ctx.region, ctx.account, f"certificate/{rand_hex(32)}")}],
-                "SslPolicy": None if proto == "HTTP" else pick(["ELBSecurityPolicy-2016-08", "ELBSecurityPolicy-TLS-1-2-2017-01"]),
+                "SslPolicy": None if proto == "HTTP" else random.choices(["ELBSecurityPolicy-2016-08", "ELBSecurityPolicy-TLS-1-2-2017-01"]),
             }
             listeners.append(lst)
 
@@ -262,12 +257,12 @@ def gen_efs(n: int, ctx: Context) -> List[Dict]:
             "CreationToken": rand_str(12),
             "FileSystemId": fid,
             "FileSystemArn": arn("elasticfilesystem", ctx.region, ctx.account, f"file-system/{fid}"),
-            "CreationTime": iso_now(),
+            "CreationTime": iso_now,
             "LifeCycleState": "available",
             "NumberOfMountTargets": random.randint(1, 3),
             "SizeInBytes": {"Value": random.randint(1_000_000_000, 10_000_000_000)},
-            "PerformanceMode": pick(["generalPurpose", "maxIO"]),
-            "Encrypted": pick([True, False]),
+            "PerformanceMode": random.choices(["generalPurpose", "maxIO"]),
+            "Encrypted": random.choices([True, False]),
         }
         out.append(cfg)
     return out
@@ -287,7 +282,7 @@ def gen_kms(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict]]:
             "KeyUsage": "ENCRYPT_DECRYPT",
             "KeyState": "Enabled",
             "Origin": "AWS_KMS",
-            "KeyManager": pick(["CUSTOMER", "AWS"]),
+            "KeyManager": random.choices(["CUSTOMER", "AWS"]),
             "CustomerMasterKeySpec": "SYMMETRIC_DEFAULT",
         })
     return keys, meta
@@ -295,19 +290,19 @@ def gen_kms(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict]]:
 def gen_rds(n: int, ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
-        name = f"{pick(['app','svc','db'])}-{rand_str(6)}"
+        name = f"{random.choices(['app','svc','db'])}-{rand_str(6)}"
         arn_id = f"{name}"
         cfg = {
             "DBInstanceIdentifier": name,
             "DBInstanceArn": arn_rds(arn_id, ctx.region, ctx.account),
-            "DBInstanceClass": pick(["db.t3.micro", "db.m5.large"]),
-            "Engine": pick(["mysql", "postgres", "aurora-postgresql"]),
-            "EngineVersion": pick(["8.0.35", "14.10", "13.12"]),
+            "DBInstanceClass": random.choices(["db.t3.micro", "db.m5.large"]),
+            "Engine": random.choices(["mysql", "postgres", "aurora-postgresql"]),
+            "EngineVersion": random.choices(["8.0.35", "14.10", "13.12"]),
             "DBInstanceStatus": "available",
             "Endpoint": {"Address": f"{name}.abc123.{ctx.region}.rds.amazonaws.com", "Port": 5432},
             "AllocatedStorage": random.choice([20, 100, 200]),
             "StorageType": "gp3",
-            "MultiAZ": pick([False, True]),
+            "MultiAZ": random.choices([False, True]),
             "PubliclyAccessible": False,
             "StorageEncrypted": True,
         }
@@ -320,7 +315,7 @@ def gen_redshift(n: int, ctx: Context) -> List[Dict]:
         cid = f"red-{rand_str(6)}"
         cfg = {
             "ClusterIdentifier": cid,
-            "NodeType": pick(["dc2.large", "ra3.4xlarge"]),
+            "NodeType": random.choices(["dc2.large", "ra3.4xlarge"]),
             "ClusterStatus": "available",
             "MasterUsername": "admin",
             "DBName": "dev",
@@ -339,7 +334,7 @@ def gen_route53_zones(n: int) -> List[Dict]:
             "Id": f"/hostedzone/{zid}",
             "Name": name,
             "CallerReference": rand_str(12),
-            "Config": {"PrivateZone": pick([False, True])},
+            "Config": {"PrivateZone": random.choices([False, True])},
             "ResourceRecordSetCount": random.randint(2, 50),
         }
         out.append(cfg)
@@ -368,7 +363,7 @@ def gen_security_groups(n: int, ctx: Context) -> List[Dict]:
             "GroupId": gid,
             "VpcId": f"vpc-{rand_hex(8)}",
             "Arn": arn_sg(gid, ctx.region, ctx.account),
-            "Tags": [{"Key": "team", "Value": pick(["core", "ml", "ops"])}],
+            "Tags": [{"Key": "team", "Value": random.choices(["core", "ml", "ops"])}],
         }
         out.append(cfg)
     return out
@@ -380,7 +375,7 @@ def gen_tags(resources: List[str]) -> List[Dict]:
         tags = []
         for k in tag_keys:
             if random.random() < 0.8:
-                v = pick(["dev", "stage", "prod"]) if k == "env" else rand_str(6)
+                v = random.choices(["dev", "stage", "prod"]) if k == "env" else rand_str(6)
                 tags.append({"Key": k, "Value": v})
         out.append({"ResourceARN": rid, "Tags": tags})
     return out
@@ -506,15 +501,15 @@ def generate_team_choices(num_teams):
     """Generate team choices with number suffixes if needed"""
     teams = []
     base_teams = BASE_TEAM_CHOICES.copy()
-    
+
     # First, use all base teams
     teams.extend(base_teams[:min(num_teams, len(base_teams))])
-    
+
     # If we need more teams, add numbered variants
     if num_teams > len(base_teams):
         remaining = num_teams - len(base_teams)
         team_counter = 2  # Start with -2 suffix
-        
+
         while len(teams) < num_teams:
             for base_team in base_teams:
                 if len(teams) >= num_teams:
@@ -526,7 +521,7 @@ def generate_team_choices(num_teams):
                     f"{code}{team_counter}"
                 ))
             team_counter += 1
-    
+
     return teams
 
 ENV_CHOICES = ["production", "staging", "development", "testing", "integration", "sandbox", "pre-production", "test"]
@@ -545,14 +540,14 @@ def build_account_mapping(owner_id: str) -> dict:
     code = f"{code_prefix}{random.randint(1, 999):03d}"
     app_env = random.choice(ENV_CHOICES)
     return {
-        "AccountId": owner_id,
-        "Team": team,
-        "Tenant": {
-            "Id": code,
-            "Name": service,
-            "Description": f"{team} team AWS account"
+        "account_id": owner_id,
+        "team": team,
+        "tenant": {
+            "id": code,
+            "name": service,
+            "description": f"{team} team AWS account"
         },
-        "Environment": app_env,
+        "environment": app_env,
     }
 
 def dump_account_mappings_yaml(mappings: list[dict]) -> str:
@@ -618,7 +613,7 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
 
     # Accounts
-    ap.add_argument("--accounts", type=int, default=1, help="Number of AWS account IDs to generate. Each account gets the same per-type counts.")
+    ap.add_argument("--accounts", type=int, default=5, help="Number of AWS account IDs to generate. Each account gets the same per-type counts.")
     ap.add_argument("--account-ids", default=None, help="Comma-separated list of 12-digit AWS account IDs to use instead of random generation.")
     ap.add_argument("--mappings-out", default="account_mappings.yaml", help="Where to write the YAML account mappings.")
     ap.add_argument("--teams", type=int, default=10, help="Number of team variations to use (default: 10, max: unlimited with number suffixes)")
@@ -642,7 +637,7 @@ def main():
 
     args = ap.parse_args()
     random.seed(args.seed)
-    
+
     # Initialize TEAM_CHOICES based on the --teams argument
     global TEAM_CHOICES
     TEAM_CHOICES = generate_team_choices(args.teams)
@@ -656,6 +651,7 @@ def main():
 
     client = MongoClient(args.mongo_uri)
     db = client[args.db]
+    client.drop_database(db)
 
     # Accounts to generate
     account_ids = gen_account_ids(args)
@@ -753,12 +749,9 @@ def main():
         # Mapping row
         account_mappings.append(build_account_mapping(acct_id))
 
-    # Emit and write YAML mappings
-    yaml_text = dump_account_mappings_yaml(account_mappings)
-    print("\n" + yaml_text + "\n")
-    with open(args.mappings_out, "w") as f:
-        f.write(yaml_text)
-    print(f"Wrote account mappings → {args.mappings_out}")
+    db["account_details"].insert_many(account_mappings, ordered=False)
+    db["account_details"].create_index("account_id", unique=True)
+    print(f"Inserted {len(account_mappings):4d} → account_details")
 
     # Summary
     print("Totals across all accounts:")

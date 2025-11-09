@@ -1,36 +1,34 @@
+{% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
 {% extends "template.njk" %}
- 
+
 {% block content %}
-    <div class="app-width-container">
-        {% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
-        {{ govukBreadcrumbs({ items: breadcrumbs }) }}
-    </div>
- 
-  <div class="app-width-container">
+
+<div class="app-width-container">
+    <div class="govuk-grid-row">{{ govukBreadcrumbs({ items: breadcrumbs }) }}</div>
     <main class="govuk-main-wrapper" id="main-content" role="main">
-      <div class="govuk-grid-row">
-        <!-- Left-hand Navigation -->
-        <div class="govuk-grid-column-one-third">
-          <div class="app-split-pane__nav">
-            <nav class="app-subnav" aria-labelledby="app-subnav-heading">
-              <h2 class="govuk-visually-hidden" id="app-subnav-heading">Pages in this section</h2>
-              <h3 class="app-subnav__theme govuk-heading-m">{{ policy_title }}</h3>
-              <ul class="govuk-list  govuk-list--spaced">
-                {% for menu_item in menu_items %}
-                    <li>
-                      <a class="govuk-link{% if menu_item.href == currentPath %} app-subnav__link--current{% endif %}" href="{{ menu_item.href }}">{{ menu_item.text  }}</a>
-                    </li>
-                {% endfor %}
-              </ul>
-            </nav>
+        <div class="govuk-grid-row">
+          <!-- Left-hand Navigation -->
+          <div class="govuk-grid-column-one-third">
+              <div class="app-split-pane__nav">
+                  <nav class="app-subnav" aria-labelledby="app-subnav-heading">
+                      <h2 class="govuk-visually-hidden" id="app-subnav-heading">Pages in this section</h2>
+                      <h3 class="app-subnav__theme govuk-heading-m">{{ policy_title }}</h3>
+                      <ul class="govuk-list  govuk-list--spaced">
+                          {% for menu_item in menu_items %}
+                          <li>
+                              <a class="govuk-link{% if menu_item.href == currentPath %} app-subnav__link--current{% endif %}" href="{{ menu_item.href }}">{{ menu_item.text  }}</a>
+                          </li>
+                          {% endfor %}
+                      </ul>
+                  </nav>
+              </div>
           </div>
-        </div>
- 
-        <!-- Main content -->
-        <div class="govuk-grid-column-two-thirds">
-            {% block policy_content %}{% endblock %}
-        </div>
+          <div class="govuk-grid-column-two-thirds">
+              <h1 class="govuk-heading-l">{{ policy_title }}</h1>
+              <p class="govuk-body">{{ policy_description }}</p>
+              {% block policy_content %}{% endblock %}
+          </div>
       </div>
-    </main>
-  </div>
+  </main>
+</div>
 {% endblock %}

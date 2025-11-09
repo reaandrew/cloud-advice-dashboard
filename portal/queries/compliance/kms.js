@@ -1,117 +1,93 @@
-async function getLatestKmsDate(req) {
-    return await req.collection("kms_key_metadata").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
-}
+const createDateFilter = (from, to) => ({ $and: [{ "$gte": [{ $dateDiff: { startDate: "$Configuration.CreationDate", endDate: "$$NOW", unit: "day" } }, from]}, { "$lt": [{ $dateDiff: { startDate: "$Configuration.CreationDate", endDate: "$$NOW", unit: "day" } }, to]}]})
+const dateFilters = {
+    "0-30 days": createDateFilter(0, 30),
+    "30-90 days": createDateFilter(30, 90),
+    "90-180 days": createDateFilter(90, 180),
+    "180-365 days": createDateFilter(180, 365),
+    "1-2 years": createDateFilter(365, 730),
+    "2+ years": createDateFilter(730, 100000),
+};
 
-async function getKmsKeysForDate(req, year, month, day, projection = null) {
-    return req.collection("kms_key_metadata").find({
-        year: year,
-        month: month,
-        day: day
-    }, projection ? { projection } : {});
-}
-
-function getAgeBucket(creationDate) {
-    if (!creationDate) return "Unknown";
-    const ageInDays = (Date.now() - new Date(creationDate).getTime()) / (1000 * 60 * 60 * 24);
-    if (ageInDays < 30) return "0-30 days";
-    if (ageInDays < 90) return "30-90 days";
-    if (ageInDays < 180) return "90-180 days";
-    if (ageInDays < 365) return "180-365 days";
-    if (ageInDays < 730) return "1-2 years";
-    return "2+ years";
-}
-
-function getAgeDescription(creationDate) {
-    if (!creationDate) return "Unknown";
-    const ageInDays = Math.floor((Date.now() - new Date(creationDate).getTime()) / (1000 * 60 * 60 * 24));
-    if (ageInDays === 0) return "Today";
-    if (ageInDays === 1) return "1 day";
-    if (ageInDays < 30) return `${ageInDays} days`;
-    if (ageInDays < 365) return `${Math.floor(ageInDays / 30)} months`;
-    return `${Math.floor(ageInDays / 365)} years`;
-}
-
-async function processKmsKeyAges(req, year, month, day) {
-    const teamKeyAges = new Map();
-
-    const ensureTeam = t => {
-        if (!teamKeyAges.has(t))
-            teamKeyAges.set(t, { ageBuckets: new Map() });
-        return teamKeyAges.get(t);
-    };
-
-    const results = await req.getDetailsForAllAccounts();
-
-    const kmsCursor = await getKmsKeysForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
-
-    for await (const doc of kmsCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-
-        if (doc.Configuration?.CreationDate) {
-            const bucket = getAgeBucket(doc.Configuration.CreationDate);
-            recs.map(rec => rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1));
+const keyAgesAgg = (groupKey) => [
+    {$group: {
+        _id: {
+            key: `$${groupKey}`,
+            age: {$switch: {
+                branches: Object.entries(dateFilters).map(([name, filter]) => ({ case: filter, then: name })),
+                default: "Unexpected Error. KMS Key reports to be 300+ years old. Please report to administrator."
+            }}
+        },
+        count: { $count: {} }
+    }},
+    {$group: {
+        _id :  "$_id.key",
+        rows: {
+            $push: {
+                "Age Range": "$_id.age",
+                Count: {$sum: "$count"}
+            }
         }
-    }
+    }}
+];
 
-    return teamKeyAges;
-}
+const keyDetailsAgg = [
+    {$addFields: {
+        "age_range": {$switch: {
+            branches: Object.entries(dateFilters).map(([name, filter]) => ({ case: filter, then: name })),
+            default: "Unexpected Error. KMS Key reports to be 300+ years old. Please report to administrator."
+        }}
+    }},
+    {$project: {
+        _id: 0,
+        accountDetails: 1, // Always required
+        "Key ID": "$Configuration.KeyId",
+        "ARN": "$Configuration.Arn",
+        "Creation Date": "$Configuration.CreationDate",
+        "Key State": "$Configuration.KeyState",
+        "Key Usage": "$Configuration.KeyUsage",
+        "Key Spec": "$Configuration.CustomerMasterKeySpec",
+        "Age Range": "$age_range",
+    }},
+]
 
-async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
-    const query = {
-        year: year,
-        month: month,
-        day: day,
-    };
+const keyAgesViewOptions = {
+    type: "table", // simple table each field is a column and each document is a row.
+    header: ["Age Range", "Count"],
+    links: [{ // hyperlink to the details page forwarding the age range value.
+        field: "Count",
+        forward: ["Age Range"],
+        path: "/compliance/kms/details",
+    }],
+    title: "KMS Key Ages",
+    description: "Age distribution of AWS KMS Keys.",
+    url: "/compliance/kms",
+    firstCellIsHeader: false,
+};
 
-    const results = await req.getDetailsForAllAccounts();
+const keyDetailsViewOptions = {
+    type: "details_list", // A 'details' paged with collapsable rows.
+    id_field: "Key ID", // The main field to display. Must be unique.
+    prominent_fields: ["Age Range"], // Fields to pull out into the main table.
+    filterable_fields: [ // Fields to filter on.
+        { name: "Age Range", selector: "Age Range" },
+    ],
+    searchable_fields: ["ARN"], // Fields to search on.
+    details_fields: ["ARN", "Creation Date", "Key State", "Key Usage", "Key Spec"], // Fields to hide in details section. id_field will always be included.
+    title: "KMS Keys",
+    description: "All AWS KMS keys",
+    url: "/compliance/kms/details",
+};
 
-    const kmsCol = req.collection("kms_key_metadata");
-    const cursor = kmsCol.find(query, {
-        projection: {
-            account_id: 1,
-            resource_id: 1,
-            Configuration: 1,
-            Tags: 1
-        }
-    });
-
-    const allResources = [];
-    for await (const doc of cursor) {
-        if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
-
-        if (!doc.Configuration?.CreationDate) continue;
-
-        const resourceAgeBucket = getAgeBucket(doc.Configuration.CreationDate);
-        if (resourceAgeBucket !== ageBucket) continue;
-
-        const resource = {
-            resourceId: doc.resource_id,
-            keyId: doc.Configuration.KeyId || doc.resource_id,
-            keyName: doc.Configuration.Description || '',
-            creationDate: doc.Configuration.CreationDate ? new Date(doc.Configuration.CreationDate).toLocaleDateString() : 'Unknown',
-            ageDescription: getAgeDescription(doc.Configuration.CreationDate),
-            keyUsage: doc.Configuration.KeyUsage,
-            keyState: doc.Configuration.KeyState,
-            keySpec: doc.Configuration.KeySpec,
-            origin: doc.Configuration.Origin,
-            description: doc.Configuration.Description,
-            arn: doc.Configuration.Arn || doc.resource_id
-        };
-
-        allResources.push(resource);
-    }
-
-    return allResources;
-}
-
+// Standard export format.
 module.exports = {
-    getLatestKmsDate,
-    getKmsKeysForDate,
-    getAgeBucket,
-    getAgeDescription,
-    processKmsKeyAges,
-    getKmsKeyDetails
+    keyAges: {
+        collection: "kms_key_metadata", // The starting collection to start the query on.
+        agg: keyAgesAgg,
+        viewOptions: keyAgesViewOptions,
+    },
+    keyDetails: {
+        collection: "kms_key_metadata",
+        agg: keyDetailsAgg,
+        viewOptions: keyDetailsViewOptions,
+    },
 };

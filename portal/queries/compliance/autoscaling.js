@@ -1,17 +1,74 @@
-async function getLatestAutoscalingDate(req) {
-    return await req.collection("autoscaling_groups").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
-}
+const autoscalingDimensionsAgg = (groupKey) => [
+    {$group: {
+        _id: {
+            key: `$${groupKey}`,
+            min: { $toString: "$Configuration.MinSize" },
+            max: { $toString: "$Configuration.MaxSize" },
+            desired: { $toString: "$Configuration.DesiredCapacity" },
+        },
+        count: { $count: {} },
+    }},
+    {$group: {
+        _id :  "$_id.key",
+        rows: {
+            $push: {
+                "Min Size": "$_id.min",
+                "Max Size": "$_id.max",
+                "Desired Capacity": "$_id.desired",
+                Count: {$sum: "$count"}
+            }
+        }
+    }}
+];
 
-async function getAutoscalingGroupsForDate(req, year, month, day, projection = null) {
-    return req.collection("autoscaling_groups").find({
-        year: year,
-        month: month,
-        day: day
-    }, projection ? { projection } : {});
-}
+const autoscalingDetailsAgg = [
+    {$project: {
+        _id: 0,
+        accountDetails: 1,
+        "ARN": "$Configuration.AutoScalingGroupARN",
+        "Name": "$Configuration.Name",
+        "Min Size": { $toString: "$Configuration.MinSize" },
+        "Max Size": { $toString: "$Configuration.MaxSize" },
+        "Desired Capacity": { $toString: "$Configuration.DesiredCapacity" },
+        "Availability Zones": "$Configuration.AvailabilityZones",
+        "Target Groups": { "$cond": {
+              if: { $isArray: "$Configuration.TargetGroupARNs" },
+              then: { $size: "$Configuration.TargetGroupARNs" },
+              else: 0,
+        }},
+        "Creation Date": "$Configuration.CreationDate"
+    }},
+]
+
+const autoscalingDimensionsViewOptions = {
+    type: "table",
+    header: ["Min Size", "Max Size", "Desired Capacity", "Count"],
+    links: [{
+        field: "Count",
+        forward: ["Min Size", "Max Size", "Desired Capacity"],
+        path: "/compliance/autoscaling/details",
+    }],
+    title: "Auto Scaling Group Dimensions",
+    description: "Auto Scaling Group Dimensions configurations (Min/Max/Desired).",
+    url: "/compliance/autoscaling/dimensions",
+    firstCellIsHeader: false,
+};
+
+const autoscalingDetailsViewOptions = {
+    type: "details_list",
+    id_field: "ARN",
+    prominent_fields: ["Name"],
+    filterable_fields: [
+        { name: "Min Size", selector: "Min Size"},
+        { name: "Max Size", selector: "Max Size"},
+        { name: "Desired Capacity", selector: "Desired Capacity"},
+    ],
+    searchable_fields: ["ARN", "Name"],
+    details_fields: ["ARN", "Min Size", "Max Size", "Desired Capacity", "Availability Zones", "Target Groups", "Creation Date"],
+    title: "Auto Scaling Groups",
+    description: "All Auto Scaling Groups.",
+    url: "/compliance/autoscaling/details",
+};
 
 async function getEmptyAutoscalingGroups(req, year, month, day) {
     return req.collection("autoscaling_groups").find(
@@ -23,79 +80,6 @@ async function getEmptyAutoscalingGroups(req, year, month, day) {
         },
         { projection: { account_id: 1 } }
     );
-}
-
-async function processAutoscalingDimensions(req, year, month, day) {
-    const teamDimensions = new Map();
-
-    const ensureTeam = t => {
-        if (!teamDimensions.has(t))
-            teamDimensions.set(t, { dimensions: new Map() });
-        return teamDimensions.get(t);
-    };
-
-    const results = await req.getDetailsForAllAccounts();
-
-    const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
-
-    for await (const doc of asgCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-
-        if (doc.Configuration) {
-            const min = doc.Configuration.MinSize || 0;
-            const max = doc.Configuration.MaxSize || 0;
-            const desired = doc.Configuration.DesiredCapacity || 0;
-            const key = `${min}-${max}-${desired}`;
-            recs.forEach(rec => rec.dimensions.set(key, (rec.dimensions.get(key) || 0) + 1));
-        }
-    }
-
-    return teamDimensions;
-}
-
-async function getAutoscalingDimensionDetails(req, params) {
-    const { year, month, day, team, min, max, desired } = params;
-    const allResources = [];
-
-    const results = await req.getDetailsForAllAccounts();
-
-    const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-    for await (const doc of asgCursor) {
-        if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
-
-        if (doc.Configuration) {
-            const docMin = doc.Configuration.MinSize || 0;
-            const docMax = doc.Configuration.MaxSize || 0;
-            const docDesired = doc.Configuration.DesiredCapacity || 0;
-
-            if (docMin == min && docMax == max && docDesired == desired) {
-                allResources.push({
-                    resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.AutoScalingGroupName || doc.resource_id,
-                    accountId: doc.account_id,
-                    dimensions: {
-                        min: docMin,
-                        max: docMax,
-                        desired: docDesired
-                    },
-                    details: {
-                        launchTemplate: doc.Configuration?.LaunchTemplate?.LaunchTemplateName || doc.Configuration?.LaunchConfigurationName || "N/A",
-                        instanceCount: doc.Configuration?.Instances?.length || 0,
-                        healthCheckType: doc.Configuration?.HealthCheckType || "Unknown",
-                        healthCheckGracePeriod: doc.Configuration?.HealthCheckGracePeriod || 0,
-                        availabilityZones: doc.Configuration?.AvailabilityZones?.join(", ") || "N/A",
-                        vpcZones: doc.Configuration?.VPCZoneIdentifier || "N/A",
-                        targetGroups: doc.Configuration?.TargetGroupARNs?.length || 0,
-                        createdTime: doc.Configuration?.CreatedTime,
-                        status: doc.Configuration?.Status || "Unknown"
-                    }
-                });
-            }
-        }
-    }
-
-    return allResources;
 }
 
 async function countEmptyAutoscalingGroups(req, year, month, day) {
@@ -113,10 +97,15 @@ async function countEmptyAutoscalingGroups(req, year, month, day) {
 }
 
 module.exports = {
-    getLatestAutoscalingDate,
-    getAutoscalingGroupsForDate,
-    getEmptyAutoscalingGroups,
-    processAutoscalingDimensions,
-    getAutoscalingDimensionDetails,
+    autoscalingDimensions: {
+        collection: "autoscaling_groups",
+        agg: autoscalingDimensionsAgg,
+        viewOptions: autoscalingDimensionsViewOptions,
+    },
+    autoscalingDetails: {
+        collection: "autoscaling_groups",
+        agg: autoscalingDetailsAgg,
+        viewOptions: autoscalingDetailsViewOptions,
+    },
     countEmptyAutoscalingGroups
 };
