@@ -1,11 +1,16 @@
 {
+  "scripts": {
+    "screenshot": "node scripts/screenshot-pages.js"
+  },
   "dependencies": {
+    "canvas": "^3.2.0",
     "mongodb": "^6.17.0"
   },
   "devDependencies": {
-    "semantic-release": "^24.2.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "conventional-changelog-conventionalcommits": "^8.0.0"
+    "conventional-changelog-conventionalcommits": "^8.0.0",
+    "playwright": "^1.48.0",
+    "semantic-release": "^24.2.0"
   }
 }

@@ -111,14 +111,16 @@
 }
 
 .app-link {
-  color: var(--app-primary-green);
+  color: #fff;
   margin-right: 30px;
   text-decoration: none;
+  border-bottom: 3px solid transparent;
+  padding-top: 8px;
+  padding-bottom: 8px;
 
   &:hover,
   &.app-link--current {
-    border-bottom: 3px solid;
-    margin-bottom: -3px;
+    border-bottom: 3px solid #fff;
   }
 }
 
@@ -133,29 +135,23 @@
   width: 100%;
 
   @media screen and (max-width: 640px) {
-    flex-direction: column;
+    padding-left: 15px;
+    padding-right: 15px;
     height: auto;
-    padding-left: 0px;
-    padding-right: 0px;
+    min-height: 60px;
   }
 }
 
 .app-header__link {
   color: var(--app-primary-green);
   text-decoration: none;
-  margin-right: 30px;
+  margin-right: 15px;
   height: fit-content;
   width: fit-content;
 
   &:hover {
     border-bottom: 3px solid;
     margin-bottom: -3px;
-  }
-
-  @media screen and (max-width: 640px) {
-    margin-right: 0px;
-    margin-top: 10px;
-    margin-bottom: 10px;
   }
 }
 
@@ -164,7 +160,7 @@
   width: auto;
 
   @media screen and (max-width: 640px) {
-    height: 30px;
+    height: 50px;
   }
 }
 
@@ -174,38 +170,20 @@
   font-size: 1.4rem;
 
   @media screen and (max-width: 640px) {
-    font-size: 1rem;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    font-size: 1.1rem;
   }
 }
 
-.app-header__nav-button {
-  color: var(--app-primary-green);
-  background: none;
-	border: none;
-	padding: 0;
-	font: inherit;
-	outline: inherit;
-  height: fit-content;
-  width: fit-content;
-  margin-top: 10px;
-  margin-bottom: 10px;
-
-  &:hover {
-    border-bottom: 3px solid;
-    margin-bottom: 7px;
-  }
-}
 
 .app-nav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   background-color: var(--app-primary-green);
   border-bottom: 1px solid transparent;
   padding-left: 30px;
   padding-right: 30px;
-  height: 60px;
+  min-height: 60px;
   width: 100%;
 
   > * {
@@ -215,14 +193,12 @@
   }
 
   @media screen and (max-width: 640px) {
-    flex-direction: column;
-    height: auto;
-    padding-left: 0px;
-    padding-right: 0px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     > * {
-      margin-right: 0px;
-      padding-top: 20px;
-      padding-bottom: 20px;
+      margin-bottom: 10px;
     }
   }
 }
@@ -237,5 +213,78 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* Responsive dashboard cards - stack on mobile */
+@media (max-width: 640px) {
+  .govuk-grid-column-one-quarter {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 20px;
+  }
+
+  .govuk-grid-row[style*="flex"] {
+    flex-direction: column;
+  }
+
+  /* Hide empty alignment columns on mobile */
+  .app-empty-column {
+    display: none !important;
+  }
+}
+
+/* Mobile menu toggle button - hidden on desktop */
+.app-mobile-menu-toggle {
+  display: none;
+  width: 100%;
+  margin-bottom: 15px;
+  margin-top: 0;
+  position: relative;
+}
+
+.app-mobile-menu-toggle__icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid currentColor;
+  transition: transform 0.2s ease;
+}
+
+.app-mobile-menu-toggle[aria-expanded="true"] .app-mobile-menu-toggle__icon {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Show mobile menu toggle on small screens */
+@media (max-width: 640px) {
+  .app-mobile-menu-toggle {
+    display: block;
+  }
+
+  /* Hide menu content by default on mobile */
+  .app-subnav .govuk-list,
+  .app-subnav .app-subnav__theme {
+    display: none;
+  }
+
+  /* Show menu content when open */
+  .app-subnav.app-subnav--open .govuk-list,
+  .app-subnav.app-subnav--open .app-subnav__theme {
+    display: block;
+  }
+
+  /* Make navigation full width on mobile */
+  .govuk-grid-column-one-third {
+    width: 100%;
+  }
+
+  .govuk-grid-column-two-thirds {
+    width: 100%;
+    margin-top: 20px;
+  }
 }
 
