@@ -89,6 +89,8 @@ const databaseRoutes = require('./routes/compliance/database');
 const loadbalancersRoutes = require('./routes/compliance/loadbalancers');
 const autoscalingRoutes = require('./routes/compliance/autoscaling');
 const kmsRoutes = require('./routes/compliance/kms');
+const tenantsRoutes = require('./routes/compliance/tenants');
+const teamsRoutes = require('./routes/compliance/teams');
 logger.debug('✓ Route modules loaded');
 
 // Use the routes
@@ -109,6 +111,8 @@ if (config.get('features.auth', false)) {
 }
 if (config.get('features.compliance', true)) {
     app.use('/compliance', requiresAuth(), complianceRoutes);
+    app.use('/compliance/tenants', requiresAuth(), tenantsRoutes);
+    app.use('/compliance/teams', requiresAuth(), teamsRoutes);
     app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
     app.use('/compliance/database', requiresAuth(), databaseRoutes);
     app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);

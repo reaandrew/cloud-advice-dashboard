@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.0.0...v1.1.0) (2025-11-10)
+
+### Features
+
+* add teams/tenants compliance views and mobile responsive design ([#18](https://github.com/reaandrew/cloud-advice-dashboard/issues/18)) ([0103e75](https://github.com/reaandrew/cloud-advice-dashboard/commit/0103e75c05838ee0db75dcb3226d0729c843d300))
+
 ## 1.0.0 (2025-10-07)
 
 ### Features
