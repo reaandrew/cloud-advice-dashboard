@@ -6,7 +6,7 @@
 <p class="govuk-body">
     <strong>Jump to </strong>
     {% for table in tables %}
-        <a class="govuk-link" href="#{{table.shortname}}">{{table.shortname}}</a>{% if not loop.last %} | {% endif %}
+        <a class="govuk-link" href="#{{table.name}}">{{table.longName}}</a>{% if not loop.last %} | {% endif %}
     {% endfor %}
 </p>
 <details class="govuk-details" data-module="govuk-details">
@@ -23,10 +23,10 @@
 </details>
 {% for table in tables %}
     {{ govukTable({
-        attributes: { id: table.shortname },
-        caption: table.name,
+        attributes: { id: table.name },
+        caption: table.longName,
         captionClasses: "govuk-table__caption--m",
-        firstCellIsHeader: firstCellIsHeader,
+        firstCellIsHeader: false,
         head: header,
         rows: table.rows
     }) }}

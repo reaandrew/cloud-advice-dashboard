@@ -1,348 +1,185 @@
-async function getLatestElbDate(req) {
-    return await req.collection("elb_v2").findOne({}, {
-        projection: { year: 1, month: 1, day: 1 },
-        sort: { year: -1, month: -1, day: -1 }
-    });
-}
+const latestTLS = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09";
 
-async function getElbV2ForDate(req, year, month, day, projection = null) {
-    return req.collection("elb_v2").find({
-        year: year,
-        month: month,
-        day: day
-    }, projection ? { projection } : {});
-}
-
-async function getElbClassicForDate(req, year, month, day, projection = null) {
-    return req.collection("elb_classic").find({
-        year: year,
-        month: month,
-        day: day
-    }, projection ? { projection } : {});
-}
-
-async function getElbV2ListenersForDate(req, year, month, day, projection = null) {
-    return req.collection("elb_v2_listeners").find({
-        year: year,
-        month: month,
-        day: day
-    }, projection ? { projection } : {});
-}
-
-async function processTlsConfigurations(req, year, month, day) {
-    const teamTls = new Map();
-
-    const ensureTeam = t => {
-        if (!teamTls.has(t))
-            teamTls.set(t, { tlsVersions: new Map(), totalLBs: 0 });
-        return teamTls.get(t);
-    };
-
-    const results = await req.getDetailsForAllAccounts();
-
-    // Count total ELB v2
-    const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1 });
-    for await (const doc of elbV2Cursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-        recs.forEach(rec => rec.totalLBs++);
-    }
-
-    // Count total Classic ELBs
-    const elbClassicTotalCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1 });
-    for await (const doc of elbClassicTotalCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-        recs.forEach(rec => rec.totalLBs++);
-    }
-
-    // Process ELB v2 Listeners
-    const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
-    for await (const doc of elbV2ListenersCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-
-        if (doc.Configuration) {
-            const protocol = doc.Configuration.Protocol;
-            if (protocol === "HTTPS" || protocol === "TLS") {
-                const policy = doc.Configuration.SslPolicy || "Unknown";
-                recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
-            }
-        }
-    }
-
-    // Process Classic ELBs
-    const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
-    for await (const doc of elbClassicCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-
-        if (doc.Configuration?.ListenerDescriptions) {
-            for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
-                const listener = listenerDesc.Listener;
-                if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
-                    const policy = listenerDesc.PolicyNames?.[0] || "Classic-Default";
-                    recs.map(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
-                }
-            }
-        }
-    }
-
-    return teamTls;
-}
-
-async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
-    const allResources = [];
-
-    const results = await req.getDetailsForAllAccounts();
-
-    if (tlsVersion === "NO CERTS") {
-        // Get ELB v2 without certificates
-        const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-        const teamLoadBalancers = new Map();
-        for await (const doc of elbV2Cursor) {
-            if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
-                teamLoadBalancers.set(doc.resource_id, doc);
-            }
-        }
-
-        const tlsLoadBalancerArns = new Set();
-        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { LoadBalancerArn: 1, Configuration: 1 });
-
-        for await (const doc of elbV2ListenersCursor) {
-            if (doc.Configuration?.Protocol === "HTTPS" || doc.Configuration?.Protocol === "TLS") {
-                tlsLoadBalancerArns.add(doc.LoadBalancerArn);
-            }
-        }
-
-        for (const [resourceId, lbDoc] of teamLoadBalancers) {
-            if (!tlsLoadBalancerArns.has(resourceId)) {
-                allResources.push({
-                    resourceId: resourceId,
-                    shortName: lbDoc.Configuration?.LoadBalancerName || resourceId,
-                    type: lbDoc.Configuration?.Type || "Unknown",
-                    scheme: lbDoc.Configuration?.Scheme || "Unknown",
-                    accountId: lbDoc.account_id,
-                    tlsPolicy: "NO CERTS",
-                    details: {
-                        dnsName: lbDoc.Configuration?.DNSName,
-                        availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                        securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: lbDoc.Configuration?.VpcId,
-                        state: lbDoc.Configuration?.State?.Code
+const loadBalancersView = {
+    id: "load_balancers",
+    name: "Load Balancers (ALB/NLB/CLB)",
+    collection: "elb_v2",
+    pipeline: [,
+        {
+            $unionWith: {
+                coll: "elb_classic",
+                pipeline: [
+                    {
+                        $project: {
+                            "Configuration": "$Configuration",
+                            "is_classic_source": { $literal: true }
+                        }
                     }
-                });
+                ]
             }
-        }
-
-        // Process Classic ELBs without certificates
-        const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-        for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
-
-            let hasTLS = false;
-            if (doc.Configuration?.ListenerDescriptions) {
-                for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
-                    const listener = listenerDesc.Listener;
-                    if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
-                        hasTLS = true;
-                        break;
-                    }
-                }
+        },
+        {
+            $lookup: {
+                from: "elb_v2_listeners",
+                localField: "Configuration.LoadBalancerArn",
+                foreignField: "Configuration.LoadBalancerArn",
+                as: "attached_listeners"
             }
-
-            if (!hasTLS) {
-                allResources.push({
-                    resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
-                    type: "classic",
-                    scheme: doc.Configuration?.Scheme || "Unknown",
-                    accountId: doc.account_id,
-                    tlsPolicy: "NO CERTS",
-                    details: {
-                        dnsName: doc.Configuration?.DNSName,
-                        availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
-                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: doc.Configuration?.VPCId,
-                        state: "active"
-                    }
-                });
-            }
-        }
-    } else {
-        // Get ELB v2 with specific TLS version
-        const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-        const teamLoadBalancers = new Map();
-        for await (const doc of elbV2Cursor) {
-            if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
-                teamLoadBalancers.set(doc.resource_id, doc);
-            }
-        }
-
-        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, LoadBalancerArn: 1, Configuration: 1 });
-
-        for await (const doc of elbV2ListenersCursor) {
-            if (doc.Configuration) {
-                const protocol = doc.Configuration.Protocol;
-                if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.SslPolicy || "Unknown";
-                    if (policy === tlsVersion && teamLoadBalancers.has(doc.LoadBalancerArn)) {
-                        const lbDoc = teamLoadBalancers.get(doc.LoadBalancerArn);
-                        allResources.push({
-                            resourceId: doc.LoadBalancerArn,
-                            shortName: lbDoc.Configuration?.LoadBalancerName || doc.LoadBalancerArn,
-                            type: lbDoc.Configuration?.Type || "Unknown",
-                            scheme: lbDoc.Configuration?.Scheme || "Unknown",
-                            accountId: doc.account_id,
-                            tlsPolicy: policy,
-                            details: {
-                                dnsName: lbDoc.Configuration?.DNSName,
-                                availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                                securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
-                                vpcId: lbDoc.Configuration?.VpcId,
-                                state: lbDoc.Configuration?.State?.Code
+        },
+        {
+            $addFields: {
+                compliance_status: {
+                    $let: {
+                        vars: {
+                            isClassic: {
+                                $or: [
+                                    { $eq: ["$is_classic_source", true] },
+                                    { $gt: [{ $size: { $ifNull: ["$Configuration.ListenerDescriptions", []] } }, 0] }
+                                ]
+                            },
+                            safeListeners: { $ifNull: ["$attached_listeners", []] }
+                        },
+                        in: {
+                            $switch: {
+                                branches: [
+                                    { case: "$$isClassic", then: "DEPRECATED_CLASSIC_ELB" },
+                                    { case: { $eq: [{ $size: "$$safeListeners" }, 0] }, then: "NO_LISTENERS" },
+                                    {
+                                        case: {
+                                            $anyElementTrue: {
+                                                $map: {
+                                                    input: "$$safeListeners",
+                                                    as: "l",
+                                                    in: {
+                                                        $and: [
+                                                            { $in: [{ $ifNull: ["$$l.Configuration.Protocol", ""] }, ["HTTPS", "TLS"]] },
+                                                            { $ne: [{ $ifNull: ["$$l.Configuration.SslPolicy", ""] }, latestTLS] }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        then: "OUTDATED_TLS_POLICY"
+                                    }
+                                ],
+                                default: "COMPLIANT"
                             }
-                        });
-                    }
-                }
-            }
-        }
-
-        // Process Classic ELBs with specific TLS version
-        const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-        for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
-
-            if (doc.Configuration?.ListenerDescriptions) {
-                for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
-                    const listener = listenerDesc.Listener;
-                    if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
-                        const policy = listenerDesc.PolicyNames?.[0] || "Classic-Default";
-                        if (policy === tlsVersion) {
-                            allResources.push({
-                                resourceId: doc.resource_id,
-                                shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
-                                type: "classic",
-                                scheme: doc.Configuration?.Scheme || "Unknown",
-                                accountId: doc.account_id,
-                                tlsPolicy: policy,
-                                details: {
-                                    dnsName: doc.Configuration?.DNSName,
-                                    availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
-                                    securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                                    vpcId: doc.Configuration?.VPCId,
-                                    state: "active"
-                                }
-                            });
-                            break;
                         }
                     }
                 }
             }
-        }
-    }
-
-    return allResources;
-}
-
-async function processLoadBalancerTypes(req, year, month, day) {
-    const teamTypes = new Map();
-
-    const ensureTeam = t => {
-        if (!teamTypes.has(t))
-            teamTypes.set(t, { types: new Map() });
-        return teamTypes.get(t);
-    };
-
-    const results = await req.getDetailsForAllAccounts();
-
-    const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
-
-    for await (const doc of elbV2Cursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-
-        const type = doc.Configuration?.Type || "Unknown";
-        recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
-    }
-
-    const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1 });
-
-    for await (const doc of elbClassicCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-
-        recs.forEach(rec => rec.types.set("classic", (rec.types.get("classic") || 0) + 1));
-    }
-
-    return teamTypes;
-}
-
-async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
-    const allResources = [];
-
-    const results = await req.getDetailsForAllAccounts();
-
-    if (type === "classic") {
-        const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-        for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
-
-            allResources.push({
-                resourceId: doc.resource_id,
-                shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
-                type: "classic",
-                scheme: doc.Configuration?.Scheme || "Unknown",
-                accountId: doc.account_id,
-                details: {
-                    dnsName: doc.Configuration?.DNSName,
-                    availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
-                    securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                    vpcId: doc.Configuration?.VPCId,
-                    createdTime: doc.Configuration?.CreatedTime
+        },
+        {
+            $project: {
+                _id: 0,
+                account_id: 1,
+                "Id": { $ifNull: ["$Configuration.LoadBalancerArn", "$Configuration.LoadBalancerName"] },
+                "Name": "$Configuration.LoadBalancerName",
+                "Type": {
+                    $cond: [
+                        { $ifNull: ["$Configuration.Type", false] },
+                        "$Configuration.Type",
+                        "classic"
+                    ]
+                },
+                "Scheme": { $ifNull: ["$Configuration.Scheme", "unknown"] },
+                "Compliance Status": "$compliance_status",
+                "DNS Name": { $ifNull: ["$Configuration.DNSName", "N/A"] },
+                "TLS Policy": {
+                    $cond: [
+                        { $eq: ["$compliance_status", "DEPRECATED_CLASSIC_ELB"] },
+                        "Classic (V1) - No PQ Support",
+                        {
+                            $let: {
+                                vars: {
+                                    policyList: {
+                                        $map: {
+                                            input: { $ifNull: ["$attached_listeners", []] },
+                                            as: "lis",
+                                            in: { $convert: { input: "$$lis.Configuration.SslPolicy", to: "string", onError: "None", onNull: "None" } }
+                                        }
+                                    }
+                                },
+                                in: {
+                                    $let: {
+                                        vars: { uniqueList: { $setUnion: ["$$policyList"] } },
+                                        in: {
+                                            $cond: [
+                                                { $eq: [{ $size: { $ifNull: ["$$uniqueList", []] } }, 0] },
+                                                "None (Plaintext)",
+                                                {
+                                                    $reduce: {
+                                                        input: { $ifNull: ["$$uniqueList", []] },
+                                                        initialValue: "",
+                                                        in: {
+                                                            $concat: [
+                                                                "$$value",
+                                                                { $cond: [{ $eq: ["$$value", ""] }, "", ", "] },
+                                                                { $toString: "$$this" }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
                 }
-            });
-        }
-    } else {
-        const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
-
-        for await (const doc of elbV2Cursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
-
-            const docType = doc.Configuration?.Type;
-            if (docType === type) {
-                allResources.push({
-                    resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
-                    type: (() => {
-                        if (docType === "application") return "ALB";
-                        if (docType === "network") return "NLB";
-                        return docType;
-                    })(),
-                    scheme: doc.Configuration?.Scheme || "Unknown",
-                    accountId: doc.account_id,
-                    details: {
-                        dnsName: doc.Configuration?.DNSName,
-                        availabilityZones: doc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: doc.Configuration?.VpcId,
-                        state: doc.Configuration?.State?.Code,
-                        createdTime: doc.Configuration?.CreatedTime
-                    }
-                });
             }
         }
-    }
+    ],
+    idField: "Name",
+    prominentFields: ["Type", "Compliance Status", "TLS Policy"],
+    filterableFields: [
+        { name: "Type", idSelector: "Type" },
+        { name: "Compliance Status", idSelector: "Compliance Status" },
+        { name: "TLS Policy", idSelector: "TLS Policy" },
+    ],
+    searchableFields: ["Id", "Name", "DNS Name", "TLS Policy"],
+    detailsFields: ["Id", "Scheme", "DNS Name"]
+};
 
-    return allResources;
-}
+const loadBalancerComplianceRule = {
+    id: "ELB1",
+    name: "Load Balancer TLS",
+    description: "Evaluates ELB security posture based on Type and TLS Policy version (Latest: 2025 PQ-TLS).",
+    view: loadBalancersView.id,
+    pipeline: (groupKey) => [
+        {
+            $group: {
+                _id: {
+                    key: `$${groupKey}`,
+                    compliance: "$Compliance Status",
+                    policy: "$TLS Policy"
+                },
+                count: { $count: {} }
+            }
+        },
+        {
+            $group: {
+                _id: "$_id.key",
+                rows: {
+                    $push: {
+                        "Compliance Status": "$_id.compliance",
+                        "TLS Policy": "$_id.policy",
+                        "Count": { $sum: "$count" }
+                    }
+                }
+            }
+        }
+    ],
+    header: ["Compliance Status", "TLS Policy", "Count"],
+    links: [{
+        field: "Count",
+        forward: ["Compliance Status", "TLS Policy"],
+        view: loadBalancersView.id,
+    }],
+};
 
 module.exports = {
-    getLatestElbDate,
-    getElbV2ForDate,
-    getElbClassicForDate,
-    getElbV2ListenersForDate,
-    processTlsConfigurations,
-    getLoadBalancerDetails,
-    processLoadBalancerTypes,
-    getLoadBalancerTypeDetails
+    loadBalancersView,
+    loadBalancerComplianceRule
 };

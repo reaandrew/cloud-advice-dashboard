@@ -39,11 +39,12 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-from datetime import timezone
+from datetime import UTC, timezone
 import random
 import string
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, Iterator, List, Tuple
+from itertools import islice
 
 from pymongo import DESCENDING, MongoClient
 from pymongo.errors import OperationFailure
@@ -112,6 +113,26 @@ def arn_redshift_namespace(cluster_id: str, region: str, account: str) -> str:
     return arn("redshift", region, account, f"namespace:{cluster_id}")
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Misc AWS generators
+# ──────────────────────────────────────────────────────────────────────────────
+def gen_azs(region: str, max: int = 1) -> list[str]:
+    return random.choices([f"{region}a",f"{region}b",f"{region}c"], k=random.randrange(1, max+1))
+
+def gen_sg_id() -> str:
+    return f"sg-{rand_hex(8)}"
+
+def gen_tags() -> List[Dict]:
+    return [
+        {"Key": "env", "Value": random.choice(["dev", "stage", "prod"])},
+        {"Key": "Name", "Value": f"mock-{rand_str(6)}"},
+    ]
+
+def gen_create_time(subtract_days: int = 365) -> str:
+    date_now = dt.datetime.utcnow().timestamp()
+    rand_date = date_now - random.randrange(0, subtract_days * 24 * 60 * 60)
+    return dt.datetime.fromtimestamp(rand_date).isoformat()
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Resource generators (Configuration payloads)
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -123,90 +144,126 @@ class Context:
     m: int
     d: int
 
-def gen_ec2_instances(n: int, ctx: Context) -> List[Dict]:
-    out = []
-    for _ in range(n):
-        iid = f"i-{rand_hex(17)}"
-        az = f"{ctx.region}{random.choices(list('abc'))}"
-        sgid = f"sg-{rand_hex(8)}"
-        cfg = {
-            "InstanceId": iid,
-            "ImageId": f"ami-{rand_hex(8)}",
-            "InstanceType": random.choices(["t3.micro", "t3.small", "m5.large", "c6g.large"]),
-            "PrivateIpAddress": f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}",
-            "State": {"Code": 16, "Name": "running"},
-            "Placement": {"AvailabilityZone": az},
-            "SecurityGroups": [{"GroupName": f"sg-{rand_str(5)}", "GroupId": sgid}],
-            "VpcId": f"vpc-{rand_hex(8)}",
-            "SubnetId": f"subnet-{rand_hex(8)}",
-            "LaunchTime": iso_now,
-            "Arn": arn_ec2_instance(iid, ctx.region, ctx.account),
-            "Tags": [{"Key": "Name", "Value": f"mock-{rand_str(6)}"}],
-        }
-        out.append(cfg)
-    return out
-
-def gen_volumes(n: int, ctx: Context) -> List[Dict]:
-    out = []
-    for _ in range(n):
-        vid = f"vol-{rand_hex(12)}"
-        cfg = {
-            "VolumeId": vid,
+# TODO: Where there are comments 'Needs to be attached after creation' Create some functions to attach based on some randomness.
+# TODO: Where there are comments 'Not Including' these are useful parameters not included for now. Add if needed. This is not an exhaustive list please refer to the API.
+def gen_ebs_volumes(ctx: Context) -> Iterator[Dict]:
+    while True:
+        yield {
+            "Iops": random.choice([100, 1000, 10000]),
+            "Tags": gen_tags(),
+            "VolumeType": random.choice(["gp2", "gp3", "io2"]),
+            "MultiAttachEnabled": random.choice([None, True]),
+            "VolumeId": f"vol-{rand_hex(12)}",
             "Size": random.choice([8, 20, 100, 200, 500]),
-            "State": "in-use",
-            "CreateTime": iso_now,
-            "AvailabilityZone": f"{ctx.region}{random.choices(list('abc'))}",
-            "Attachments": [],
-            "Tags": [{"Key": "env", "Value": random.choices(["dev", "stage", "prod"])}],
-            "Arn": arn("ec2", ctx.region, ctx.account, f"volume/{vid}"),
+            "SnapshotId": random.choice([None, f"snap-{rand_hex(17)}"]),
+            "AvailabilityZone": gen_azs(ctx.region)[0],
+            "State": random.choices(["available", "in-use"]),
+            "CreateTime": gen_create_time(),
+            "Attachments": [], # Needs to be attached after creation
+            "Encrypted": random.choice([True, False]),
+            "KmsKeyId": "", # Needs to be attached after creation
         }
-        out.append(cfg)
-    return out
 
-def gen_autoscaling_groups(n: int, instances: List[Dict], ctx: Context) -> List[Dict]:
-    out = []
-    for i in range(n):
-        name = f"mock-asg-{i}-{rand_str(4)}"
+def gen_ec2_instances(ctx: Context) -> Iterator[Dict]:
+    while True:
+        iid = f"i-{rand_hex(17)}"
+        az = gen_azs(ctx.region)[0]
+        ipaddr = f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}"
+        yield {
+            "AmiLaunchIndex": 0,
+            "ImageId": f"ami-{rand_hex(8)}",
+            "InstanceId": iid,
+            "InstanceType": random.choices(["t3.micro", "t3a.small", "m5.large", "c6g.large"]),
+            "KeyName": "", # Needs to be attached after creation
+            "LaunchTime": gen_create_time(500),
+            # Not including Monitoring
+            "Placement": {
+                "AvailabilityZone": az
+            },
+            "PrivateDnsName": f"ip-{ipaddr}.{az}.compute.internal",
+            "PrivateIpAddress": ipaddr,
+            # Not including PublicDnsName
+            # Not including PublicIpAddress
+            "State": {
+                "Code": 16,
+                "Name": "running"
+            }, # TODO: randomise
+            "SubnetId": f"subnet-{rand_hex(17)}",
+            "VpcId": f"vpc-{rand_hex(17)}",
+            "Architecture": random.choices(["x86_64", "arm64"]),
+            "BlockDeviceMappings": [], # Needs to be attached after creation
+            # Not including EbsOptimized
+            # Not including Hypervisor
+            # Not including NetworkInterfaces
+            # Not including RootDeviceName
+            # Not including RootDeviceType
+            "SecurityGroups": [{"GroupName": f"sg-{rand_str(5)}", "GroupId": gen_sg_id()}],
+            "Arn": arn("ec2", ctx.region, ctx.account, f"instance/{iid}"),
+            "Tags": gen_tags(),
+            # Not including VirtualizationType
+            # Not including CapacityReservationSpecification
+            # Not including MetadataOptions (.HttpTokens can be used to check IMDSv2)
+        }
+
+# TODO: do not require passing in Instances and attach in a seperate function
+def gen_autoscaling_groups(instances: List[Dict], ctx: Context) -> Iterator[Dict]:
+    while True:
+        name = f"mock-asg-{rand_str(4)}"
         asg_arn = arn("autoscaling", ctx.region, ctx.account, f"autoScalingGroup:{rand_hex(12)}:autoScalingGroupName/{name}")
-        member_iids = [inst["InstanceId"] for inst in random.sample(instances, k=min(len(instances), random.randint(1, 5)))] if instances else []
-        cfg = {
+        member_iids = [inst["InstanceId"] for inst in random.sample(instances, k=min(len(instances), random.randint(0, 5)))] if instances else []
+        min_size = random.randrange(0, len(member_iids)+1)
+        max_size = random.randrange(len(member_iids), len(member_iids) + 5)
+        desired_capacity = random.randrange(min_size, max_size+1)
+        yield {
             "AutoScalingGroupName": name,
             "AutoScalingGroupARN": asg_arn,
-            "MinSize": 1,
-            "MaxSize": max(2, len(member_iids) or 2),
-            "DesiredCapacity": len(member_iids) or 1,
-            "AvailabilityZones": [f"{ctx.region}{z}" for z in "abc"],
+            # Not including LaunchTemplate
+            "MinSize": min_size,
+            "MaxSize": max_size,
+            "DesiredCapacity": desired_capacity,
+            "DefaultCooldown": random.choice([60, 300, 2000]),
+            "AvailabilityZones": gen_azs(ctx.region, 3),
+            # Not including LoadBalancerNames
+            # Not including TargetGroupARNs
             "VPCZoneIdentifier": ",".join({f"subnet-{rand_hex(8)}" for _ in range(2)}),
-            "HealthCheckType": "EC2",
-            "CreatedTime": iso_now,
-            "Tags": [{"Key": "app", "Value": "web"}],
+            "HealthCheckType": random.choice(["EC2", "ELB"]),
+            "HealthCheckGracePeriod": random.randrange(0, 600),
+            # Not including Instances[].{InstanceType, AvailabilityZone, ProtectedFromScaleIn, LaunchTemplate}
             "Instances": [{"InstanceId": iid, "HealthStatus": "Healthy", "LifecycleState": "InService"} for iid in member_iids],
+            "CreatedTime": gen_create_time(500),
+            # Not including VPCZoneIdentifier
+            # Not including EnabledMetrics
+            "Tags": gen_tags(),
+            # Not including TerminationPolicies
+            # Not including TrafficSources
         }
-        out.append(cfg)
-    return out
 
-def gen_elb_classic(n: int, ctx: Context) -> List[Dict]:
-    out = []
-    for i in range(n):
-        name = f"classic-{i}-{rand_str(5)}"
-        cfg = {
-            "LoadBalancerName": name,
-            "DNSName": f"{name}-{rand_hex(8)}.{ctx.region}.elb.amazonaws.com",
+def gen_elb_classic(ctx: Context) -> Iterator[Dict]:
+    while True:
+        name = f"classic-{rand_str(5)}"
+        yield {
+            # Not including Subnets
             "CanonicalHostedZoneNameID": rand_hex(12),
+            "CanonicalHostedZoneName": f"clb-{rand_str(6)}",
             "ListenerDescriptions": [{
+                # Not including Listener.SSLCertificateId
                 "Listener": {"Protocol": "HTTP", "LoadBalancerPort": 80, "InstanceProtocol": "HTTP", "InstancePort": 80},
-                "PolicyNames": []
+                "PolicyNames": random.choice([["ELBSecurityPolicy-2015-03"], []])
             }],
-            "Policies": {"AppCookieStickinessPolicies": [], "LBCookieStickinessPolicies": [], "OtherPolicies": []},
-            "AvailabilityZones": [f"{ctx.region}{z}" for z in "ab"],
+            # Not including HealthCheck
             "VPCId": f"vpc-{rand_hex(8)}",
-            "Instances": [],
-            "CreatedTime": iso_now,
-            "Scheme": "internet-facing",
+            # Not including BackendServerDescriptions
+            "Instances": [], # Needs to be attached after creation
+            "DNSName": f"{name}-{rand_hex(10)}.{ctx.region}.elb.amazonaws.com",
+            "Policies": {"AppCookieStickinessPolicies": [], "LBCookieStickinessPolicies": [], "OtherPolicies": []},
+            "LoadBalancerName": name,
+            "CreatedTime": gen_create_time(),
+            "AvailabilityZones": gen_azs(ctx.region, 3),
+            "Scheme": random.choice(["internet-facing", "internal"]),
+            # Not including SourceSecurityGroup
         }
-        out.append(cfg)
-    return out
 
+# TODO: Update ELBV2
 def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     lbs, listeners, certs = [], [], []
     for i in range(n):
@@ -248,6 +305,7 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
                     })
     return lbs, listeners, certs
 
+# TODO: Update EFS
 def gen_efs(n: int, ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
@@ -267,6 +325,7 @@ def gen_efs(n: int, ctx: Context) -> List[Dict]:
         out.append(cfg)
     return out
 
+# TODO: Update KMS
 def gen_kms(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict]]:
     keys, meta = [], []
     for _ in range(n):
@@ -277,7 +336,7 @@ def gen_kms(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict]]:
             "AWSAccountId": ctx.account,
             "KeyId": kid,
             "Arn": karn,
-            "CreationDate": dt.datetime.now(timezone.utc),
+            "CreationDate": gen_create_time(3 * 365),
             "Enabled": True,
             "KeyUsage": "ENCRYPT_DECRYPT",
             "KeyState": "Enabled",
@@ -287,6 +346,7 @@ def gen_kms(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict]]:
         })
     return keys, meta
 
+# TODO: Update RDS
 def gen_rds(n: int, ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
@@ -309,6 +369,7 @@ def gen_rds(n: int, ctx: Context) -> List[Dict]:
         out.append(cfg)
     return out
 
+# TODO: Update Redshift
 def gen_redshift(n: int, ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
@@ -325,6 +386,7 @@ def gen_redshift(n: int, ctx: Context) -> List[Dict]:
         out.append(cfg)
     return out
 
+# TODO: Update Route53
 def gen_route53_zones(n: int) -> List[Dict]:
     out = []
     for _ in range(n):
@@ -340,6 +402,7 @@ def gen_route53_zones(n: int) -> List[Dict]:
         out.append(cfg)
     return out
 
+# TODO: Update S3
 def gen_s3_buckets(n: int) -> List[Dict]:
     out = []
     for _ in range(n):
@@ -348,6 +411,7 @@ def gen_s3_buckets(n: int) -> List[Dict]:
         out.append(cfg)
     return out
 
+# TODO: Update SG
 def gen_security_groups(n: int, ctx: Context) -> List[Dict]:
     out = []
     for _ in range(n):
@@ -368,7 +432,8 @@ def gen_security_groups(n: int, ctx: Context) -> List[Dict]:
         out.append(cfg)
     return out
 
-def gen_tags(resources: List[str]) -> List[Dict]:
+# TODO: Update/Remove Tags
+def gen_resource_tags(resources: List[str]) -> List[Dict]:
     tag_keys = ["env", "owner", "service", "cost-center"]
     out = []
     for rid in resources:
@@ -403,8 +468,8 @@ RESOURCE_ID_MAP = {
     "tags": "ResourceARN",
 }
 
-def classic_elb_arn_from_cfg(cfg: Dict, region: str, account: str) -> str:
-    name = cfg.get("LoadBalancerName")
+def classic_elb_arn_from_cfg(cfg: Dict[str, str], region: str, account: str) -> str:
+    name = cfg.get("LoadBalancerName", "")
     return arn_elb_classic(name, region, account)
 
 def derive_resource_id(coll: str, cfg: Dict, ctx: Context) -> str:
@@ -535,6 +600,7 @@ def gen_account_ids(args) -> list[str]:
         out.add("".join(random.choices("0123456789", k=12)))
     return list(out)
 
+AUTH_GROUPS = ["MOCK_TEAM_X", "MOCK_TEAM_Y", "MOCK_TEAM_Z"]
 def build_account_mapping(owner_id: str) -> dict:
     team, service, code_prefix = random.choice(TEAM_CHOICES)
     code = f"{code_prefix}{random.randint(1, 999):03d}"
@@ -548,6 +614,7 @@ def build_account_mapping(owner_id: str) -> dict:
             "description": f"{team} team AWS account"
         },
         "environment": app_env,
+        "groups": ["MOCK_ALL", random.choice(AUTH_GROUPS)]
     }
 
 def dump_account_mappings_yaml(mappings: list[dict]) -> str:
@@ -690,10 +757,10 @@ def main():
             sg_count = args.sg
 
         # Generate for this account
-        ec2_cfgs = gen_ec2_instances(ec2_count, ctx)
-        vols_cfgs = gen_volumes(volumes_count, ctx)
-        asg_cfgs = gen_autoscaling_groups(asg_count, ec2_cfgs, ctx)
-        elb_classic_cfgs = gen_elb_classic(classic_elb_count, ctx)
+        ec2_cfgs = list(islice(gen_ec2_instances(ctx), ec2_count))
+        vols_cfgs = list(islice(gen_ebs_volumes(ctx),volumes_count))
+        asg_cfgs = list(islice(gen_autoscaling_groups(ec2_cfgs, ctx),asg_count))
+        elb_classic_cfgs = list(islice(gen_elb_classic(ctx),classic_elb_count))
         elbv2_lbs, elbv2_listeners, elbv2_certs = gen_elbv2(elb_count, ctx)
         efs_cfgs = gen_efs(efs_count, ctx)
         kms_keys, kms_meta = gen_kms(kms_count, ctx)
@@ -706,13 +773,13 @@ def main():
         # Tag targets
         tag_targets: List[str] = []
         tag_targets += [i.get("Arn") for i in ec2_cfgs if i.get("Arn")]
-        tag_targets += [cfg.get("DBInstanceArn") for cfg in rds_cfgs]
-        tag_targets += [lb.get("LoadBalancerArn") for lb in elbv2_lbs]
+        tag_targets += [cfg.get("DBInstanceArn", "") for cfg in rds_cfgs]
+        tag_targets += [lb.get("LoadBalancerArn", "") for lb in elbv2_lbs]
         tag_targets += [arn_route53_zone(z["Id"].split("/")[-1]) for z in zones_cfgs]
         tag_targets += [arn_s3_bucket(b["Name"]) for b in bucket_cfgs]
         tag_targets += [k["KeyArn"] for k in kms_keys]
         tag_targets = [t for t in tag_targets if t]
-        tags_cfgs = gen_tags(random.sample(tag_targets, k=min(len(tag_targets), max(2, len(tag_targets)//2))))
+        tags_cfgs = gen_resource_tags(random.sample(tag_targets, k=min(len(tag_targets), max(2, len(tag_targets)//2))))
 
         # Insert per-collection
         def insert_cfgs(coll_name: str, cfgs: List[Dict]):

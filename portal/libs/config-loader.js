@@ -133,7 +133,7 @@ class ConfigLoader {
 
             // Authentication
             'auth.type': process.env.AUTH_TYPE,
-            'auth.mock.groups': (process.env.AUTH_MOCK_GROUPS || "").split("/"),
+            'auth.mock.groups': process.env.AUTH_MOCK_GROUPS?.split("/"),
             'auth.oidc.client_id': process.env.OIDC_CLIENT_ID,
             'auth.oidc.client_secret': process.env.OIDC_CLIENT_SECRET,
             'auth.oidc.issuer_url': process.env.OIDC_ISSUER_URL,
