@@ -164,4 +164,41 @@ const registerComplianceRuleSummary = (rules) => async (req, res) => {
     });
 };
 
-module.exports = {registerComplianceRule, registerComplianceRuleSummary};
+const registerGlobalComplianceOverview = (rules) => async (req, res) => {
+    const groups = config.get("auth.admin_emails", "not_set") === req.oidc?.user?.email ? ["*"] : req.oidc?.user?.groups ?? ["*"];
+
+    const globalStats = await Promise.all(rules.map(async (rule) => {
+        const results = await req.unsafeDb.collection(`compliance_view_${rule.view}`)
+            .aggregate([
+                ...latestOnly,
+                ...accountLookup,
+                ...security(groups),
+                {$match: { _is_empty_marker: { $exists: false }}},
+                ...rule.pipeline(null),
+            ])
+            .toArray();
+
+        // results[0] contains the global count because groupKey was null
+        const rows = results[0]?.rows ?? [];
+        const stats = rowsToDetails(rows, rule.threshold);
+
+        return {
+            ruleId: rule.id,
+            ruleName: rule.name,
+            description: rule.description,
+            ...stats,
+            percentage: stats.count === 0 ? 100 : Math.floor((stats.compliantCount / stats.count) * 100),
+            threshold: rule.threshold ?? 100
+        };
+    }));
+
+    res.render('overview.njk', {
+        breadcrumbs: [],
+        policy_title: "Overview",
+        policy_description: "Overall compliance health across all accounts and teams.",
+        globalStats,
+        section: "compliance"
+    });
+};
+
+module.exports = {registerComplianceRule, registerComplianceRuleSummary, registerGlobalComplianceOverview};
