@@ -52,28 +52,14 @@ const URLS = [
 
     // Compliance overview
     '/compliance',
-    '/compliance/tenants',
-    '/compliance/teams',
 
-    // Tagging compliance
-    '/compliance/tagging',
-    '/compliance/tagging/teams',
+    // Rules
+    '/compliance/rule/AUTO1',
+    '/compliance/rule/TAG1',
 
-    // Database compliance
-    '/compliance/database',
-
-    // Load balancer compliance
-    '/compliance/loadbalancers',
-    '/compliance/loadbalancers/tls',
-    '/compliance/loadbalancers/types',
-
-    // KMS compliance
-    '/compliance/kms',
-
-    // Auto scaling compliance
-    '/compliance/autoscaling',
-    '/compliance/autoscaling/dimensions',
-    '/compliance/autoscaling/empty',
+    // Views
+    '/compliance/view/autoscaling_groups',
+    '/compliance/view/kms_keys',
 ];
 
 /**
