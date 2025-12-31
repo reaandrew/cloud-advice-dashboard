@@ -1,3 +1,5 @@
+const config = require('../libs/config-loader');
+
 const createMissingTagCondition = (tagName) => ({$cond: {
     if: {$or: [
         {$not: {
@@ -30,9 +32,7 @@ const createMissingTagCondition = (tagName) => ({$cond: {
     else: "false"
 }})
 
-const missingTags = [
-    { displayName: "Missing Billing Id", name: "missing_billing_id", cond: createMissingTagCondition("BillingId") }
-]
+const missingTags = config.get('compliance.tagging.mandatory_tags', ["PRCode", "Source", "SN_ServiceID", "SN_Environment", "SN_Application", "BSP"]).map(tag => ({ displayName: `Missing ${tag}`, name: `missing_${tag}`, cond: createMissingTagCondition(tag) }));
 
 
 const taggingView = {

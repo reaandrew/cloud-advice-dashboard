@@ -9,7 +9,7 @@ const defaultFilterableFields = [
     { name: "Tenant", idSelector: "accountDetails.tenant.id" },
 ];
 
-const registerComplianceView = async (view, router) => router.get(`/view/${view.id}`, renderView(view));
+const registerComplianceView = async (view, router, allRules, allViews) => router.get(`/view/${view.id}`, renderView(view, allRules, allViews));
 
 /**
  * @param {Array<{name: string, idSelector: string}>} filterableFields
@@ -105,7 +105,7 @@ const displayPagination = (page, pages, path, currentQueryParams) => {
  *      detailsFields: Array<{ name: string, type: "string" | "object" }>,
  *  }} view
  */
-const renderView = ({ collection, pipeline, id, name, idField, prominentFields, filterableFields, searchableFields, detailsFields }) => {
+const renderView = ({ collection, pipeline, id, name, idField, prominentFields, filterableFields, searchableFields, detailsFields }, allRules, allViews) => {
     const allFilterableFields = defaultFilterableFields
         .concat(filterableFields)
         .concat([{ name: "Id", idSelector: idField, hide: true }]);
@@ -166,7 +166,11 @@ const renderView = ({ collection, pipeline, id, name, idField, prominentFields, 
             section: "compliance",
             url,
             isFiltered,
-            activeFilterCount: filters.length + (search ? 1 : 0)
+            activeFilterCount: filters.length + (search ? 1 : 0),
+            sideMenu: ({
+                rules: allRules.map(r => ({ id: r.id, name: r.name })),
+                views: allViews.map(v => ({ id: v.id, name: v.name }))
+            })
         });
     }
 }

@@ -41,7 +41,6 @@ if (config.get('features.auth', false)) {
             logger.error(`Failed to setup auth. Unknown auth type: ${config.get('auth.type')}`);
             exit(1);
     }
-    app.use(require('./libs/middleware/authorizationImpl.js'));
 }
 logger.info('✓ Auth and DB Middleware configured');
 

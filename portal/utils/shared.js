@@ -25,7 +25,6 @@ const policiesBreadcrumbs = [
 
 // Configuration
 const markdownRoot = path.join(__dirname, '../markdown');
-const mandatoryTags = get('compliance.tagging.mandatory_tags', ["PRCode", "Source", "SN_ServiceID", "SN_Environment", "SN_Application", "BSP"]);
 
 // Database deprecation checking function
 function checkDatabaseDeprecation(engine, version) {
@@ -48,4 +47,3 @@ module.exports.baseBreadcrumbs = baseBreadcrumbs;
 module.exports.complianceBreadcrumbs = complianceBreadcrumbs;
 module.exports.policiesBreadcrumbs = policiesBreadcrumbs;
 module.exports.markdownRoot = markdownRoot;
-module.exports.mandatoryTags = mandatoryTags;

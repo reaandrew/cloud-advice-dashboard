@@ -6,7 +6,7 @@ const defaultGroupableField = "team";
 const defaultViewOptsRule = "non_compliant_only"; // non_compliant_only or all
 const defaultViewOptsRuleSummary = "all"; // non_compliant_only or all
 
-const registerComplianceRule = (rule, router) => router.get(`/rule/${rule.id}`, renderRule(rule));
+const registerComplianceRule = (rule, router, allRules, allViews) => router.get(`/rule/${rule.id}`, renderRule(rule, allRules, allViews));
 
 const groupableFields = {
     account_id: {
@@ -58,7 +58,7 @@ const rowsToDetails = (rows, threshold) => {
     return { compliantCount, count, status, colorVar };
 }
 
-const renderRule = ({id, name, description, view, pipeline, header, links, threshold}) => async (req, res) => {
+const renderRule = ({id, name, description, view, pipeline, header, links, threshold}, allRules, allViews) => async (req, res) => {
     const groupby = req.query.groupby ?? defaultGroupableField;
     const viewOpts = req.query.viewopts ?? defaultViewOptsRule;
     const groupableField = groupableFields[groupby];
@@ -94,11 +94,15 @@ const renderRule = ({id, name, description, view, pipeline, header, links, thres
         viewOpts,
         header: header,
         tables,
-        section: "compliance"
+        section: "compliance",
+        sideMenu: ({
+            rules: allRules.map(r => ({ id: r.id, name: r.name })),
+            views: allViews.map(v => ({ id: v.id, name: v.name }))
+        })
     });
 };
 
-const registerComplianceRuleSummary = (rules) => async (req, res) => {
+const registerComplianceRuleSummary = (rules, views) => async (req, res) => {
     const groupby = req.query.groupby ?? defaultGroupableField;
     const viewOpts = req.query.viewopts ?? defaultViewOptsRuleSummary;
     const groupableField = groupableFields[groupby];
@@ -148,10 +152,17 @@ const registerComplianceRuleSummary = (rules) => async (req, res) => {
 
     const tables = Object.values(groupedSummary).sort((a, b) => a.name.localeCompare(b.name));
 
+    const menu_items = rules.map(rule => ({
+        text: `[${rule.id}] ${rule.name}`,
+        href: `/compliance/rule/${rule.id}`
+    }));
+
     res.render('policies/compliance_rule_summary.njk', {
         breadcrumbs: [...complianceBreadcrumbs],
         policy_title: `Compliance Summary by ${groupableField.name}`,
         policy_description: "Detailed compliance breakdown across all organizational units.",
+        menu_items,
+        currentPath: req.path,
         groupByItems: Object.entries(groupableFields).map(([key, field]) => ({
             value: key,
             text: field.name,
@@ -160,7 +171,11 @@ const registerComplianceRuleSummary = (rules) => async (req, res) => {
         viewOpts,
         groupby,
         tables,
-        section: "compliance"
+        section: "compliance",
+        sideMenu: ({
+            rules: rules.map(r => ({ id: r.id, name: r.name })),
+            views: views.map(v => ({ id: v.id, name: v.name }))
+        })
     });
 };
 
@@ -193,7 +208,6 @@ const registerGlobalComplianceOverview = (rules) => async (req, res) => {
     }));
 
     res.render('overview.njk', {
-        breadcrumbs: [],
         policy_title: "Overview",
         policy_description: "Overall compliance health across all accounts and teams.",
         globalStats,
