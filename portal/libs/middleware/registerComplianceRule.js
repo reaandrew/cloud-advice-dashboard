@@ -3,6 +3,7 @@ const { complianceBreadcrumbs } = require('../../utils/shared');
 const { latestOnly, security, accountLookup } = require("../views/queries");
 
 const defaultGroupableField = "team";
+const defaultViewOpts = "non_compliant_only"; // non_compliant_only or all
 
 const registerComplianceRule = (rule, router) => router.get(`/rule/${rule.id}`, renderRule(rule));
 
@@ -41,8 +42,24 @@ const linksToHtml = (links, row, field, groupKey, groupValue) => {
     return `<a class="govuk-link" href="${href}">${row[field]}</a>`;
 }
 
-const renderRule = ({id, name, description, view, pipeline, header, links}) => async (req, res) => {
+const rowsToDetails = (rows, threshold) => {
+    let compliantCount = 0;
+    let count = 0;
+    for (const row of rows) {
+        if (row.Compliant) {
+            compliantCount += row.Count;
+        }
+        count += (row.Count ?? 0);
+    }
+    const percentage = count === 0 ? 100 : (Math.floor((compliantCount / count) * 100));
+    const status = percentage >= (threshold ?? 100) ? "Compliant" : "Non Compliant";
+    const colorVar = status === "Compliant" ? "--app-primary-green" : "--app-tertiary-red"
+    return { compliantCount, count, status, colorVar };
+}
+
+const renderRule = ({id, name, description, view, pipeline, header, links, threshold}) => async (req, res) => {
     const groupby = req.query.groupby ?? defaultGroupableField;
+    const viewOpts = req.query.viewopts ?? defaultViewOpts;
     const groupableField = groupableFields[groupby];
     const groups = config.get("auth.admin_emails", "not_set") === req.oidc?.user?.email ? ["*"] : req.oidc?.user?.groups ?? ["*"];
     const tables = (await req.unsafeDb.collection(`compliance_view_${view}`)
@@ -57,11 +74,13 @@ const renderRule = ({id, name, description, view, pipeline, header, links}) => a
         .map(({ _id, rows }) => ({
             name: groupableField.valueToName(_id),
             longName: groupableField.valueToLongName(_id),
-            rows: rows.map(row => header.map(field => ({
-                html: linksToHtml(links, row, field, groupableField.name, groupableField.valueToName(_id))
-            })))
+            details: rowsToDetails(rows, threshold),
+            rows: rows
+                .filter(row => viewOpts === "all" ? true : viewOpts === "non_compliant_only" ? !row.Compliant : false)
+                .map(row => header.map(field =>
+                    linksToHtml(links, row, field, groupableField.name, groupableField.valueToName(_id))
+                ))
         }));
-    console.log(require('util').inspect(tables, {depth: 10}));
     res.render('policies/compliance_rule.njk', {
         breadcrumbs: [...complianceBreadcrumbs, { text: id, href: req.path }],
         policy_title: `[${id}] ${name}`,
@@ -71,7 +90,8 @@ const renderRule = ({id, name, description, view, pipeline, header, links}) => a
             text: field.name,
             selected: key === groupby,
         })),
-        header: header.map(text => ({ text })),
+        viewOpts,
+        header: header,
         tables,
         section: "compliance"
     });

@@ -130,7 +130,8 @@ const missingTagsRule = {
                 $push: {
                     "Resource Type": "$_id.Resource Type",
                     ...(missingTags.reduce((obj, { displayName }) => { obj[displayName] = `$_id.${displayName}`; return obj; }, {})),
-                    Count: {$sum: "$count"}
+                    Count: {$sum: "$count"},
+                    Compliant: {$and: missingTags.map(({ displayName }) => ({$eq: [`$_id.${displayName}`, "false"]}))},
                 }
             }
         }}
@@ -141,6 +142,7 @@ const missingTagsRule = {
         forward: ["Resource Type", ...(missingTags.map(({displayName}) => displayName))],
         view: taggingView.id,
     }],
+    threshold: 98,
 };
 
 module.exports = {

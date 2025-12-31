@@ -1,4 +1,4 @@
-const createDateFilter = (from, to) => ({ $and: [{ "$gte": [{ $dateDiff: { startDate: "$Configuration.CreationDate", endDate: "$$NOW", unit: "day" } }, from]}, { "$lt": [{ $dateDiff: { startDate: "$Configuration.CreationDate", endDate: "$$NOW", unit: "day" } }, to]}]})
+const createDateFilter = (from, to) => ({ $and: [{ "$gte": [{ $dateDiff: { startDate: {$dateFromString: { dateString: "$Configuration.CreationDate" }}, endDate: "$$NOW", unit: "day" } }, from]}, { "$lt": [{ $dateDiff: { startDate: {$dateFromString: { dateString: "$Configuration.CreationDate" }}, endDate: "$$NOW", unit: "day" } }, to]}]})
 const dateFilters = {
     "0-30 days": createDateFilter(0, 30),
     "30-90 days": createDateFilter(30, 90),
@@ -7,6 +7,7 @@ const dateFilters = {
     "1-2 years": createDateFilter(365, 730),
     "2+ years": createDateFilter(730, 100000),
 };
+const compliantDateFilters = ["0-30 days", "30-90 days"];
 
 const kmsKeysView = {
     id: "kms_keys", // A machine friendly name for the view. Allowed characters: [a-z_]
@@ -17,7 +18,7 @@ const kmsKeysView = {
             "age_range": {$switch: {
                 branches: Object.entries(dateFilters).map(([name, filter]) => ({ case: filter, then: name })),
                 default: "Unexpected Error. KMS Key reports to be 300+ years old. Please report to administrator."
-            }}
+            }},
         }},
         {$project: {
             _id: 0,
@@ -41,27 +42,30 @@ const kmsKeysView = {
     detailsFields: ["ARN", "Creation Date", "Key State", "Key Usage", "Key Spec"], // Fields to hide in details section. id_field will always be included.
 };
 
+const ageGroup = (groupKey) => ({$group: {
+    _id: {
+        key: groupKey == null ? null : `$${groupKey}`, // This stage with this group key must always be included. This will be used to group by the available groupable fields.
+        age: "$Age Range" // Additional fields to group by.
+    },
+    count: { $count: {} }
+}})
+
 const kmsKeysRule = {
     id: "KMS1", // A unique ID describing this view. Note this will be visible to users.
     name: "KMS Key Ages", // A human readable name describing the view id.
-    description: "Age distribution of AWS KMS Keys. See documentation link for more details: TODO", // A detailed description describing the view in more details. In the future this will link back to the policy.
+    description: "Age distribution of AWS KMS Keys. Compliant if KMS Keys are more than 90 days old", // A detailed description describing the view in more details. In the future this will link back to the policy.
     view: kmsKeysView.id, // The id of the compliance view to query from.
     pipeline: (groupKey) => [
+        ageGroup(groupKey),
         {$group: {
-            _id: {
-                key: `$${groupKey}`, // This stage with this group key must always be included. This will be used to group by the available groupable fields.
-                age: "$Age Range" // Additional fields to group by.
-            },
-            count: { $count: {} }
-        }},
-        {$group: {
-            _id :  "$_id.key", // This stage with this group key must always be included. This collects your results of other groups together.
+            _id: "$_id.key", // This stage with this group key must always be included. This collects your results of other groups together.
             rows: {
                 $push: {
                     "Age Range": "$_id.age", // Naming fields with a human readable name.
-                    Count: {$sum: "$count"} // You should modify this based on the aggregation performed.
+                    Count: {$sum: "$count"}, // You should modify this based on the aggregation performed.
+                    Compliant: {$in: ["$_id.age", compliantDateFilters]}, // Boolean value describing whether row is compliant.
                 }
-            }
+            },
         }}
     ], // Aggregation pipeline to aggregate and project data on. Note: you should avoid using joins on non-views as the details of these will not visible to users,
     header: ["Age Range", "Count"], // Header names for the resulting table.
@@ -70,6 +74,7 @@ const kmsKeysRule = {
         forward: ["Age Range"], // The query parameters to forward
         view: kmsKeysView.id, // The view to forward to.
     }],
+    threshold: 100, // Threshold describing the percentage of resources that need to be compliant for the rule to be compliant
 };
 
 module.exports = {
