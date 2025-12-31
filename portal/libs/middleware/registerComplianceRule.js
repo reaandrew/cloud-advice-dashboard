@@ -3,7 +3,8 @@ const { complianceBreadcrumbs } = require('../../utils/shared');
 const { latestOnly, security, accountLookup } = require("../views/queries");
 
 const defaultGroupableField = "team";
-const defaultViewOpts = "non_compliant_only"; // non_compliant_only or all
+const defaultViewOptsRule = "non_compliant_only"; // non_compliant_only or all
+const defaultViewOptsRuleSummary = "all"; // non_compliant_only or all
 
 const registerComplianceRule = (rule, router) => router.get(`/rule/${rule.id}`, renderRule(rule));
 
@@ -59,7 +60,7 @@ const rowsToDetails = (rows, threshold) => {
 
 const renderRule = ({id, name, description, view, pipeline, header, links, threshold}) => async (req, res) => {
     const groupby = req.query.groupby ?? defaultGroupableField;
-    const viewOpts = req.query.viewopts ?? defaultViewOpts;
+    const viewOpts = req.query.viewopts ?? defaultViewOptsRule;
     const groupableField = groupableFields[groupby];
     const groups = config.get("auth.admin_emails", "not_set") === req.oidc?.user?.email ? ["*"] : req.oidc?.user?.groups ?? ["*"];
     const tables = (await req.unsafeDb.collection(`compliance_view_${view}`)
@@ -97,4 +98,70 @@ const renderRule = ({id, name, description, view, pipeline, header, links, thres
     });
 };
 
-module.exports = registerComplianceRule;
+const registerComplianceRuleSummary = (rules) => async (req, res) => {
+    const groupby = req.query.groupby ?? defaultGroupableField;
+    const viewOpts = req.query.viewopts ?? defaultViewOptsRuleSummary;
+    const groupableField = groupableFields[groupby];
+    const groups = config.get("auth.admin_emails", "not_set") === req.oidc?.user?.email ? ["*"] : req.oidc?.user?.groups ?? ["*"];
+
+    const allRuleResults = await Promise.all(rules.map(async (rule) => {
+        const results = await req.unsafeDb.collection(`compliance_view_${rule.view}`)
+            .aggregate([
+                ...latestOnly,
+                ...accountLookup,
+                ...security(groups),
+                {$match: { _is_empty_marker: { $exists: false }}},
+                ...rule.pipeline(groupableField.dataSelector),
+            ])
+            .toArray();
+        return { rule, results };
+    }));
+
+    const groupedSummary = {};
+
+    allRuleResults.forEach(({ rule, results }) => {
+        results.forEach(({ _id, rows }) => {
+            const groupName = groupableField.valueToName(_id);
+            const groupLongName = groupableField.valueToLongName(_id);
+
+            if (!groupedSummary[groupName]) {
+                groupedSummary[groupName] = {
+                    name: groupLongName,
+                    id: groupName,
+                    ruleStatuses: []
+                };
+            }
+
+            const stats = rowsToDetails(rows, rule.threshold);
+
+            if (viewOpts === "all" || stats.status === "Non Compliant") {
+                groupedSummary[groupName].ruleStatuses.push({
+                    ruleId: rule.id,
+                    ruleName: rule.name,
+                    ...stats,
+                    threshold: rule.threshold ?? 100,
+                    percentage: stats.count === 0 ? 100 : Math.floor((stats.compliantCount / stats.count) * 100)
+                });
+            }
+        });
+    });
+
+    const tables = Object.values(groupedSummary).sort((a, b) => a.name.localeCompare(b.name));
+
+    res.render('policies/compliance_rule_summary.njk', {
+        breadcrumbs: [...complianceBreadcrumbs],
+        policy_title: `Compliance Summary by ${groupableField.name}`,
+        policy_description: "Detailed compliance breakdown across all organizational units.",
+        groupByItems: Object.entries(groupableFields).map(([key, field]) => ({
+            value: key,
+            text: field.name,
+            selected: key === groupby,
+        })),
+        viewOpts,
+        groupby,
+        tables,
+        section: "compliance"
+    });
+};
+
+module.exports = {registerComplianceRule, registerComplianceRuleSummary};

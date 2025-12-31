@@ -85,8 +85,6 @@ logger.debug('✓ Static assets configured');
 logger.debug('Loading route modules...');
 const indexRoutes = require('./routes/index');
 const policiesRoutes = require('./routes/policies');
-const tenantsRoutes = require('./routes/compliance/tenants');
-const teamsRoutes = require('./routes/compliance/teams');
 logger.debug('✓ Route modules loaded');
 
 // Use the routes
@@ -107,8 +105,6 @@ if (config.get('features.auth', false)) {
 }
 if (config.get('features.compliance', true)) {
     app.use('/compliance', requiresAuth(), complianceModule.router);
-    app.use('/compliance/tenants', requiresAuth(), tenantsRoutes);
-    app.use('/compliance/teams', requiresAuth(), teamsRoutes);
     logger.debug('✓ Compliance Routes configured');
 }
 logger.debug('✓ Routes configured');

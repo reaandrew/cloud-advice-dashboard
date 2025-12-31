@@ -1,0 +1,63 @@
+{% from "govuk/components/button/macro.njk" import govukButton %}
+{% from "govuk/components/select/macro.njk" import govukSelect %}
+{% extends "policies/policy.njk" %}
+{% block policy_content %}
+<details class="govuk-details" data-module="govuk-details">
+    <summary class="govuk-details__summary">Options</summary>
+    <form method="get" class="govuk-form">
+        {{ govukSelect({
+            label: { text: "Group results by" },
+            id: "groupby",
+            name: "groupby",
+            items: groupByItems
+        }) }}
+        {{ govukSelect({
+            label: { text: "View Options" },
+            id: "viewopts",
+            name: "viewopts",
+            items: [
+                { value: "non_compliant_only", text: "Non Compliant Only", selected: viewOpts == "non_compliant_only" },
+                { value: "all", text: "All", selected: viewOpts == "all" }
+            ]
+        }) }}
+        {{ govukButton({ text: "Update" }) }}
+    </form>
+</details>
+
+{% for group in tables %}
+    {% if group.ruleStatuses.length > 0 %}
+    <section class="group-section" style="margin-bottom: 40px;">
+        <h2 class="govuk-heading-m" style="border-bottom: 2px solid #b1b4b6; padding-bottom: 10px;">
+            {{ group.name }}
+        </h2>
+
+        <div class="govuk-grid-row">
+            {% for rule in group.ruleStatuses %}
+            <div class="govuk-grid-column-one-third">
+                <div class="compliance-card" style="border-top: 5px solid var({{ rule.colorVar }}); padding: 15px; margin-bottom: 20px; background: #ffffff; border: 1px solid #d8d8d8; box-shadow: 0 2px 0 rgba(0,0,0,0.05);">
+                    <h3 class="govuk-heading-s" style="margin-bottom: 5px;">{{ rule.ruleName }}</h3>
+                    <p class="govuk-body-s" style="color: #505a5f; margin-bottom: 10px;">ID: {{ rule.ruleId }}</p>
+
+                    <div style="display: flex; align-items: baseline;">
+                        <span class="govuk-body-l" style="font-weight: bold; margin-right: 10px;">{{ rule.percentage }}%</span>
+                        <span class="govuk-tag" style="background-color: var({{ rule.colorVar }}); color: white; font-size: 12px;">
+                            {{ rule.status }}
+                        </span>
+                    </div>
+
+                    <p class="govuk-body-s" style="margin-top: 10px;">
+                        {{ rule.compliantCount }} / {{ rule.count }} resources compliant<br>
+                        <span style="font-size: 12px; color: #505a5f;">Target: {{ rule.threshold }}%</span>
+                    </p>
+
+                    <a href="/compliance/rule/{{ rule.ruleId }}?groupby={{ groupby }}&Age Range=all" class="govuk-link govuk-!-font-size-16">View breakdown</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+{% else %}
+    <p class="govuk-body">No non-compliant resources found for the selected criteria.</p>
+{% endfor %}
+{% endblock %}
