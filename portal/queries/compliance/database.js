@@ -85,14 +85,14 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
                 if (reconstructedKey === expectedKey) {
                     allResources.push({
                         resourceId: doc.resource_id,
-                        shortName: doc.Configuration.reqInstanceIdentifier || doc.resource_id,
+                        shortName: doc.Configuration.DBInstanceIdentifier || doc.resource_id,
                         engine: docEngine,
                         version: docVersion,
                         accountId: doc.account_id,
                         deprecationWarnings: checkDatabaseDeprecation(docEngine, docVersion),
                         details: {
-                            instanceClass: doc.Configuration.reqInstanceClass,
-                            status: doc.Configuration.reqInstanceStatus,
+                            instanceClass: doc.Configuration.DBInstanceClass,
+                            status: doc.Configuration.DBInstanceStatus,
                             allocatedStorage: doc.Configuration.AllocatedStorage,
                             storageType: doc.Configuration.StorageType,
                             multiAZ: doc.Configuration.MultiAZ,

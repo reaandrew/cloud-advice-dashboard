@@ -338,7 +338,7 @@ async function aggregateAutoScalingByTeam(req, year, month, day) {
             const stats = teamStats.get(team);
             stats.totalAsgs++;
 
-            const instances = doc.Instances || [];
+            const instances = doc.Configuration?.Instances || [];
             if (instances.length === 0) {
                 stats.emptyAsgs++;
             }

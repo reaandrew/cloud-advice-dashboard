@@ -161,7 +161,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                         dnsName: doc.Configuration?.DNSName,
                         availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
                         securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: doc.Configuration?.VPCId,
+                        vpcId: doc.Configuration?.VpcId,
                         state: "active"
                     }
                 });
@@ -230,7 +230,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                                     dnsName: doc.Configuration?.DNSName,
                                     availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
                                     securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                                    vpcId: doc.Configuration?.VPCId,
+                                    vpcId: doc.Configuration?.VpcId,
                                     state: "active"
                                 }
                             });
@@ -297,7 +297,7 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
                     dnsName: doc.Configuration?.DNSName,
                     availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
                     securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                    vpcId: doc.Configuration?.VPCId,
+                    vpcId: doc.Configuration?.VpcId,
                     createdTime: doc.Configuration?.CreatedTime
                 }
             });
@@ -316,6 +316,7 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
                     type: (() => {
                         if (docType === "application") return "ALB";
                         if (docType === "network") return "NLB";
+                        if (docType === "classic") return "Classic";
                         return docType;
                     })(),
                     scheme: doc.Configuration?.Scheme || "Unknown",

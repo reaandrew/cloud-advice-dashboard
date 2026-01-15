@@ -354,7 +354,7 @@ async function aggregateAutoScalingByTenant(req, year, month, day) {
             const stats = tenantStats.get(tenantId);
             stats.totalAsgs++;
 
-            const instances = doc.Instances || [];
+            const instances = doc.Configuration?.Instances || [];
             if (instances.length === 0) {
                 stats.emptyAsgs++;
             }
