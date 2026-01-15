@@ -81,7 +81,8 @@ async function getAutoscalingDimensionDetails(req, params) {
                     },
                     details: {
                         launchTemplate: doc.Configuration?.LaunchTemplate?.LaunchTemplateName || doc.Configuration?.LaunchConfigurationName || "N/A",
-                        instanceCount: doc.Configuration?.Instances?.length || 0,
+                        // Ensure we access Instances from the Configuration object
+                        instanceCount: (doc.Configuration?.Instances || []).length || 0,
                         healthCheckType: doc.Configuration?.HealthCheckType || "Unknown",
                         healthCheckGracePeriod: doc.Configuration?.HealthCheckGracePeriod || 0,
                         availabilityZones: doc.Configuration?.AvailabilityZones?.join(", ") || "N/A",
