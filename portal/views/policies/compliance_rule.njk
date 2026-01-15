@@ -1,0 +1,51 @@
+{% from "govuk/components/button/macro.njk" import govukButton %}
+{% from "govuk/components/select/macro.njk" import govukSelect %}
+{% from "govuk/components/table/macro.njk" import govukTable %}
+{% extends "policies/compliance_layout.njk" %}
+{% block policy_content %}
+<p class="govuk-body">
+    <strong>Jump to </strong>
+    {% for table in tables %}
+        <a class="govuk-link" href="#{{table.name}}">{{table.longName}}</a>{% if not loop.last %} | {% endif %}
+    {% endfor %}
+</p>
+<details class="govuk-details" data-module="govuk-details">
+    <summary class="govuk-details__summary">Options</summary>
+    <form method="get" class="govuk-form">
+        {{ govukSelect({
+            label: { text: "Group results by" },
+            id: "groupby",
+            name: "groupby",
+            items: groupByItems
+        }) }}
+        {{ govukSelect({
+            label: { text: "View Options" },
+            id: "viewopts",
+            name: "viewopts",
+            items: [
+                { value: "non_compliant_only", text: "Non Compliant Only", selected: viewOpts == "non_compliant_only" },
+                { value: "all", text: "All", selected: viewOpts == "all" }
+            ]
+        }) }}
+        {{ govukButton({ text: "Update" }) }}
+    </form>
+</details>
+{% for table in tables %}
+    <table id="{{table.name}}" class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--m"><b style="color: var({{table.details.colorVar}});">[{{ table.details.status }}]</b> {{table.longName}}</caption>
+        <caption class="govuk-table__caption govuk-table__caption--s">{{table.details.compliantCount}} out of {{table.details.count}} Resources are Compliant</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                {% for name in header %}<th class="govuk-table__header">{{name}}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for row in table.rows %}
+                <tr class="govuk-table__row">
+                    {% for column in row %}<td class="govuk-table__cell">{{ column | safe }}</td>{% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endfor %}
+{% endblock %}

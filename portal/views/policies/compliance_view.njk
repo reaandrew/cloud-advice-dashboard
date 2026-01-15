@@ -1,0 +1,86 @@
+{% from "govuk/components/button/macro.njk" import govukButton %}
+{% from "govuk/components/input/macro.njk" import govukInput %}
+{% from "govuk/components/pagination/macro.njk" import govukPagination %}
+{% from "govuk/components/select/macro.njk" import govukSelect %}
+{% extends "policies/compliance_layout.njk" %}
+{% block policy_content %}
+
+{% if isFiltered %}
+<div class="govuk-inset-text">
+  Showing results for {{ activeFilterCount }} active filters.
+  <a href="{{ url }}" class="govuk-link">Reset all filters</a>
+</div>
+{% endif %}
+
+<details class="govuk-details" data-module="govuk-details">
+    <summary class="govuk-details__summary">Filter Options</summary>
+    <form method="get" class="govuk-form">
+        {{ govukInput({
+            inputmode: "search",
+            label: { text: "Search"},
+            name: "search",
+            value: queryParams["search"]
+        }) }}
+        {% for field in filterableFields %}
+        {{ govukSelect({
+            label: { text: field.name },
+            id: field.id,
+            name: field.name,
+            items: field.items
+        }) }}
+        {% endfor %}
+        <div class="govuk-button-group">
+            {{ govukButton({ text: "Filter" }) }}
+            <a class="govuk-link" href="{{ url }}">Clear</a>
+        </div>
+    </form>
+</details>
+
+<table class="govuk-table">
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th class="govuk-table__header">Resource</th>
+            {% for field in prominentFields %}<th class="govuk-table__header">{{field}}</th>{% endfor %}
+            <th class="govuk-table__header" style="width: 100px;"></th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        {% for resource in resources %}
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">
+                    <details class="govuk-details govuk-!-margin-bottom-0" data-module="govuk-details">
+                        <summary class="govuk-details__summary">
+                            <span class="govuk-details__summary-text">{{ resource[idField] }}</span>
+                        </summary>
+                        <table class="govuk-details__text govuk-table govuk-!-margin-bottom-0 govuk-!-margin-top-2">
+                            <tbody class="govuk-table__body">
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell govuk-!-padding-left-2"><strong>Resource ID</strong></td>
+                                    <td class="govuk-table__cell govuk-!-padding-left-2">{{ resource[idField] }}</td>
+                                </tr>
+                                {% for field in detailsFields %}
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell govuk-!-padding-left-2"><strong>{{ field }}</strong></td>
+                                    <td class="govuk-table__cell govuk-!-padding-left-2">{{ resource[field] }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% if "linked_view" in resource %}
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell govuk-!-padding-left-2"><a href="/compliance/view/{{resource["linked_view"]}}?Id={{resource[idField]}}">Extra Details</a></td>
+                                    <td></td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </details>
+                </td>
+                {% for field in prominentFields %}<td class="govuk-table__cell">{{ resource[field] }}</td>{% endfor %}
+                <td class="govuk-table__cell govuk-!-padding-bottom-1 govuk-!-padding-top-1">
+                    <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" onclick="navigator.clipboard.writeText('{{ resource[idField] }}')" title="Copy ID">Copy ID</button>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if showPagination %}{{ govukPagination(pagination) }}{% endif %}
+{% endblock %}

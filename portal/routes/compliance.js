@@ -1,56 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-// Import shared utilities
-const { complianceBreadcrumbs } = require('../utils/shared');
-const overviewQueries = require('../queries/compliance/overview');
+const { registerComplianceRule, registerComplianceRuleSummary } = require('../libs/middleware/registerComplianceRule');
+const registerComplianceView = require('../libs/middleware/registerComplianceView');
+const { views, rules } = require('../queries');
 
-router.get('/', async (req, res) => {
-    const navigationSections = [
-        {
-            title: "Compliance Overview",
-            items: [
-                { text: "By Tenants", href: "/compliance/tenants" },
-                { text: "By Teams", href: "/compliance/teams" }
-            ]
-        },
-        {
-            title: "Policies",
-            items: [
-                { text: "Tagging", href: "/compliance/tagging" },
-                { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                { text: "Database", href: "/compliance/database" },
-                { text: "KMS Keys", href: "/compliance/kms" },
-                { text: "Auto Scaling", href: "/compliance/autoscaling" },
-                { text: "Decommissioning", href: "/compliance/decommissioning" },
-                { text: "Containers", href: "/compliance/containers" },
-                { text: "Monitoring and Alerting", href: "/compliance/monitoring" },
-                { text: "AMIs", href: "/compliance/amis" },
-                { text: "Agents and Ports", href: "/compliance/agents" }
-            ]
-        }
-    ];
+views.forEach(view => registerComplianceView(view, router, rules, views));
+rules.forEach(rule => registerComplianceRule(rule, router, rules, views));
 
-    try {
-        const overview = await overviewQueries.getComplianceOverview(req);
+router.get('/', registerComplianceRuleSummary(rules, views));
 
-        res.render('compliance.njk', {
-            breadcrumbs: complianceBreadcrumbs,
-            navigationSections: navigationSections,
-            overview: overview,
-            currentSection: "compliance",
-            currentPath: "/compliance"
-        });
-    } catch (err) {
-        console.error('Error loading compliance overview:', err);
-        res.render('compliance.njk', {
-            breadcrumbs: complianceBreadcrumbs,
-            navigationSections: navigationSections,
-            overview: null,
-            currentSection: "compliance",
-            currentPath: "/compliance"
-        });
-    }
-});
-
-module.exports = router;
+module.exports = { router, views };

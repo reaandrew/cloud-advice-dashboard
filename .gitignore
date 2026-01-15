@@ -285,7 +285,6 @@ publish/
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml
-# TODO: Comment the next line if you want to checkin your web deploy settings
 # but database connection strings (with potential passwords) will be unencrypted
 *.pubxml
 *.publishproj
@@ -468,10 +467,6 @@ portal/assets/
 # Markdown directory - user-specific markdown content
 portal/markdown/
 venv
-
-# Authorization implementation - user-specified custom authorization logic
-portal/libs/middleware/authorizationImpl.js
-portal/libs/middleware/authorizationImpl.test.js
 
 account_mappings.yaml
 ca-bundle.crt

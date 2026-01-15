@@ -11,194 +11,62 @@
             Welcome to the Cloud Advice Dashboard. This application provides insights into your cloud infrastructure compliance and policy management.
         </p>
 
-        {% if dashboardMetrics and dashboardMetrics.metrics and not dashboardMetrics.error %}
-          <div class="govuk-grid-row">
+        <div class="govuk-grid-row">
             <div class="govuk-grid-column-full">
-              <h2 class="govuk-heading-l">Compliance Overview</h2>
-              {% if dashboardMetrics.date %}
-                <p class="govuk-body-s govuk-!-margin-bottom-6">Data as of {{ dashboardMetrics.date }}</p>
-              {% endif %}
+                    <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+                        {% set nonCompliantCount = 0 %}
+                        {% for stat in globalStats %}
+                            {% if stat.status == "Non Compliant" %}{% set nonCompliantCount = nonCompliantCount + 1 %}{% endif %}
+                        {% endfor %}
+
+                        <div style="background: #f3f2f1; padding: 20px; flex: 1; border-left: 10px solid var(--app-primary-green);">
+                            <span class="govuk-caption-m">Total Rules</span>
+                            <h2 class="govuk-heading-l govuk-!-margin-bottom-0">{{ globalStats.length }}</h2>
+                        </div>
+                        <div style="background: #f3f2f1; padding: 20px; flex: 1; border-left: 10px solid var(--app-tertiary-red);">
+                            <span class="govuk-caption-m">Rules Failing Target</span>
+                            <h2 class="govuk-heading-l govuk-!-margin-bottom-0">{{ nonCompliantCount }}</h2>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <!-- Dashboard metrics grid -->
-          {% if dashboardMetrics.metrics %}
-            {% set metricsArray = [] %}
-            {% for metricId, metric in dashboardMetrics.metrics %}
-              {% set metricsArray = (metricsArray.push(metric), metricsArray) %}
-            {% endfor %}
-            {% set sortedMetrics = metricsArray | sort(false, false, 'order') %}
-
-            {% for metric in sortedMetrics %}
-              {% if loop.index0 % 4 == 0 %}
-                <div class="govuk-grid-row govuk-!-margin-bottom-6" style="display: flex; flex-wrap: wrap; max-width: 100%; box-sizing: border-box;">
-              {% endif %}
-
-              <div class="govuk-grid-column-one-quarter" style="display: flex; box-sizing: border-box; max-width: 25%;">
-                <div class="govuk-summary-card" style="flex: 1; display: flex; flex-direction: column; box-sizing: border-box;">
-                  <div class="govuk-summary-card__title-wrapper">
-                    <h2 class="govuk-summary-card__title">{{ metric.title }}</h2>
-                  </div>
-                  <div class="govuk-summary-card__content" style="flex: 1; display: flex; align-items: center;">
-                    <div style="text-align: center; padding: 8px 16px; width: 100%;">
-                      {% set colorClass = 'var(--app-primary-green)' %}
-                      {% if metric.colorScheme == 'success' %}
-                        {% set colorClass = 'var(--govuk-colour-green)' %}
-                      {% elif metric.colorScheme == 'warning' %}
-                        {% set colorClass = 'var(--govuk-colour-orange)' %}
-                      {% elif metric.colorScheme == 'error' %}
-                        {% set colorClass = 'var(--govuk-colour-red)' %}
-                      {% endif %}
-
-                      <div class="govuk-heading-xl govuk-!-margin-bottom-2" style="color: {{ colorClass }};">
-                        {{ metric.formattedValue or (metric.value + '%') }}
-                      </div>
-                      <p class="govuk-body-s govuk-!-margin-bottom-0">{{ metric.description }}</p>
-                      {% if metric.error %}
-                        <p class="govuk-body-s govuk-!-margin-top-2" style="color: var(--govuk-colour-red);">
-                          Error: {{ metric.error }}
-                        </p>
-                      {% endif %}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {% if loop.index % 4 == 0 or loop.last %}
-                {% for i in range(loop.index % 4, 4) %}
-                  {% if not loop.last %}
-                    <div class="govuk-grid-column-one-quarter app-empty-column">
-                      <!-- Empty column for alignment -->
-                    </div>
-                  {% endif %}
-                {% endfor %}
-                </div>
-              {% endif %}
-            {% endfor %}
-          {% endif %}
-
-          <!-- Key Metrics Table -->
-          {% if dashboardMetrics.metrics %}
-          <div class="govuk-grid-row govuk-!-margin-top-6">
-            <div class="govuk-grid-column-full">
-              <h2 class="govuk-heading-l">Key Metrics</h2>
-
-              <table class="govuk-table">
+            <table class="govuk-table">
                 <thead class="govuk-table__head">
-                  <tr class="govuk-table__row">
-                    <th scope="col" class="govuk-table__header">Metric</th>
-                    <th scope="col" class="govuk-table__header">Value</th>
-                  </tr>
+                    <tr class="govuk-table__row">
+                        <th class="govuk-table__header">Rule</th>
+                        <th class="govuk-table__header">Compliance Score</th>
+                        <th class="govuk-table__header">Status</th>
+                        <th class="govuk-table__header">Resources</th>
+                        <th class="govuk-table__header">Action</th>
+                    </tr>
                 </thead>
                 <tbody class="govuk-table__body">
-                  {% for metricId, metric in dashboardMetrics.metrics %}
-                    {% if metric.keyDetail %}
+                    {% for stat in globalStats %}
                     <tr class="govuk-table__row">
-                      {% if metricId == 'overall-compliance' %}
-                        <th scope="row" class="govuk-table__header">Resources missing mandatory tags</th>
-                      {% elif metricId == 'secure-loadbalancers' %}
-                        <th scope="row" class="govuk-table__header">Load balancers with deprecated TLS</th>
-                      {% elif metricId == 'current-db-versions' %}
-                        <th scope="row" class="govuk-table__header">Databases with deprecated versions</th>
-                      {% elif metricId == 'kms-rotation' %}
-                        <th scope="row" class="govuk-table__header">KMS keys over 2 years old</th>
-                      {% elif metricId == 'auto-scaling-efficiency' %}
-                        <th scope="row" class="govuk-table__header">Empty auto scaling groups</th>
-                      {% elif metricId == 'modern-loadbalancers' %}
-                        <th scope="row" class="govuk-table__header">Load balancers using deprecated Classic ELB</th>
-                      {% elif metricId == 'active-albs' %}
-                        <th scope="row" class="govuk-table__header">Inactive ALBs</th>
-                      {% elif metricId == 'configured-albs' %}
-                        <th scope="row" class="govuk-table__header">Misconfigured ALBs</th>
-                      {% else %}
-                        <th scope="row" class="govuk-table__header">{{ metric.title }}</th>
-                      {% endif %}
-                      <td class="govuk-table__cell">{{ metric.keyDetail }}</td>
+                        <td class="govuk-table__cell">
+                            <strong class="govuk-body-s">{{ stat.ruleName }}</strong><br>
+                            <span class="govuk-hint govuk-!-font-size-14">{{ stat.ruleId }}</span>
+                        </td>
+                        <td class="govuk-table__cell">
+                            <span class="govuk-body-m" style="font-weight: bold;">{{ stat.percentage }}%</span>
+                            <span class="govuk-hint govuk-!-font-size-14"> / Target {{ stat.threshold }}%</span>
+                        </td>
+                        <td class="govuk-table__cell">
+                            <strong class="govuk-tag" style="background: var({{ stat.colorVar }}); color: white;">
+                                {{ stat.status }}
+                            </strong>
+                        </td>
+                        <td class="govuk-table__cell">
+                            {{ stat.compliantCount }} / {{ stat.count }}
+                        </td>
+                        <td class="govuk-table__cell">
+                            <a href="/compliance/rule/{{ stat.ruleId }}" class="govuk-link">View Details</a>
+                        </td>
                     </tr>
-                    {% endif %}
-                  {% endfor %}
+                    {% endfor %}
                 </tbody>
-              </table>
-            </div>
-          </div>
-          {% endif %}
-
-          <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
-        {% elif authenticated == false %}
-            <div class="govuk-grid-row">
-              <div class="govuk-grid-column-full">
-                <h2 class="govuk-heading-l">Compliance Overview</h2>
-                <p class="govuk-body-l">To view your personalised dashboard, please sign in. Signing in helps us keep your data secure and tailored to your needs.</p>
-              </div>
-            </div>
-
-            {% from "govuk/components/button/macro.njk" import govukButton %}
-            {{ govukButton({ text: "Sign In", href: "/signin?redirect=/" }) }}
-        {% else %}
-          <div class="govuk-grid-row">
-            <div class="govuk-grid-column-two-thirds">
-              <h2 class="govuk-heading-l">Dashboard Data Unavailable</h2>
-
-              {% from "govuk/components/warning-text/macro.njk" import govukWarningText %}
-              {{ govukWarningText({
-                text: "There is currently no dashboard data available.",
-                iconFallbackText: "Warning"
-              }) }}
-
-              <p class="govuk-body">This could be because:</p>
-
-              <ul class="govuk-list govuk-list--bullet">
-                <li>No AWS resources have been scanned yet</li>
-                <li>The data collection process has not completed</li>
-                <li>The system is still processing your cloud inventory</li>
-                <li>There may be a connectivity issue with your AWS accounts</li>
-              </ul>
-
-              <h3 class="govuk-heading-m">What you can do</h3>
-
-              <ul class="govuk-list govuk-list--bullet">
-                <li>Check back in a few minutes once data collection completes</li>
-                <li>Verify that your AWS accounts are properly configured</li>
-                <li>Contact your administrator if this problem persists</li>
-              </ul>
-
-              <p class="govuk-body">
-                In the meantime, you can still access individual compliance reports and policy documents using the links below.
-              </p>
-            </div>
-          </div>
-
-          <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
-        {% endif %}
-        {% if authenticated == true %}
-          <div class="govuk-grid-row">
-                  <div class="govuk-grid-column-one-half">
-                      <div class="govuk-panel govuk-panel--confirmation">
-                          <h2 class="govuk-panel__title">
-                              <a href="/compliance" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
-                                  Reports
-                              </a>
-                          </h2>
-                          <div class="govuk-panel__body">
-                              View compliance reports and audit findings for your cloud resources.
-                          </div>
-                      </div>
-                  </div>
-
-                  <div class="govuk-grid-column-one-half">
-                      <div class="govuk-panel govuk-panel--confirmation">
-                          <h2 class="govuk-panel__title">
-                              <a href="/policies" class="govuk-link govuk-link--no-visited-state" style="color: inherit; text-decoration: none;">
-                                  Policies
-                              </a>
-                          </h2>
-                          <div class="govuk-panel__body">
-                              Access policy documents and governance guidelines.
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          </div>
-        {% endif %}
+            </table>
+        </div>
 </div>
 {% endblock %}

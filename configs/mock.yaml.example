@@ -1,0 +1,102 @@
+# Cloud Advice Dashboard Default Configuration
+# This file contains an example of all default configuration settings for the dashboard application
+
+# Application Settings
+app:
+  name: "Cloud Advice Dashboard"
+  port: 3000
+  base_url: "http://localhost:3000"  # BASE_URL for OIDC redirects
+
+# MongoDB Database Configuration
+database:
+  mongodb:
+    host: "localhost"  # MONGO_HOST
+    port: 27017  # MONGO_PORT
+    database_name: "aws_data"
+
+# Compliance Configuration
+compliance:
+  # Tagging Policy
+  tagging:
+    mandatory_tags:
+      - "MyCode"
+      - "Source"
+      - "BSP"  # Requires BillingID and (Service OR Project)
+
+  # Database Compliance
+  database:
+    # Deprecated versions to flag
+    deprecated_versions:
+      mysql:
+        - version: "5.7"
+          message: "MySQL 5.7 reached end of standard support on February 29, 2024"
+
+# Frontend Configuration
+frontend:
+  # Template settings
+  templates:
+    cache: false  # Set to true in production
+
+  # GOV.UK settings
+  govuk:
+    logo_url: "/assets/LOGO.png"  # Path to site logo
+
+# Monitoring and Logging
+monitoring:
+  # Logging configuration
+  logging:
+    level: "info"  # Options: debug, info, warn, error
+    format: "json"
+
+# Feature Flags
+features:
+  auth: true
+  compliance: true
+
+# Mock auth
+auth:
+  type: "mock"
+  mock:
+    silent_login: false
+    groups: ["MOCK_ALL"]
+
+# Development Settings
+development:
+  debug: true
+
+# TODO: This must move to mongo to simplify querying. Partially in place via the new query refactor.
+# Account mappings when using the default authorization implementation.
+account_mappings:
+  # Use the actual keys from your data: 'AccountId', 'Team', 'Tenant.Id', 'Tenant.Description', 'Environment'
+  - AccountId: "930086875935"
+    Team: "DevOps"
+    Tenant:
+      Id: "DVOP116"
+      Name: "HKL Ops Team"
+      Description: "DevOps internal team for HKL products"
+    Environment: "development"
+  - AccountId: "868570220212"
+    Team: "Security"
+    Tenant:
+      Id: "SECU198"
+      Name: "SecuHeroes"
+      Description: "Security team AWS account"
+    Environment: "production"
+  - AccountId: "633229661713"
+    Team: "CloudOps"
+    Tenant:
+      Id: "CLOP794"
+      Name: "Clouders"
+      Description: "CloudOps team AWS account for Disaster Recovery"
+    Environment: "test"
+  - AccountId: "602276804025"
+    Team: "ML"
+    Tenant:
+      Id: "MLSV079"
+      Description: "ML team AWS account"
+  - OwnerId: "016525808631"
+    Team: "ML"
+    Tenant:
+      Id: "MLSV908"
+      Name: "ML Monsters"
+      Description: "ML team AWS account"
