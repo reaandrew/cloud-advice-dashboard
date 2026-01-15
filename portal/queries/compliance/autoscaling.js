@@ -38,8 +38,28 @@ async function processAutoscalingDimensions(req, year, month, day) {
 
     const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
+    // Debug counter to limit log volume
+    let debugCount = 0;
+
     for await (const doc of asgCursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+
+        // Debug logging for the first few documents to understand structure
+        if (debugCount < 3) {
+            console.log('--- ASG Document Structure Debug ---');
+            console.log('doc exists:', !!doc);
+            console.log('Configuration exists:', !!doc?.Configuration);
+            console.log('Configuration.configuration exists:', !!doc?.Configuration?.configuration);
+            console.log('Configuration.MinSize exists:', !!doc?.Configuration?.MinSize);
+            console.log('Configuration.configuration.MinSize exists:', !!doc?.Configuration?.configuration?.MinSize);
+            console.log('Keys at root level:', Object.keys(doc || {}));
+            console.log('Keys in Configuration:', Object.keys(doc?.Configuration || {}));
+            if (doc?.Configuration?.configuration) {
+                console.log('Keys in Configuration.configuration:', Object.keys(doc.Configuration.configuration));
+            }
+            console.log('----------------------------------');
+            debugCount++;
+        }
 
         if (doc.Configuration?.configuration) {
             const min = doc.Configuration.configuration.MinSize || 0;
@@ -61,8 +81,46 @@ async function getAutoscalingDimensionDetails(req, params) {
 
     const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
+    // Debug counter to limit log volume
+    let debugDetailCount = 0;
+
     for await (const doc of asgCursor) {
         if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+
+        // Debug logging for the first few documents to understand structure in detail view
+        if (debugDetailCount < 2) {
+            console.log('--- ASG Detail Document Structure Debug ---');
+            console.log('doc exists:', !!doc);
+            console.log('Configuration exists:', !!doc?.Configuration);
+            console.log('Configuration.configuration exists:', !!doc?.Configuration?.configuration);
+            console.log('Configuration fields direct access test:');
+
+            // Try both paths to see which one contains the data
+            const directAccess = {
+                MinSize: doc?.Configuration?.MinSize,
+                MaxSize: doc?.Configuration?.MaxSize,
+                DesiredCapacity: doc?.Configuration?.DesiredCapacity,
+                AutoScalingGroupName: doc?.Configuration?.AutoScalingGroupName,
+                Instances: doc?.Configuration?.Instances ? 'exists' : 'missing'
+            };
+
+            const nestedAccess = {
+                MinSize: doc?.Configuration?.configuration?.MinSize,
+                MaxSize: doc?.Configuration?.configuration?.MaxSize,
+                DesiredCapacity: doc?.Configuration?.configuration?.DesiredCapacity,
+                AutoScalingGroupName: doc?.Configuration?.configuration?.AutoScalingGroupName,
+                Instances: doc?.Configuration?.configuration?.Instances ? 'exists' : 'missing'
+            };
+
+            console.log('Structure via direct Configuration access:',
+                        Object.keys(directAccess).map(k => `${k}: ${directAccess[k] !== undefined ? 'exists' : 'missing'}`));
+
+            console.log('Structure via Configuration.configuration access:',
+                        Object.keys(nestedAccess).map(k => `${k}: ${nestedAccess[k] !== undefined ? 'exists' : 'missing'}`));
+
+            console.log('----------------------------------');
+            debugDetailCount++;
+        }
 
         if (doc.Configuration?.configuration) {
             const docMin = doc.Configuration.configuration.MinSize || 0;
@@ -104,9 +162,30 @@ async function countEmptyAutoscalingGroups(req, year, month, day) {
 
     const results = await req.getDetailsForAllAccounts();
 
+    // Log the query used for debugging
+    console.log('--- Empty ASG Query Debug ---');
+    console.log('Empty ASG query:', {
+        year: year,
+        month: month,
+        day: day,
+        "Configuration.configuration.Instances": { $size: 0 }
+    });
+
     const asgCursor = await getEmptyAutoscalingGroups(req, year, month, day);
 
+    // Debug counter to limit log volume
+    let emptyDebugCount = 0;
+
     for await (const doc of asgCursor) {
+        // Log document structure for the first few empty ASGs
+        if (emptyDebugCount < 2) {
+            console.log('--- Empty ASG Document Debug ---');
+            console.log('Empty ASG doc structure:', {
+                exists: !!doc,
+                hasAccountId: !!doc?.account_id
+            });
+            emptyDebugCount++;
+        }
         results.findByAccountId(doc.account_id).teams.forEach(team => teamCounts.set(team, (teamCounts.get(team) || 0) + 1));
     }
 
