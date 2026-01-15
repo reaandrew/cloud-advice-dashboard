@@ -97,9 +97,13 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         const teamLoadBalancers = new Map();
+        // Create a secondary map to lookup by LoadBalancerArn
+        const teamLoadBalancersByArn = new Map();
         for await (const doc of elbV2Cursor) {
             if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
+                // Also map using resource_id as LoadBalancerArn for lookup
+                teamLoadBalancersByArn.set(doc.resource_id, doc);
             }
         }
 
@@ -113,6 +117,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         }
 
         for (const [resourceId, lbDoc] of teamLoadBalancers) {
+            // Check if the LoadBalancerArn (which is in resourceId) exists in the set
             if (!tlsLoadBalancerArns.has(resourceId)) {
                 allResources.push({
                     resourceId: resourceId,
@@ -172,9 +177,13 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         const teamLoadBalancers = new Map();
+        // Create a secondary map to lookup by LoadBalancerArn
+        const teamLoadBalancersByArn = new Map();
         for await (const doc of elbV2Cursor) {
             if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
+                // Also map using resource_id as LoadBalancerArn for lookup
+                teamLoadBalancersByArn.set(doc.resource_id, doc);
             }
         }
 
@@ -185,8 +194,8 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                 const protocol = doc.Configuration.Protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
                     const policy = doc.Configuration.SslPolicy || "Unknown";
-                    if (policy === tlsVersion && teamLoadBalancers.has(doc.LoadBalancerArn)) {
-                        const lbDoc = teamLoadBalancers.get(doc.LoadBalancerArn);
+                    if (policy === tlsVersion && teamLoadBalancersByArn.has(doc.LoadBalancerArn)) {
+                        const lbDoc = teamLoadBalancersByArn.get(doc.LoadBalancerArn);
                         allResources.push({
                             resourceId: doc.LoadBalancerArn,
                             shortName: lbDoc.Configuration?.LoadBalancerName || doc.LoadBalancerArn,
