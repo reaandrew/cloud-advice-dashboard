@@ -139,14 +139,14 @@ async function getAutoscalingDimensionDetails(req, params) {
                         desired: docDesired
                     },
                     details: {
-                        launchTemplate: doc.Configuration?.configuration?.launchTemplate?.LaunchTemplateName || doc.Configuration?.configuration?.launchConfigurationName || "N/A",
-                        // Ensure we access instances from the Configuration.configuration object
+                        launchTemplate: doc.Configuration?.configuration?.launchTemplate?.LaunchTemplateName ||
+                                      doc.Configuration?.configuration?.launchConfigurationName || "N/A",
                         instanceCount: (doc.Configuration?.configuration?.instances || []).length || 0,
                         healthCheckType: doc.Configuration?.configuration?.healthCheckType || "Unknown",
                         healthCheckGracePeriod: doc.Configuration?.configuration?.healthCheckGracePeriod || 0,
-                        availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", ") || "N/A",
+                        availabilityZones: (doc.Configuration?.configuration?.availabilityZones || [])?.join(", ") || "N/A",
                         vpcZones: doc.Configuration?.configuration?.vpczoneIdentifier || "N/A",
-                        targetGroups: doc.Configuration?.configuration?.targetGroupARNs?.length || 0,
+                        targetGroups: (doc.Configuration?.configuration?.targetGroupARNs || [])?.length || 0,
                         createdTime: doc.Configuration?.configuration?.createdTime,
                         status: "Active" // Status isn't in the output, default to Active
                     }

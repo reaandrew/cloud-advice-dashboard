@@ -1,3 +1,4 @@
+
 async function getLatestElbDate(req) {
     return await req.collection("elb_v2").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
@@ -60,9 +61,9 @@ async function processTlsConfigurations(req, year, month, day) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration?.configuration) {
-            const protocol = doc.Configuration.configuration.protocol;
+            const protocol = doc.Configuration.configuration.Protocol;
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
+                const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
                 recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
             }
         }
@@ -148,15 +149,14 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                 }
             }
 
-            // Check both uppercase and lowercase field names for maximum compatibility
-            const protocol = doc.Configuration?.configuration?.Protocol || doc.Configuration?.configuration?.protocol;
+            // Use exact field names from schema
+            const protocol = doc.Configuration?.configuration?.Protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
                 tlsListenersFound++;
 
-                // Check both uppercase and lowercase field names for LoadBalancerArn
-                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn ||
-                                       doc.Configuration?.configuration?.loadBalancerArn;
+                // Use exact field name from schema
+                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
 
                 if (loadBalancerArn) {
                     arnsFound++;
@@ -172,13 +172,11 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                         console.log(`TLS Listener ${listenerDebugCount+1} short ID: ${shortId}`);
                         console.log(`TLS Listener ${listenerDebugCount+1} protocol: ${protocol}`);
                         console.log(`TLS Listener ${listenerDebugCount+1} policy: ${
-                            doc.Configuration?.configuration?.SslPolicy ||
-                            doc.Configuration?.configuration?.sslPolicy || 'Not set'
+                            doc.Configuration?.configuration?.SslPolicy || 'Not set'
                         }`);
 
                         // Check for certificates
-                        const certificates = doc.Configuration?.configuration?.Certificates ||
-                                            doc.Configuration?.configuration?.certificates;
+                        const certificates = doc.Configuration?.configuration?.Certificates;
                         if (certificates) {
                             console.log(`TLS Listener ${listenerDebugCount+1} has certificates:`, true);
                             console.log(`Certificate data:`, JSON.stringify(certificates).substring(0, 100) + '...');
@@ -232,7 +230,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                     accountId: lbDoc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: lbDoc.Configuration?.configuration?.dnsName,
+                        dnsName: lbDoc.Configuration?.configuration?.DNSName,
                         availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
                         securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
                         vpcId: lbDoc.Configuration?.configuration?.vpcId,
@@ -375,7 +373,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                                 accountId: doc.account_id,
                                 tlsPolicy: policy,
                                 details: {
-                                    dnsName: lbDoc.Configuration?.configuration?.dnsName,
+                                    dnsName: lbDoc.Configuration?.configuration?.DNSName,
                                     availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
                                     securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
                                     vpcId: lbDoc.Configuration?.configuration?.vpcId,
