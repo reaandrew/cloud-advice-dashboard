@@ -15,7 +15,7 @@ router.get('/tls', async (req, res) => {
 
         // Direct query to get one ELB v2 document and one ELB listener for structure analysis
         const sampleElbV2 = await req.collection("elb_v2").findOne({}, { projection: { resource_id: 1, Configuration: 1 } });
-        const sampleListener = await req.collection("elb_v2_listeners").findOne({}, { projection: { loadBalancerArn: 1, Configuration: 1 } });
+        const sampleListener = await req.collection("elb_v2_listeners").findOne({}, { projection: { loadBalancerArn: 1, LoadBalancerArn: 1, Configuration: 1 } });
 
         // Get sample ARNs to debug matching issues
         const sampleLbArns = await req.collection("elb_v2").find({}, { projection: { resource_id: 1 } }).limit(3).toArray();

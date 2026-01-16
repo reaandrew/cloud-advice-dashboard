@@ -126,26 +126,28 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
 
         const tlsLoadBalancerArns = new Set();
         const tlsLoadBalancerShortIds = new Set(); // Store short IDs too
-        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { loadBalancerArn: 1, Configuration: 1 });
+        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
         let listenerDebugCount = 0;
         console.log('--- Debug: ELB Listeners With TLS ---');
 
         for await (const doc of elbV2ListenersCursor) {
-            if (doc.Configuration?.configuration?.protocol === "HTTPS" || doc.Configuration?.configuration?.protocol === "TLS") {
-                tlsLoadBalancerArns.add(doc.loadBalancerArn);
+            // The Protocol and LoadBalancerArn are still uppercase in the Configuration.configuration object
+            if (doc.Configuration?.configuration?.Protocol === "HTTPS" || doc.Configuration?.configuration?.Protocol === "TLS") {
+                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+                if (loadBalancerArn) {
+                    tlsLoadBalancerArns.add(loadBalancerArn);
 
-                // Also store the short ID (resource ID part after the last slash)
-                if (doc.loadBalancerArn) {
-                    const shortId = doc.loadBalancerArn.split('/').pop();
+                    // Also store the short ID (resource ID part after the last slash)
+                    const shortId = loadBalancerArn.split('/').pop();
                     tlsLoadBalancerShortIds.add(shortId);
 
                     // Debug output for the first few TLS listeners
                     if (listenerDebugCount < 3) {
-                        console.log(`TLS Listener ${listenerDebugCount+1} loadBalancerArn: ${doc.loadBalancerArn}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} loadBalancerArn: ${loadBalancerArn}`);
                         console.log(`TLS Listener ${listenerDebugCount+1} short ID: ${shortId}`);
-                        console.log(`TLS Listener ${listenerDebugCount+1} protocol: ${doc.Configuration?.configuration?.protocol}`);
-                        console.log(`TLS Listener ${listenerDebugCount+1} policy: ${doc.Configuration?.configuration?.sslPolicy || 'Not set'}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} protocol: ${doc.Configuration?.configuration?.Protocol}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} policy: ${doc.Configuration?.configuration?.SslPolicy || 'Not set'}`);
                         listenerDebugCount++;
                     }
                 }
@@ -274,39 +276,41 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             }
         }
 
-        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, loadBalancerArn: 1, Configuration: 1 });
+        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
         let specificTlsDebugCount = 0;
         console.log('--- Debug: ELB Listeners Matching Specific TLS Version ---');
 
         for await (const doc of elbV2ListenersCursor) {
             if (doc.Configuration?.configuration) {
-                const protocol = doc.Configuration.configuration.protocol;
+                // Fields are uppercase in the listener documents
+                const protocol = doc.Configuration.configuration.Protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
+                    const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
+                    const loadBalancerArn = doc.Configuration.configuration.LoadBalancerArn;
 
                     // Debug first few listeners with TLS policies
                     if (specificTlsDebugCount < 3) {
-                        console.log(`TLS Listener ${specificTlsDebugCount+1} ARN: ${doc.loadBalancerArn}`);
+                        console.log(`TLS Listener ${specificTlsDebugCount+1} ARN: ${loadBalancerArn}`);
                         console.log(`TLS Listener ${specificTlsDebugCount+1} Protocol: ${protocol}`);
                         console.log(`TLS Listener ${specificTlsDebugCount+1} Policy: ${policy}`);
                         console.log(`TLS Listener ${specificTlsDebugCount+1} Target Policy: ${tlsVersion}`);
                         specificTlsDebugCount++;
                     }
 
-                    if (policy === tlsVersion) {
+                    if (policy === tlsVersion && loadBalancerArn) {
                         // Try to find the load balancer by multiple matching strategies
                         let lbDoc = null;
                         let matchType = '';
 
                         // Try direct ARN matching first
-                        if (teamLoadBalancersByArn.has(doc.loadBalancerArn)) {
-                            lbDoc = teamLoadBalancersByArn.get(doc.loadBalancerArn);
+                        if (teamLoadBalancersByArn.has(loadBalancerArn)) {
+                            lbDoc = teamLoadBalancersByArn.get(loadBalancerArn);
                             matchType = 'exact match';
                         }
                         // Try short ID matching as fallback
-                        else if (doc.loadBalancerArn) {
-                            const shortId = doc.loadBalancerArn.split('/').pop();
+                        else {
+                            const shortId = loadBalancerArn.split('/').pop();
                             if (teamLoadBalancersByShortId.has(shortId)) {
                                 lbDoc = teamLoadBalancersByShortId.get(shortId);
                                 matchType = 'short ID match';
@@ -317,8 +321,8 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                             console.log(`Found matching LB for policy ${policy} via ${matchType}`);
 
                             allResources.push({
-                                resourceId: doc.loadBalancerArn,
-                                shortName: lbDoc.Configuration?.configuration?.loadBalancerName || doc.loadBalancerArn,
+                                resourceId: loadBalancerArn,
+                                shortName: lbDoc.Configuration?.configuration?.loadBalancerName || loadBalancerArn,
                                 type: lbDoc.Configuration?.configuration?.type || "Unknown",
                                 scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
                                 accountId: doc.account_id,
@@ -332,7 +336,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                                 }
                             });
                         } else if (policy === tlsVersion) {
-                            console.log(`WARNING: Found TLS listener with policy ${policy} but couldn't match to any LB: ${doc.loadBalancerArn}`);
+                            console.log(`WARNING: Found TLS listener with policy ${policy} but couldn't match to any LB: ${loadBalancerArn}`);
                         }
                     }
                 }
