@@ -21,9 +21,9 @@ router.get('/dimensions', async (req, res) => {
             console.log('Configuration exists:', !!sampleDoc?.Configuration);
             console.log('Configuration.configuration exists:', !!sampleDoc?.Configuration?.configuration);
 
-            // Check which path contains the MinSize field
-            console.log('Direct MinSize exists:', sampleDoc?.Configuration?.MinSize !== undefined);
-            console.log('Nested MinSize exists:', sampleDoc?.Configuration?.configuration?.MinSize !== undefined);
+            // Check if the lowercase minSize field exists
+            console.log('Direct minSize exists:', sampleDoc?.Configuration?.minSize !== undefined);
+            console.log('Nested minSize exists:', sampleDoc?.Configuration?.configuration?.minSize !== undefined);
 
             // Log structure paths without revealing values
             console.log('Configuration keys:', Object.keys(sampleDoc?.Configuration || {}));
