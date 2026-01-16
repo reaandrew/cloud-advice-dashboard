@@ -129,13 +129,37 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
         let listenerDebugCount = 0;
+        let totalListeners = 0;
+        let tlsListenersFound = 0;
+        let arnsFound = 0;
+
         console.log('--- Debug: ELB Listeners With TLS ---');
 
         for await (const doc of elbV2ListenersCursor) {
-            // The Protocol and LoadBalancerArn are still uppercase in the Configuration.configuration object
-            if (doc.Configuration?.configuration?.Protocol === "HTTPS" || doc.Configuration?.configuration?.Protocol === "TLS") {
-                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+            totalListeners++;
+
+            // Debug the first few listeners regardless of protocol
+            if (listenerDebugCount < 2) {
+                console.log(`Listener ${listenerDebugCount+1} document structure:`);
+                console.log(`Has Configuration: ${!!doc.Configuration}`);
+                console.log(`Has Configuration.configuration: ${!!doc.Configuration?.configuration}`);
+                if (doc.Configuration?.configuration) {
+                    console.log(`Configuration.configuration keys: ${Object.keys(doc.Configuration.configuration).join(', ')}`);
+                }
+            }
+
+            // Check both uppercase and lowercase field names for maximum compatibility
+            const protocol = doc.Configuration?.configuration?.Protocol || doc.Configuration?.configuration?.protocol;
+
+            if (protocol === "HTTPS" || protocol === "TLS") {
+                tlsListenersFound++;
+
+                // Check both uppercase and lowercase field names for LoadBalancerArn
+                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn ||
+                                       doc.Configuration?.configuration?.loadBalancerArn;
+
                 if (loadBalancerArn) {
+                    arnsFound++;
                     tlsLoadBalancerArns.add(loadBalancerArn);
 
                     // Also store the short ID (resource ID part after the last slash)
@@ -143,16 +167,39 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                     tlsLoadBalancerShortIds.add(shortId);
 
                     // Debug output for the first few TLS listeners
-                    if (listenerDebugCount < 3) {
+                    if (listenerDebugCount < 5) {
                         console.log(`TLS Listener ${listenerDebugCount+1} loadBalancerArn: ${loadBalancerArn}`);
                         console.log(`TLS Listener ${listenerDebugCount+1} short ID: ${shortId}`);
-                        console.log(`TLS Listener ${listenerDebugCount+1} protocol: ${doc.Configuration?.configuration?.Protocol}`);
-                        console.log(`TLS Listener ${listenerDebugCount+1} policy: ${doc.Configuration?.configuration?.SslPolicy || 'Not set'}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} protocol: ${protocol}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} policy: ${
+                            doc.Configuration?.configuration?.SslPolicy ||
+                            doc.Configuration?.configuration?.sslPolicy || 'Not set'
+                        }`);
+
+                        // Check for certificates
+                        const certificates = doc.Configuration?.configuration?.Certificates ||
+                                            doc.Configuration?.configuration?.certificates;
+                        if (certificates) {
+                            console.log(`TLS Listener ${listenerDebugCount+1} has certificates:`, true);
+                            console.log(`Certificate data:`, JSON.stringify(certificates).substring(0, 100) + '...');
+                        } else {
+                            console.log(`TLS Listener ${listenerDebugCount+1} has certificates:`, false);
+                        }
+
+                        listenerDebugCount++;
+                    }
+                } else {
+                    // Log issues with missing ARNs
+                    if (listenerDebugCount < 10) {
+                        console.log(`WARNING: Found TLS listener but no LoadBalancerArn! Protocol: ${protocol}`);
                         listenerDebugCount++;
                     }
                 }
             }
         }
+
+        console.log(`ELB TLS Stats: Total listeners: ${totalListeners}, TLS listeners: ${tlsListenersFound}, ARNs found: ${arnsFound}`);
+        console.log(`TLS ARN Set size: ${tlsLoadBalancerArns.size}, Short ID Set size: ${tlsLoadBalancerShortIds.size}`);
 
         console.log('--- Debug: Load Balancers Without Certs Detection ---');
         let noCertsCount = 0;

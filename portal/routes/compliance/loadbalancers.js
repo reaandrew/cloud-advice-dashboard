@@ -19,7 +19,34 @@ router.get('/tls', async (req, res) => {
 
         // Get sample ARNs to debug matching issues
         const sampleLbArns = await req.collection("elb_v2").find({}, { projection: { resource_id: 1 } }).limit(3).toArray();
-        const sampleListenerArns = await req.collection("elb_v2_listeners").find({}, { projection: { loadBalancerArn: 1 } }).limit(3).toArray();
+
+        // Find HTTPS/TLS listeners specifically to debug certificate detection
+        console.log('--- Looking for HTTPS/TLS Listeners ---');
+        const tlsListeners = await req.collection("elb_v2_listeners").find({
+            "Configuration.configuration.Protocol": { $in: ["HTTPS", "TLS"] }
+        }, {
+            projection: { Configuration: 1 }
+        }).limit(3).toArray();
+
+        if (tlsListeners && tlsListeners.length > 0) {
+            console.log(`Found ${tlsListeners.length} TLS listeners in the database`);
+            tlsListeners.forEach((listener, idx) => {
+                console.log(`--- TLS Listener ${idx+1} Details ---`);
+                console.log(`Protocol: ${listener?.Configuration?.configuration?.Protocol}`);
+                console.log(`SslPolicy: ${listener?.Configuration?.configuration?.SslPolicy}`);
+                console.log(`LoadBalancerArn: ${listener?.Configuration?.configuration?.LoadBalancerArn}`);
+
+                // Check for certificates
+                if (listener?.Configuration?.configuration?.Certificates) {
+                    console.log('Has certificates:', true);
+                    console.log('Certificates:', JSON.stringify(listener?.Configuration?.configuration?.Certificates, null, 2));
+                } else {
+                    console.log('Has certificates:', false);
+                }
+            });
+        } else {
+            console.log('No TLS listeners found in the database!');
+        }
 
         if (sampleElbV2) {
             console.log('ELB v2 sample document structure:');
@@ -44,8 +71,39 @@ router.get('/tls', async (req, res) => {
             if (sampleListener?.Configuration?.configuration) {
                 console.log('Configuration.configuration exists:', true);
                 console.log('Configuration.configuration keys:', Object.keys(sampleListener.Configuration.configuration));
+
+                // Log lowercase field existence
                 console.log('Configuration.configuration.protocol exists:', !!sampleListener.Configuration.configuration.protocol);
                 console.log('Configuration.configuration.sslPolicy exists:', !!sampleListener.Configuration.configuration.sslPolicy);
+                console.log('Configuration.configuration.loadBalancerArn exists:', !!sampleListener.Configuration.configuration.loadBalancerArn);
+
+                // Log uppercase field existence
+                console.log('Configuration.configuration.Protocol exists:', !!sampleListener.Configuration.configuration.Protocol);
+                console.log('Configuration.configuration.SslPolicy exists:', !!sampleListener.Configuration.configuration.SslPolicy);
+                console.log('Configuration.configuration.LoadBalancerArn exists:', !!sampleListener.Configuration.configuration.LoadBalancerArn);
+
+                // Display the actual LoadBalancerArn value if it exists
+                if (sampleListener.Configuration.configuration.LoadBalancerArn) {
+                    console.log('LoadBalancerArn value:', sampleListener.Configuration.configuration.LoadBalancerArn);
+                }
+
+                // Check for certificates
+                if (sampleListener.Configuration.configuration.Certificates) {
+                    console.log('Configuration.configuration.Certificates exists:', true);
+                    console.log('Certificates:', JSON.stringify(sampleListener.Configuration.configuration.Certificates, null, 2));
+                } else {
+                    console.log('Configuration.configuration.Certificates exists:', false);
+                }
+
+                // Check protocol and TLS settings
+                if (sampleListener.Configuration.configuration.Protocol === "HTTPS" || sampleListener.Configuration.configuration.Protocol === "TLS") {
+                    console.log('This is a TLS listener:', true);
+                    console.log('Protocol:', sampleListener.Configuration.configuration.Protocol);
+                    console.log('SslPolicy:', sampleListener.Configuration.configuration.SslPolicy);
+                } else {
+                    console.log('This is a TLS listener:', false);
+                    console.log('Protocol:', sampleListener.Configuration.configuration.Protocol);
+                }
             } else {
                 console.log('Configuration.configuration exists:', false);
             }
