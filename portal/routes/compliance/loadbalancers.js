@@ -10,6 +10,39 @@ router.get('/', (_, res) => {
 
 router.get('/tls', async (req, res) => {
     try {
+        // Add diagnostic logging to check MongoDB document structure for load balancers
+        console.log('--- Load Balancer Debug - Direct MongoDB Query ---');
+
+        // Direct query to get one ELB v2 document and one ELB listener for structure analysis
+        const sampleElbV2 = await req.collection("elb_v2").findOne({}, { projection: { Configuration: 1 } });
+        const sampleListener = await req.collection("elb_v2_listeners").findOne({}, { projection: { LoadBalancerArn: 1, Configuration: 1 } });
+
+        if (sampleElbV2) {
+            console.log('ELB v2 sample document structure:');
+            console.log('Configuration exists:', !!sampleElbV2?.Configuration);
+            console.log('Configuration keys:', Object.keys(sampleElbV2?.Configuration || {}));
+            if (sampleElbV2?.Configuration?.configuration) {
+                console.log('Configuration.configuration exists:', true);
+                console.log('Configuration.configuration keys:', Object.keys(sampleElbV2.Configuration.configuration));
+            } else {
+                console.log('Configuration.configuration exists:', false);
+            }
+        }
+
+        if (sampleListener) {
+            console.log('ELB v2 Listener sample document structure:');
+            console.log('LoadBalancerArn exists:', !!sampleListener?.LoadBalancerArn);
+            console.log('loadBalancerArn exists:', !!sampleListener?.loadBalancerArn);
+            console.log('Configuration exists:', !!sampleListener?.Configuration);
+            console.log('Configuration keys:', Object.keys(sampleListener?.Configuration || {}));
+            if (sampleListener?.Configuration?.Protocol) {
+                console.log('Configuration.Protocol exists:', true);
+            }
+            if (sampleListener?.Configuration?.protocol) {
+                console.log('Configuration.protocol exists:', true);
+            }
+        }
+
         const latestDoc = await lbQueries.getLatestElbDate(req);
 
         if (!latestDoc) {
