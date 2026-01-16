@@ -14,8 +14,12 @@ router.get('/tls', async (req, res) => {
         console.log('--- Load Balancer Debug - Direct MongoDB Query ---');
 
         // Direct query to get one ELB v2 document and one ELB listener for structure analysis
-        const sampleElbV2 = await req.collection("elb_v2").findOne({}, { projection: { Configuration: 1 } });
-        const sampleListener = await req.collection("elb_v2_listeners").findOne({}, { projection: { LoadBalancerArn: 1, Configuration: 1 } });
+        const sampleElbV2 = await req.collection("elb_v2").findOne({}, { projection: { resource_id: 1, Configuration: 1 } });
+        const sampleListener = await req.collection("elb_v2_listeners").findOne({}, { projection: { loadBalancerArn: 1, Configuration: 1 } });
+
+        // Get sample ARNs to debug matching issues
+        const sampleLbArns = await req.collection("elb_v2").find({}, { projection: { resource_id: 1 } }).limit(3).toArray();
+        const sampleListenerArns = await req.collection("elb_v2_listeners").find({}, { projection: { loadBalancerArn: 1 } }).limit(3).toArray();
 
         if (sampleElbV2) {
             console.log('ELB v2 sample document structure:');
@@ -53,6 +57,43 @@ router.get('/tls', async (req, res) => {
             if (sampleListener?.Configuration?.protocol) {
                 console.log('Configuration.protocol exists:', true);
             }
+        }
+
+        // Debug ARN matching issues
+        console.log('--- ARN Matching Debug ---');
+        if (sampleLbArns && sampleLbArns.length > 0) {
+            console.log('ELB resource_id format examples:');
+            sampleLbArns.forEach((lb, i) => {
+                console.log(`LB ${i+1} resource_id: ${lb.resource_id}`);
+            });
+        }
+
+        if (sampleListenerArns && sampleListenerArns.length > 0) {
+            console.log('ELB Listener loadBalancerArn format examples:');
+            sampleListenerArns.forEach((listener, i) => {
+                console.log(`Listener ${i+1} loadBalancerArn: ${listener.loadBalancerArn}`);
+
+                // Extract the actual ARN part from resource_id for comparison
+                const sampleLbArn = sampleLbArns && sampleLbArns[i] ? sampleLbArns[i].resource_id : null;
+                if (sampleLbArn && listener.loadBalancerArn) {
+                    console.log(`Match test ${i+1}: ${sampleLbArn === listener.loadBalancerArn ? 'MATCH' : 'NO MATCH'}`);
+
+                    // If no match, analyze differences
+                    if (sampleLbArn !== listener.loadBalancerArn) {
+                        // Check if one is contained within the other
+                        if (listener.loadBalancerArn.includes(sampleLbArn)) {
+                            console.log(`Listener ARN contains LB resource_id`);
+                        } else if (sampleLbArn.includes(listener.loadBalancerArn)) {
+                            console.log(`LB resource_id contains Listener ARN`);
+                        }
+
+                        // Compare last part of ARN (after last /)
+                        const lbLastPart = sampleLbArn.split('/').pop();
+                        const listenerLastPart = listener.loadBalancerArn.split('/').pop();
+                        console.log(`Last part comparison: ${lbLastPart === listenerLastPart ? 'MATCH' : 'NO MATCH'}`);
+                    }
+                }
+            });
         }
 
         const latestDoc = await lbQueries.getLatestElbDate(req);
