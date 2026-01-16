@@ -59,10 +59,10 @@ async function processTlsConfigurations(req, year, month, day) {
     for await (const doc of elbV2ListenersCursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
-        if (doc.Configuration) {
-            const protocol = doc.Configuration.Protocol;
+        if (doc.Configuration?.configuration) {
+            const protocol = doc.Configuration.configuration.protocol;
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const policy = doc.Configuration.SslPolicy || "Unknown";
+                const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
                 recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
             }
         }
@@ -73,12 +73,12 @@ async function processTlsConfigurations(req, year, month, day) {
     for await (const doc of elbClassicCursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
-        if (doc.Configuration?.ListenerDescriptions) {
-            for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
-                const listener = listenerDesc.Listener;
-                if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
-                    const policy = listenerDesc.PolicyNames?.[0] || "Classic-Default";
-                    recs.map(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
+        if (doc.Configuration?.configuration?.listenerDescriptions) {
+            for (const listenerDesc of doc.Configuration.configuration.listenerDescriptions) {
+                const listener = listenerDesc.listener;
+                if (listener?.protocol === "HTTPS" || listener?.protocol === "SSL") {
+                    const policy = listenerDesc.policyNames?.[0] || "Classic-Default";
+                    recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
                 }
             }
         }
@@ -97,40 +97,163 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         const teamLoadBalancers = new Map();
+        // Create more robust secondary maps to handle ARN matching edge cases
+        const teamLoadBalancersByArn = new Map();
+        const teamLoadBalancersByShortId = new Map(); // Map by the resource ID's last part after '/'
+
+        console.log('--- Debug: ELB TLS Resolution Process (NO CERTS) ---');
+        let debugCount = 0;
+
         for await (const doc of elbV2Cursor) {
             if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
+
+                // Primary ARN matching - exact resource_id
+                teamLoadBalancersByArn.set(doc.resource_id, doc);
+
+                // Secondary ARN matching - last part of the ARN for partial matches
+                const shortId = doc.resource_id.split('/').pop();
+                teamLoadBalancersByShortId.set(shortId, doc);
+
+                // Debug the first few load balancers
+                if (debugCount < 3) {
+                    console.log(`Load Balancer ${debugCount+1} resource_id: ${doc.resource_id}`);
+                    console.log(`Load Balancer ${debugCount+1} short ID: ${shortId}`);
+                    debugCount++;
+                }
             }
         }
 
         const tlsLoadBalancerArns = new Set();
-        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { LoadBalancerArn: 1, Configuration: 1 });
+        const tlsLoadBalancerShortIds = new Set(); // Store short IDs too
+        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
+
+        let listenerDebugCount = 0;
+        let totalListeners = 0;
+        let tlsListenersFound = 0;
+        let arnsFound = 0;
+
+        console.log('--- Debug: ELB Listeners With TLS ---');
 
         for await (const doc of elbV2ListenersCursor) {
-            if (doc.Configuration?.Protocol === "HTTPS" || doc.Configuration?.Protocol === "TLS") {
-                tlsLoadBalancerArns.add(doc.LoadBalancerArn);
+            totalListeners++;
+
+            // Debug the first few listeners regardless of protocol
+            if (listenerDebugCount < 2) {
+                console.log(`Listener ${listenerDebugCount+1} document structure:`);
+                console.log(`Has Configuration: ${!!doc.Configuration}`);
+                console.log(`Has Configuration.configuration: ${!!doc.Configuration?.configuration}`);
+                if (doc.Configuration?.configuration) {
+                    console.log(`Configuration.configuration keys: ${Object.keys(doc.Configuration.configuration).join(', ')}`);
+                }
+            }
+
+            // Check both uppercase and lowercase field names for maximum compatibility
+            const protocol = doc.Configuration?.configuration?.Protocol || doc.Configuration?.configuration?.protocol;
+
+            if (protocol === "HTTPS" || protocol === "TLS") {
+                tlsListenersFound++;
+
+                // Check both uppercase and lowercase field names for LoadBalancerArn
+                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn ||
+                                       doc.Configuration?.configuration?.loadBalancerArn;
+
+                if (loadBalancerArn) {
+                    arnsFound++;
+                    tlsLoadBalancerArns.add(loadBalancerArn);
+
+                    // Also store the short ID (resource ID part after the last slash)
+                    const shortId = loadBalancerArn.split('/').pop();
+                    tlsLoadBalancerShortIds.add(shortId);
+
+                    // Debug output for the first few TLS listeners
+                    if (listenerDebugCount < 5) {
+                        console.log(`TLS Listener ${listenerDebugCount+1} loadBalancerArn: ${loadBalancerArn}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} short ID: ${shortId}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} protocol: ${protocol}`);
+                        console.log(`TLS Listener ${listenerDebugCount+1} policy: ${
+                            doc.Configuration?.configuration?.SslPolicy ||
+                            doc.Configuration?.configuration?.sslPolicy || 'Not set'
+                        }`);
+
+                        // Check for certificates
+                        const certificates = doc.Configuration?.configuration?.Certificates ||
+                                            doc.Configuration?.configuration?.certificates;
+                        if (certificates) {
+                            console.log(`TLS Listener ${listenerDebugCount+1} has certificates:`, true);
+                            console.log(`Certificate data:`, JSON.stringify(certificates).substring(0, 100) + '...');
+                        } else {
+                            console.log(`TLS Listener ${listenerDebugCount+1} has certificates:`, false);
+                        }
+
+                        listenerDebugCount++;
+                    }
+                } else {
+                    // Log issues with missing ARNs
+                    if (listenerDebugCount < 10) {
+                        console.log(`WARNING: Found TLS listener but no LoadBalancerArn! Protocol: ${protocol}`);
+                        listenerDebugCount++;
+                    }
+                }
             }
         }
 
+        console.log(`ELB TLS Stats: Total listeners: ${totalListeners}, TLS listeners: ${tlsListenersFound}, ARNs found: ${arnsFound}`);
+        console.log(`TLS ARN Set size: ${tlsLoadBalancerArns.size}, Short ID Set size: ${tlsLoadBalancerShortIds.size}`);
+
+        console.log('--- Debug: Load Balancers Without Certs Detection ---');
+        let noCertsCount = 0;
+        let withCertsCount = 0;
+
         for (const [resourceId, lbDoc] of teamLoadBalancers) {
-            if (!tlsLoadBalancerArns.has(resourceId)) {
+            // Extract the short ID for this load balancer
+            const shortId = resourceId.split('/').pop();
+
+            // Try multiple matching strategies to determine if this LB has certificates
+            const hasExactMatch = tlsLoadBalancerArns.has(resourceId);
+            const hasShortIdMatch = tlsLoadBalancerShortIds.has(shortId);
+
+            // Check if the LoadBalancer has TLS certs - now with multiple matching strategies
+            if (!hasExactMatch && !hasShortIdMatch) {
+                // Debug output for the first few NO CERTS load balancers
+                if (noCertsCount < 3) {
+                    console.log(`NO CERTS LB ${noCertsCount+1} resource_id: ${resourceId}`);
+                    console.log(`NO CERTS LB ${noCertsCount+1} short ID: ${shortId}`);
+                    console.log(`NO CERTS LB ${noCertsCount+1} exact match: ${hasExactMatch}`);
+                    console.log(`NO CERTS LB ${noCertsCount+1} short ID match: ${hasShortIdMatch}`);
+                    noCertsCount++;
+                }
+
                 allResources.push({
                     resourceId: resourceId,
-                    shortName: lbDoc.Configuration?.LoadBalancerName || resourceId,
-                    type: lbDoc.Configuration?.Type || "Unknown",
-                    scheme: lbDoc.Configuration?.Scheme || "Unknown",
+                    shortName: lbDoc.Configuration?.configuration?.loadBalancerName || resourceId,
+                    type: lbDoc.Configuration?.configuration?.type || "Unknown",
+                    scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
                     accountId: lbDoc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: lbDoc.Configuration?.DNSName,
-                        availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                        securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: lbDoc.Configuration?.VpcId,
-                        state: lbDoc.Configuration?.State?.Code
+                        dnsName: lbDoc.Configuration?.configuration?.dnsName,
+                        availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
+                        securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
+                        vpcId: lbDoc.Configuration?.configuration?.vpcId,
+                        state: lbDoc.Configuration?.configuration?.state?.code
                     }
                 });
+            } else {
+                // Debug the first few LBs that DO have certificates
+                if (withCertsCount < 3) {
+                    console.log(`WITH CERTS LB ${withCertsCount+1} resource_id: ${resourceId}`);
+                    console.log(`WITH CERTS LB ${withCertsCount+1} short ID: ${shortId}`);
+                    console.log(`WITH CERTS LB ${withCertsCount+1} matched by: ${hasExactMatch ? 'exact match' : 'short ID match'}`);
+                    withCertsCount++;
+                }
             }
         }
+
+        console.log(`Total load balancers checked: ${teamLoadBalancers.size}`);
+        console.log(`Total TLS listener ARNs found: ${tlsLoadBalancerArns.size}`);
+        console.log(`Total TLS listener short IDs found: ${tlsLoadBalancerShortIds.size}`);
+        console.log(`Total NO CERTS load balancers detected: ${allResources.length}`);
 
         // Process Classic ELBs without certificates
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
@@ -139,10 +262,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             let hasTLS = false;
-            if (doc.Configuration?.ListenerDescriptions) {
-                for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
-                    const listener = listenerDesc.Listener;
-                    if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
+            if (doc.Configuration?.configuration?.listenerDescriptions) {
+                for (const listenerDesc of doc.Configuration.configuration.listenerDescriptions) {
+                    const listener = listenerDesc.listener;
+                    if (listener?.protocol === "HTTPS" || listener?.protocol === "SSL") {
                         hasTLS = true;
                         break;
                     }
@@ -152,16 +275,16 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             if (!hasTLS) {
                 allResources.push({
                     resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
+                    shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
                     type: "classic",
-                    scheme: doc.Configuration?.Scheme || "Unknown",
+                    scheme: doc.Configuration?.configuration?.scheme || "Unknown",
                     accountId: doc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: doc.Configuration?.DNSName,
-                        availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
-                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: doc.Configuration?.VPCId,
+                        dnsName: doc.Configuration?.configuration?.dnsName,
+                        availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", "),
+                        securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
+                        vpcId: doc.Configuration?.configuration?.vpcId,
                         state: "active"
                     }
                 });
@@ -172,40 +295,102 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         const teamLoadBalancers = new Map();
+        // Create more robust secondary maps to handle ARN matching edge cases
+        const teamLoadBalancersByArn = new Map();
+        const teamLoadBalancersByShortId = new Map(); // Map by the resource ID's last part after '/'
+
+        console.log('--- Debug: ELB Specific TLS Version Resolution Process ---');
+        console.log(`Looking for TLS version: ${tlsVersion}`);
+        let debugCount = 0;
+
         for await (const doc of elbV2Cursor) {
             if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
+
+                // Primary ARN matching - exact resource_id
+                teamLoadBalancersByArn.set(doc.resource_id, doc);
+
+                // Secondary ARN matching - last part of the ARN for partial matches
+                const shortId = doc.resource_id.split('/').pop();
+                teamLoadBalancersByShortId.set(shortId, doc);
+
+                // Debug the first few load balancers
+                if (debugCount < 3) {
+                    console.log(`Load Balancer ${debugCount+1} resource_id: ${doc.resource_id}`);
+                    console.log(`Load Balancer ${debugCount+1} short ID: ${shortId}`);
+                    debugCount++;
+                }
             }
         }
 
-        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, LoadBalancerArn: 1, Configuration: 1 });
+        const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
+
+        let specificTlsDebugCount = 0;
+        console.log('--- Debug: ELB Listeners Matching Specific TLS Version ---');
 
         for await (const doc of elbV2ListenersCursor) {
-            if (doc.Configuration) {
-                const protocol = doc.Configuration.Protocol;
+            if (doc.Configuration?.configuration) {
+                // Fields are uppercase in the listener documents
+                const protocol = doc.Configuration.configuration.Protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.SslPolicy || "Unknown";
-                    if (policy === tlsVersion && teamLoadBalancers.has(doc.LoadBalancerArn)) {
-                        const lbDoc = teamLoadBalancers.get(doc.LoadBalancerArn);
-                        allResources.push({
-                            resourceId: doc.LoadBalancerArn,
-                            shortName: lbDoc.Configuration?.LoadBalancerName || doc.LoadBalancerArn,
-                            type: lbDoc.Configuration?.Type || "Unknown",
-                            scheme: lbDoc.Configuration?.Scheme || "Unknown",
-                            accountId: doc.account_id,
-                            tlsPolicy: policy,
-                            details: {
-                                dnsName: lbDoc.Configuration?.DNSName,
-                                availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                                securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
-                                vpcId: lbDoc.Configuration?.VpcId,
-                                state: lbDoc.Configuration?.State?.Code
+                    const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
+                    const loadBalancerArn = doc.Configuration.configuration.LoadBalancerArn;
+
+                    // Debug first few listeners with TLS policies
+                    if (specificTlsDebugCount < 3) {
+                        console.log(`TLS Listener ${specificTlsDebugCount+1} ARN: ${loadBalancerArn}`);
+                        console.log(`TLS Listener ${specificTlsDebugCount+1} Protocol: ${protocol}`);
+                        console.log(`TLS Listener ${specificTlsDebugCount+1} Policy: ${policy}`);
+                        console.log(`TLS Listener ${specificTlsDebugCount+1} Target Policy: ${tlsVersion}`);
+                        specificTlsDebugCount++;
+                    }
+
+                    if (policy === tlsVersion && loadBalancerArn) {
+                        // Try to find the load balancer by multiple matching strategies
+                        let lbDoc = null;
+                        let matchType = '';
+
+                        // Try direct ARN matching first
+                        if (teamLoadBalancersByArn.has(loadBalancerArn)) {
+                            lbDoc = teamLoadBalancersByArn.get(loadBalancerArn);
+                            matchType = 'exact match';
+                        }
+                        // Try short ID matching as fallback
+                        else {
+                            const shortId = loadBalancerArn.split('/').pop();
+                            if (teamLoadBalancersByShortId.has(shortId)) {
+                                lbDoc = teamLoadBalancersByShortId.get(shortId);
+                                matchType = 'short ID match';
                             }
-                        });
+                        }
+
+                        if (lbDoc) {
+                            console.log(`Found matching LB for policy ${policy} via ${matchType}`);
+
+                            allResources.push({
+                                resourceId: loadBalancerArn,
+                                shortName: lbDoc.Configuration?.configuration?.loadBalancerName || loadBalancerArn,
+                                type: lbDoc.Configuration?.configuration?.type || "Unknown",
+                                scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
+                                accountId: doc.account_id,
+                                tlsPolicy: policy,
+                                details: {
+                                    dnsName: lbDoc.Configuration?.configuration?.dnsName,
+                                    availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
+                                    securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
+                                    vpcId: lbDoc.Configuration?.configuration?.vpcId,
+                                    state: lbDoc.Configuration?.configuration?.state?.code
+                                }
+                            });
+                        } else if (policy === tlsVersion) {
+                            console.log(`WARNING: Found TLS listener with policy ${policy} but couldn't match to any LB: ${loadBalancerArn}`);
+                        }
                     }
                 }
             }
         }
+
+        console.log(`Total LBs with ${tlsVersion} policy found: ${allResources.length}`);
 
         // Process Classic ELBs with specific TLS version
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
@@ -213,24 +398,24 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         for await (const doc of elbClassicCursor) {
             if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
-            if (doc.Configuration?.ListenerDescriptions) {
-                for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
-                    const listener = listenerDesc.Listener;
-                    if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
-                        const policy = listenerDesc.PolicyNames?.[0] || "Classic-Default";
+            if (doc.Configuration?.configuration?.listenerDescriptions) {
+                for (const listenerDesc of doc.Configuration.configuration.listenerDescriptions) {
+                    const listener = listenerDesc.listener;
+                    if (listener?.protocol === "HTTPS" || listener?.protocol === "SSL") {
+                        const policy = listenerDesc.policyNames?.[0] || "Classic-Default";
                         if (policy === tlsVersion) {
                             allResources.push({
                                 resourceId: doc.resource_id,
-                                shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
+                                shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
                                 type: "classic",
-                                scheme: doc.Configuration?.Scheme || "Unknown",
+                                scheme: doc.Configuration?.configuration?.scheme || "Unknown",
                                 accountId: doc.account_id,
                                 tlsPolicy: policy,
                                 details: {
-                                    dnsName: doc.Configuration?.DNSName,
-                                    availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
-                                    securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                                    vpcId: doc.Configuration?.VPCId,
+                                    dnsName: doc.Configuration?.configuration?.dnsName,
+                                    availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", "),
+                                    securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
+                                    vpcId: doc.Configuration?.configuration?.vpcId,
                                     state: "active"
                                 }
                             });
@@ -261,7 +446,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
     for await (const doc of elbV2Cursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
-        const type = doc.Configuration?.Type || "Unknown";
+        const type = doc.Configuration?.configuration?.type || "Unknown";
         recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
     }
 
@@ -289,16 +474,16 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
 
             allResources.push({
                 resourceId: doc.resource_id,
-                shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
+                shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
                 type: "classic",
-                scheme: doc.Configuration?.Scheme || "Unknown",
+                scheme: doc.Configuration?.configuration?.scheme || "Unknown",
                 accountId: doc.account_id,
                 details: {
-                    dnsName: doc.Configuration?.DNSName,
-                    availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
-                    securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                    vpcId: doc.Configuration?.VPCId,
-                    createdTime: doc.Configuration?.CreatedTime
+                    dnsName: doc.Configuration?.configuration?.dnsName,
+                    availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", "),
+                    securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
+                    vpcId: doc.Configuration?.configuration?.vpcId,
+                    createdTime: doc.Configuration?.configuration?.createdTime
                 }
             });
         }
@@ -308,25 +493,26 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
         for await (const doc of elbV2Cursor) {
             if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
-            const docType = doc.Configuration?.Type;
+            const docType = doc.Configuration?.configuration?.type;
             if (docType === type) {
                 allResources.push({
                     resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
+                    shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
                     type: (() => {
                         if (docType === "application") return "ALB";
                         if (docType === "network") return "NLB";
+                        if (docType === "classic") return "Classic";
                         return docType;
                     })(),
-                    scheme: doc.Configuration?.Scheme || "Unknown",
+                    scheme: doc.Configuration?.configuration?.scheme || "Unknown",
                     accountId: doc.account_id,
                     details: {
-                        dnsName: doc.Configuration?.DNSName,
-                        availabilityZones: doc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: doc.Configuration?.VpcId,
-                        state: doc.Configuration?.State?.Code,
-                        createdTime: doc.Configuration?.CreatedTime
+                        dnsName: doc.Configuration?.configuration?.dnsName,
+                        availabilityZones: doc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
+                        securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
+                        vpcId: doc.Configuration?.configuration?.vpcId,
+                        state: doc.Configuration?.configuration?.state?.code,
+                        createdTime: doc.Configuration?.configuration?.createdTime
                     }
                 });
             }

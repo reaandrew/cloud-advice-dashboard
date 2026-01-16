@@ -322,7 +322,7 @@ async function getAutoScalingNonCompliant(req, year, month, day) {
     const cursor = collection.find({ year, month, day });
 
     for await (const doc of cursor) {
-        const instances = doc.Instances || [];
+        const instances = doc.Configuration?.Instances || [];
         if (instances.length === 0) {
             const accountDetails = results.findByAccountId(doc.account_id);
             accountDetails.teams.forEach(team => { if (team) teamsWithIssues.add(team); });
