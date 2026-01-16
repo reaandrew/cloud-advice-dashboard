@@ -35,6 +35,18 @@ router.get('/tls', async (req, res) => {
             console.log('loadBalancerArn exists:', !!sampleListener?.loadBalancerArn);
             console.log('Configuration exists:', !!sampleListener?.Configuration);
             console.log('Configuration keys:', Object.keys(sampleListener?.Configuration || {}));
+
+            // Check configuration structure
+            if (sampleListener?.Configuration?.configuration) {
+                console.log('Configuration.configuration exists:', true);
+                console.log('Configuration.configuration keys:', Object.keys(sampleListener.Configuration.configuration));
+                console.log('Configuration.configuration.protocol exists:', !!sampleListener.Configuration.configuration.protocol);
+                console.log('Configuration.configuration.sslPolicy exists:', !!sampleListener.Configuration.configuration.sslPolicy);
+            } else {
+                console.log('Configuration.configuration exists:', false);
+            }
+
+            // Check for direct field access
             if (sampleListener?.Configuration?.Protocol) {
                 console.log('Configuration.Protocol exists:', true);
             }
