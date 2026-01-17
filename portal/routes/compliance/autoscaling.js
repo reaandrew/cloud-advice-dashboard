@@ -21,9 +21,11 @@ router.get('/dimensions', async (req, res) => {
             console.log('Configuration exists:', !!sampleDoc?.Configuration);
             console.log('Configuration.configuration exists:', !!sampleDoc?.Configuration?.configuration);
 
-            // Check if the lowercase minSize field exists
-            console.log('Direct minSize exists:', sampleDoc?.Configuration?.minSize !== undefined);
-            console.log('Nested minSize exists:', sampleDoc?.Configuration?.configuration?.minSize !== undefined);
+            // Check all capitalization variants to determine what's in the data
+            console.log('Direct lowercase minSize exists:', sampleDoc?.Configuration?.minSize !== undefined);
+            console.log('Direct capitalized MinSize exists:', sampleDoc?.Configuration?.MinSize !== undefined);
+            console.log('Nested lowercase minSize exists:', sampleDoc?.Configuration?.configuration?.minSize !== undefined);
+            console.log('Nested capitalized MinSize exists:', sampleDoc?.Configuration?.configuration?.MinSize !== undefined);
 
             // Log structure paths without revealing values
             console.log('Configuration keys:', Object.keys(sampleDoc?.Configuration || {}));
