@@ -3,6 +3,10 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const lbQueries = require('../../queries/compliance/loadbalancers');
+const { createLoadBalancerLogger } = require('../../libs/file-logger');
+
+// Initialize the loadbalancer file logger
+const logger = createLoadBalancerLogger();
 
 router.get('/', (_, res) => {
     res.redirect('/compliance/loadbalancers/tls');
@@ -11,17 +15,49 @@ router.get('/', (_, res) => {
 router.get('/tls', async (req, res) => {
     try {
         // Add diagnostic logging to check MongoDB document structure for load balancers
-        console.log('--- Load Balancer Debug - Direct MongoDB Query ---');
+        logger.info('--- Load Balancer Debug - Direct MongoDB Query ---');
+
+        logger.info('MongoDB client available:', !!req.app.locals.mongodb);
+        logger.info('Collections available via req.collection:', typeof req.collection === 'function');
+
+        // Check all available collections
+        if (req.app.locals.mongodb) {
+            const db = req.app.locals.mongodb;
+            const collections = await db.listCollections().toArray();
+            logger.info('Available collections:', collections.map(c => c.name));
+        }
 
         // Direct query to get one ELB v2 document and one ELB listener for structure analysis
+        logger.info('Attempting to query elb_v2 collection...');
         const sampleElbV2 = await req.collection("elb_v2").findOne({}, { projection: { resource_id: 1, Configuration: 1 } });
+        logger.info('Sample ELB v2 document found:', !!sampleElbV2);
+        if (sampleElbV2) {
+            logger.debug('Sample ELB v2 document:', JSON.stringify(sampleElbV2, null, 2));
+        }
+
+        logger.info('Attempting to query elb_v2_listeners collection...');
         const sampleListener = await req.collection("elb_v2_listeners").findOne({}, { projection: { loadBalancerArn: 1, LoadBalancerArn: 1, Configuration: 1 } });
+        logger.info('Sample ELB v2 listener document found:', !!sampleListener);
+        if (sampleListener) {
+            logger.debug('Sample ELB v2 listener document:', JSON.stringify(sampleListener, null, 2));
+        }
 
         // Get sample ARNs to debug matching issues
         const sampleLbArns = await req.collection("elb_v2").find({}, { projection: { resource_id: 1 } }).limit(3).toArray();
+        logger.info(`Found ${sampleLbArns.length} ELB v2 resource IDs`);
+
+        // Get sample listener ARNs for debugging
+        const sampleListenerArns = await req.collection("elb_v2_listeners").find({}, {
+            projection: { "Configuration.configuration.LoadBalancerArn": 1 }
+        }).limit(3).toArray().then(listeners => {
+            return listeners.map(listener => ({
+                loadBalancerArn: listener.Configuration?.configuration?.LoadBalancerArn || "unknown"
+            }));
+        });
+        logger.info(`Found ${sampleListenerArns.length} ELB v2 listener ARNs`);
 
         // Find HTTPS/TLS listeners specifically to debug certificate detection
-        console.log('--- Looking for HTTPS/TLS Listeners ---');
+        logger.info('--- Looking for HTTPS/TLS Listeners ---');
         const tlsListeners = await req.collection("elb_v2_listeners").find({
             "Configuration.configuration.Protocol": { $in: ["HTTPS", "TLS"] }
         }, {
@@ -29,126 +65,134 @@ router.get('/tls', async (req, res) => {
         }).limit(3).toArray();
 
         if (tlsListeners && tlsListeners.length > 0) {
-            console.log(`Found ${tlsListeners.length} TLS listeners in the database`);
+            logger.info(`Found ${tlsListeners.length} TLS listeners in the database`);
             tlsListeners.forEach((listener, idx) => {
-                console.log(`--- TLS Listener ${idx+1} Details ---`);
-                console.log(`Protocol: ${listener?.Configuration?.configuration?.Protocol}`);
-                console.log(`SslPolicy: ${listener?.Configuration?.configuration?.SslPolicy}`);
-                console.log(`LoadBalancerArn: ${listener?.Configuration?.configuration?.LoadBalancerArn}`);
+                logger.info(`--- TLS Listener ${idx+1} Details ---`);
+                logger.info(`Protocol: ${listener?.Configuration?.configuration?.Protocol}`);
+                logger.info(`SslPolicy: ${listener?.Configuration?.configuration?.SslPolicy}`);
+                logger.info(`LoadBalancerArn: ${listener?.Configuration?.configuration?.LoadBalancerArn}`);
 
                 // Check for certificates
                 if (listener?.Configuration?.configuration?.Certificates) {
-                    console.log('Has certificates:', true);
-                    console.log('Certificates:', JSON.stringify(listener?.Configuration?.configuration?.Certificates, null, 2));
+                    logger.info('Has certificates:', true);
+                    logger.debug('Certificates:', listener?.Configuration?.configuration?.Certificates);
+
+                    // Add additional debugging to help diagnose ARN matching issues
+                    const lbArn = listener?.Configuration?.configuration?.LoadBalancerArn;
+                    if (lbArn) {
+                        const shortId = lbArn.split('/').pop();
+                        logger.info(`Certificate match debug - LoadBalancerArn: ${lbArn}`);
+                        logger.info(`Certificate match debug - Short ID: ${shortId}`);
+                    }
                 } else {
-                    console.log('Has certificates:', false);
+                    logger.info('Has certificates:', false);
                 }
             });
         } else {
-            console.log('No TLS listeners found in the database!');
+            logger.warn('No TLS listeners found in the database!');
         }
 
         if (sampleElbV2) {
-            console.log('ELB v2 sample document structure:');
-            console.log('Configuration exists:', !!sampleElbV2?.Configuration);
-            console.log('Configuration keys:', Object.keys(sampleElbV2?.Configuration || {}));
+            logger.info('ELB v2 sample document structure:');
+            logger.info('Configuration exists:', !!sampleElbV2?.Configuration);
+            logger.info('Configuration keys:', Object.keys(sampleElbV2?.Configuration || {}));
             if (sampleElbV2?.Configuration?.configuration) {
-                console.log('Configuration.configuration exists:', true);
-                console.log('Configuration.configuration keys:', Object.keys(sampleElbV2.Configuration.configuration));
+                logger.info('Configuration.configuration exists:', true);
+                logger.info('Configuration.configuration keys:', Object.keys(sampleElbV2.Configuration.configuration));
             } else {
-                console.log('Configuration.configuration exists:', false);
+                logger.warn('Configuration.configuration exists:', false);
             }
         }
 
         if (sampleListener) {
-            console.log('ELB v2 Listener sample document structure:');
-            console.log('LoadBalancerArn exists:', !!sampleListener?.LoadBalancerArn);
-            console.log('loadBalancerArn exists:', !!sampleListener?.loadBalancerArn);
-            console.log('Configuration exists:', !!sampleListener?.Configuration);
-            console.log('Configuration keys:', Object.keys(sampleListener?.Configuration || {}));
+            logger.info('ELB v2 Listener sample document structure:');
+            logger.info('LoadBalancerArn exists:', !!sampleListener?.LoadBalancerArn);
+            logger.info('loadBalancerArn exists:', !!sampleListener?.loadBalancerArn);
+            logger.info('Configuration exists:', !!sampleListener?.Configuration);
+            logger.info('Configuration keys:', Object.keys(sampleListener?.Configuration || {}));
 
             // Check configuration structure
             if (sampleListener?.Configuration?.configuration) {
-                console.log('Configuration.configuration exists:', true);
-                console.log('Configuration.configuration keys:', Object.keys(sampleListener.Configuration.configuration));
+                logger.info('Configuration.configuration exists:', true);
+                logger.info('Configuration.configuration keys:', Object.keys(sampleListener.Configuration.configuration));
 
                 // Log lowercase field existence
-                console.log('Configuration.configuration.protocol exists:', !!sampleListener.Configuration.configuration.protocol);
-                console.log('Configuration.configuration.sslPolicy exists:', !!sampleListener.Configuration.configuration.sslPolicy);
-                console.log('Configuration.configuration.loadBalancerArn exists:', !!sampleListener.Configuration.configuration.loadBalancerArn);
+                logger.info('Configuration.configuration.protocol exists:', !!sampleListener.Configuration.configuration.protocol);
+                logger.info('Configuration.configuration.sslPolicy exists:', !!sampleListener.Configuration.configuration.sslPolicy);
+                logger.info('Configuration.configuration.loadBalancerArn exists:', !!sampleListener.Configuration.configuration.loadBalancerArn);
 
                 // Log uppercase field existence
-                console.log('Configuration.configuration.Protocol exists:', !!sampleListener.Configuration.configuration.Protocol);
-                console.log('Configuration.configuration.SslPolicy exists:', !!sampleListener.Configuration.configuration.SslPolicy);
-                console.log('Configuration.configuration.LoadBalancerArn exists:', !!sampleListener.Configuration.configuration.LoadBalancerArn);
+                logger.info('Configuration.configuration.Protocol exists:', !!sampleListener.Configuration.configuration.Protocol);
+                logger.info('Configuration.configuration.SslPolicy exists:', !!sampleListener.Configuration.configuration.SslPolicy);
+                logger.info('Configuration.configuration.LoadBalancerArn exists:', !!sampleListener.Configuration.configuration.LoadBalancerArn);
 
                 // Display the actual LoadBalancerArn value if it exists
                 if (sampleListener.Configuration.configuration.LoadBalancerArn) {
-                    console.log('LoadBalancerArn value:', sampleListener.Configuration.configuration.LoadBalancerArn);
+                    logger.info('LoadBalancerArn value:', sampleListener.Configuration.configuration.LoadBalancerArn);
                 }
 
                 // Check for certificates
                 if (sampleListener.Configuration.configuration.Certificates) {
-                    console.log('Configuration.configuration.Certificates exists:', true);
-                    console.log('Certificates:', JSON.stringify(sampleListener.Configuration.configuration.Certificates, null, 2));
+                    logger.info('Configuration.configuration.Certificates exists:', true);
+                    logger.debug('Certificates:', sampleListener.Configuration.configuration.Certificates);
                 } else {
-                    console.log('Configuration.configuration.Certificates exists:', false);
+                    logger.warn('Configuration.configuration.Certificates exists:', false);
                 }
 
                 // Check protocol and TLS settings
                 if (sampleListener.Configuration.configuration.Protocol === "HTTPS" || sampleListener.Configuration.configuration.Protocol === "TLS") {
-                    console.log('This is a TLS listener:', true);
-                    console.log('Protocol:', sampleListener.Configuration.configuration.Protocol);
-                    console.log('SslPolicy:', sampleListener.Configuration.configuration.SslPolicy);
+                    logger.info('This is a TLS listener:', true);
+                    logger.info('Protocol:', sampleListener.Configuration.configuration.Protocol);
+                    logger.info('SslPolicy:', sampleListener.Configuration.configuration.SslPolicy);
                 } else {
-                    console.log('This is a TLS listener:', false);
-                    console.log('Protocol:', sampleListener.Configuration.configuration.Protocol);
+                    logger.info('This is a TLS listener:', false);
+                    logger.info('Protocol:', sampleListener.Configuration.configuration.Protocol);
                 }
             } else {
-                console.log('Configuration.configuration exists:', false);
+                logger.warn('Configuration.configuration exists:', false);
             }
 
             // Check for direct field access
             if (sampleListener?.Configuration?.Protocol) {
-                console.log('Configuration.Protocol exists:', true);
+                logger.info('Configuration.Protocol exists:', true);
             }
             if (sampleListener?.Configuration?.protocol) {
-                console.log('Configuration.protocol exists:', true);
+                logger.info('Configuration.protocol exists:', true);
             }
         }
 
         // Debug ARN matching issues
-        console.log('--- ARN Matching Debug ---');
+        logger.info('--- ARN Matching Debug ---');
         if (sampleLbArns && sampleLbArns.length > 0) {
-            console.log('ELB resource_id format examples:');
+            logger.info('ELB resource_id format examples:');
             sampleLbArns.forEach((lb, i) => {
-                console.log(`LB ${i+1} resource_id: ${lb.resource_id}`);
+                logger.info(`LB ${i+1} resource_id: ${lb.resource_id}`);
             });
         }
 
         if (sampleListenerArns && sampleListenerArns.length > 0) {
-            console.log('ELB Listener loadBalancerArn format examples:');
+            logger.info('ELB Listener loadBalancerArn format examples:');
             sampleListenerArns.forEach((listener, i) => {
-                console.log(`Listener ${i+1} loadBalancerArn: ${listener.loadBalancerArn}`);
+                logger.info(`Listener ${i+1} loadBalancerArn: ${listener.loadBalancerArn}`);
 
                 // Extract the actual ARN part from resource_id for comparison
                 const sampleLbArn = sampleLbArns && sampleLbArns[i] ? sampleLbArns[i].resource_id : null;
                 if (sampleLbArn && listener.loadBalancerArn) {
-                    console.log(`Match test ${i+1}: ${sampleLbArn === listener.loadBalancerArn ? 'MATCH' : 'NO MATCH'}`);
+                    logger.info(`Match test ${i+1}: ${sampleLbArn === listener.loadBalancerArn ? 'MATCH' : 'NO MATCH'}`);
 
                     // If no match, analyze differences
                     if (sampleLbArn !== listener.loadBalancerArn) {
                         // Check if one is contained within the other
                         if (listener.loadBalancerArn.includes(sampleLbArn)) {
-                            console.log(`Listener ARN contains LB resource_id`);
+                            logger.info(`Listener ARN contains LB resource_id`);
                         } else if (sampleLbArn.includes(listener.loadBalancerArn)) {
-                            console.log(`LB resource_id contains Listener ARN`);
+                            logger.info(`LB resource_id contains Listener ARN`);
                         }
 
                         // Compare last part of ARN (after last /)
                         const lbLastPart = sampleLbArn.split('/').pop();
                         const listenerLastPart = listener.loadBalancerArn.split('/').pop();
-                        console.log(`Last part comparison: ${lbLastPart === listenerLastPart ? 'MATCH' : 'NO MATCH'}`);
+                        logger.info(`Last part comparison: ${lbLastPart === listenerLastPart ? 'MATCH' : 'NO MATCH'}`);
                     }
                 }
             });
@@ -210,7 +254,7 @@ router.get('/tls', async (req, res) => {
             currentPath: "/compliance/loadbalancers/tls"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in loadbalancers/tls route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer TLS Configurations",
@@ -275,7 +319,7 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/loadbalancers/details"
         });
     } catch (err) {
-        console.error(err);
+        logger.error(`Error in loadbalancers/details route for team: ${team}, tlsVersion: ${tlsVersion}:`, err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Load Balancers", href: "/compliance/loadbalancers" },
@@ -325,7 +369,7 @@ router.get('/types', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in loadbalancers/types route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer Types by Team",
@@ -401,7 +445,18 @@ router.get('/types/details', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types/details"
         });
     } catch (err) {
-        console.error(err);
+        logger.error(`Error in loadbalancers/types/details route for team: ${team}, type: ${type}:`, err);
+
+        // Set a default display type if not defined in the try block
+        let displayType = "Unknown";
+        if (type === "application") {
+            displayType = "ALB";
+        } else if (type === "network") {
+            displayType = "NLB";
+        } else if (type === "classic") {
+            displayType = "Classic";
+        }
+
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Load Balancers", href: "/compliance/loadbalancers" },
