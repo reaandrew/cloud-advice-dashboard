@@ -62,7 +62,6 @@ async function processTlsConfigurations(req, year, month, day) {
             logger.info(`Testing account ID: ${id}`);
             try {
                 const details = accountDetailsResults.findByAccountId(id);
-                logger.info(`Account ${id} details:`, details);
                 logger.info(`Teams for account ${id}:`, details.teams);
             } catch (err) {
                 logger.error(`Error looking up account ${id}:`, err);
@@ -82,7 +81,7 @@ async function processTlsConfigurations(req, year, month, day) {
             logger.debug(`Processing ELB document ${elbCount} with account_id: ${doc.account_id}`);
             try {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
-                logger.debug(`Account details teams for ${doc.account_id}: ${JSON.stringify(accountDetails.teams)}`);
+                logger.debug(`Team count for account ${doc.account_id}: ${accountDetails.teams.length}`);
                 const recs = accountDetails.teams.map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
@@ -113,7 +112,7 @@ async function processTlsConfigurations(req, year, month, day) {
             logger.debug(`Processing classic ELB document ${classicCount} with account_id: ${doc.account_id}`);
             try {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
-                logger.debug(`Classic ELB - account details teams for ${doc.account_id}: ${JSON.stringify(accountDetails.teams)}`);
+                logger.debug(`Classic ELB - team count for account ${doc.account_id}: ${accountDetails.teams.length}`);
                 const recs = accountDetails.teams.map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
@@ -149,11 +148,11 @@ async function processTlsConfigurations(req, year, month, day) {
 
                 if (!accountDetails.teams || !Array.isArray(accountDetails.teams)) {
                     logger.error(`Invalid or missing teams array for account_id: ${doc.account_id}`);
-                    logger.debug(`Account details structure: ${JSON.stringify(accountDetails)}`);
+                    logger.debug(`Account details structure has teams: ${!!accountDetails.teams}`);
                     continue;
                 }
 
-                logger.debug(`Listener - account details teams for ${doc.account_id}: ${JSON.stringify(accountDetails.teams)}`);
+                logger.debug(`Listener - team count for account ${doc.account_id}: ${accountDetails.teams.length}`);
                 const recs = accountDetails.teams.map(ensureTeam);
 
                 if (doc.Configuration?.configuration) {
