@@ -17,7 +17,12 @@ const collections = {
  * Create a mock MongoDB middleware
  */
 function mongoMock(req, res, next) {
-  console.log('Using mock MongoDB middleware');
+  // Use a proper logger for consistent output
+  const logger = require('../logger');
+
+  // Log with debug level instead of using console directly
+  logger.info('Using mock MongoDB middleware');
+  logger.debug(`Mock collections available: ${Object.keys(collections).join(', ')}`);
 
   // Create a mock MongoDB client
   req.app.locals.mongodb = {
@@ -31,11 +36,11 @@ function mongoMock(req, res, next) {
 
   // Add a collection method to the request object
   req.collection = (name) => {
-    console.log(`Mock accessing collection: ${name}`);
+    logger.debug(`Mock accessing collection: ${name}`);
 
     // Check if we have mock data for this collection
     if (!collections[name]) {
-      console.log(`Warning: No mock data for collection "${name}"`);
+      logger.warn(`No mock data for collection "${name}"`);
       collections[name] = []; // Create empty collection
     }
 

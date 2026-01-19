@@ -36,7 +36,18 @@ async function processDatabaseEngines(req, year, month, day) {
         return teamDatabases.get(t);
     };
 
+    logger.info('Calling req.getDetailsForAllAccounts() in processDatabaseEngines...');
     const results = await req.getDetailsForAllAccounts();
+    logger.info('Account results type:', Object.prototype.toString.call(results));
+
+    // Debug the first few accounts (limit to avoid large logs)
+    logger.info('Account results structure check:');
+    if (results && typeof results.findByAccountId === 'function') {
+        // Just log the structure, not the full contents
+        logger.info('Results object has expected findByAccountId method');
+    } else {
+        logger.info('Unexpected structure for results:', typeof results);
+    }
 
     // Process RDS instances
     const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
@@ -71,7 +82,39 @@ async function processDatabaseEngines(req, year, month, day) {
 async function getDatabaseDetails(req, year, month, day, team, engine, version) {
     const allResources = [];
 
+    logger.info('Calling req.getDetailsForAllAccounts() in getDatabaseDetails...');
     const results = await req.getDetailsForAllAccounts();
+
+    // Additional debug for the specific team we're looking for
+    logger.info(`Checking if team "${team}" exists in account data`);
+
+    // Check if findByAccountId method exists and log some sample data
+    if (results && typeof results.findByAccountId === 'function') {
+        logger.info('Looking up sample accounts to check team structure');
+        try {
+            // Try with a sample account ID
+            const sampleAccounts = ['123456789012', '987654321098'];
+
+            for (const accountId of sampleAccounts) {
+                try {
+                    const accountDetails = results.findByAccountId(accountId);
+                    if (accountDetails) {
+                        logger.info(`Account ${accountId} teams data type:`, Object.prototype.toString.call(accountDetails.teams));
+                        if (Array.isArray(accountDetails.teams)) {
+                            logger.info(`Account ${accountId} has ${accountDetails.teams.length} teams`);
+                            // Check if our team is in this account
+                            const hasTeam = accountDetails.teams.includes(team);
+                            logger.info(`Account ${accountId} has team "${team}": ${hasTeam}`);
+                        }
+                    }
+                } catch (err) {
+                    logger.error(`Error checking sample account ${accountId}:`, err);
+                }
+            }
+        } catch (err) {
+            logger.error('Error in account details debug:', err);
+        }
+    }
 
     if (engine !== "redshift") {
         logger.info(`Getting RDS instances for team ${team} with engine ${engine} version ${version}`);
