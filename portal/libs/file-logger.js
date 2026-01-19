@@ -68,18 +68,14 @@ class FileLogger {
                 logEntry = `${prefix} ${message} ${formattedArgs.join(' ')}\n`;
             }
 
-            // Write to file
+            // Always output to console first (user wants standard out by default)
+            console.log(`${level.toUpperCase()}:`, message, ...args);
+
+            // Write to file (as a backup)
             try {
                 fs.appendFileSync(this.logPath, logEntry);
             } catch (err) {
                 console.error(`Failed to write to log file: ${err.message}`);
-                // Fall back to console
-                console.log(prefix, message, ...args);
-            }
-
-            // Also output to console for visibility
-            if (level === 'error' || level === 'warn') {
-                console[level](message, ...args);
             }
         }
     }

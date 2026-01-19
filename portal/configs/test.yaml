@@ -1,0 +1,11 @@
+# Test environment configuration with mock authentication
+---
+features:
+  auth: true
+
+auth:
+  type: 'mock'
+
+monitoring:
+  logging:
+    level: debug

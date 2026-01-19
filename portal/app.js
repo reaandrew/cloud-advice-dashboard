@@ -14,7 +14,20 @@ logger.debug('✓ Express app created');
 
 // Configure database
 if (config.get('features.compliance', true)) {
-    app.use(require('./libs/middleware/mongo.js'));
+    // Add explicit debug logs for environment variables
+    logger.debug('USE_MOCK_DB environment variable:', process.env.USE_MOCK_DB);
+    logger.debug('database.mock config:', config.get('database.mock', false));
+
+    const useMock = config.get('database.mock', false) || process.env.USE_MOCK_DB === 'true';
+    logger.debug('Using mock database:', useMock);
+
+    if (useMock) {
+        logger.debug('Using mock MongoDB middleware for local development');
+        app.use(require('./libs/middleware/mongo-mock.js'));
+    } else {
+        logger.debug('Using real MongoDB middleware');
+        app.use(require('./libs/middleware/mongo.js'));
+    }
 }
 
 // Configure auth

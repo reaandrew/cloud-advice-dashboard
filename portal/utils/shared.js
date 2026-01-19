@@ -49,3 +49,4 @@ module.exports.complianceBreadcrumbs = complianceBreadcrumbs;
 module.exports.policiesBreadcrumbs = policiesBreadcrumbs;
 module.exports.markdownRoot = markdownRoot;
 module.exports.mandatoryTags = mandatoryTags;
+module.exports.checkDatabaseDeprecation = checkDatabaseDeprecation;
