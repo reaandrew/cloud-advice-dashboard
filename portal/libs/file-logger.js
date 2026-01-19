@@ -113,16 +113,20 @@ class FileLogger {
     }
 }
 
-// Create specialized loggers
-const createLoadBalancerLogger = () => {
+// Create generic logger
+const createLogger = (filename = 'app.log') => {
     return new FileLogger({
         level: 'debug',
         format: 'text',
-        filename: 'loadbalancers.log'
+        filename
     });
 };
 
+// For backwards compatibility
+const createLoadBalancerLogger = () => createLogger('loadbalancers.log');
+
 module.exports = {
     FileLogger,
+    createLogger,
     createLoadBalancerLogger
 };

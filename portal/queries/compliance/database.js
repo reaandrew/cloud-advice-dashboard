@@ -1,4 +1,8 @@
 const { checkDatabaseDeprecation } = require('../../utils/shared');
+const { createLogger } = require('../../libs/file-logger');
+
+// Initialize the logger
+const logger = createLogger('database.log');
 
 async function getLatestRdsDate(req) {
     return await req.collection("rds").findOne({}, {
@@ -70,9 +74,36 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
     const results = await req.getDetailsForAllAccounts();
 
     if (engine !== "redshift") {
+        logger.info(`Getting RDS instances for team ${team} with engine ${engine} version ${version}`);
         const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
+        // Get a sample document to check field casing
+        const sampleDoc = await req.collection("rds").findOne({
+            year: year, month: month, day: day
+        });
+
+        if (sampleDoc && sampleDoc.Configuration) {
+            logger.info('RDS sample document field check:');
+            // Check if fields exist with different casing
+            logger.info('Direct field access:');
+            logger.info(`- DBInstanceIdentifier: ${sampleDoc.Configuration.DBInstanceIdentifier !== undefined}`);
+            logger.info(`- dbInstanceIdentifier: ${sampleDoc.Configuration.dbInstanceIdentifier !== undefined}`);
+            logger.info(`- DBInstanceClass: ${sampleDoc.Configuration.DBInstanceClass !== undefined}`);
+            logger.info(`- dbInstanceClass: ${sampleDoc.Configuration.dbInstanceClass !== undefined}`);
+
+            // If Configuration.configuration exists, check that too
+            if (sampleDoc.Configuration.configuration) {
+                logger.info('Nested field access:');
+                logger.info(`- configuration.DBInstanceIdentifier: ${sampleDoc.Configuration.configuration.DBInstanceIdentifier !== undefined}`);
+                logger.info(`- configuration.dbInstanceIdentifier: ${sampleDoc.Configuration.configuration.dbInstanceIdentifier !== undefined}`);
+                logger.info(`- configuration.DBInstanceClass: ${sampleDoc.Configuration.configuration.DBInstanceClass !== undefined}`);
+                logger.info(`- configuration.dbInstanceClass: ${sampleDoc.Configuration.configuration.dbInstanceClass !== undefined}`);
+            }
+        }
+
+        let rdsCount = 0;
         for await (const doc of rdsCursor) {
+            rdsCount++;
             if(!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
@@ -83,6 +114,7 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
                 const expectedKey = `${engine}-${version}`;
 
                 if (reconstructedKey === expectedKey) {
+                    // Access fields with AWS Config casing (PascalCase)
                     allResources.push({
                         resourceId: doc.resource_id,
                         shortName: doc.Configuration.DBInstanceIdentifier || doc.resource_id,
@@ -109,15 +141,43 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
     }
 
     if (engine === "redshift") {
+        logger.info(`Getting Redshift clusters for team ${team} with version ${version}`);
         const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
+        // Get a sample document to check field casing
+        const sampleDoc = await req.collection("redshift_clusters").findOne({
+            year: year, month: month, day: day
+        });
+
+        if (sampleDoc && sampleDoc.Configuration) {
+            logger.info('Redshift sample document field check:');
+            // Check if fields exist with different casing
+            logger.info('Direct field access:');
+            logger.info(`- ClusterIdentifier: ${sampleDoc.Configuration.ClusterIdentifier !== undefined}`);
+            logger.info(`- clusterIdentifier: ${sampleDoc.Configuration.clusterIdentifier !== undefined}`);
+            logger.info(`- ClusterVersion: ${sampleDoc.Configuration.ClusterVersion !== undefined}`);
+            logger.info(`- clusterVersion: ${sampleDoc.Configuration.clusterVersion !== undefined}`);
+
+            // If Configuration.configuration exists, check that too
+            if (sampleDoc.Configuration.configuration) {
+                logger.info('Nested field access:');
+                logger.info(`- configuration.ClusterIdentifier: ${sampleDoc.Configuration.configuration.ClusterIdentifier !== undefined}`);
+                logger.info(`- configuration.clusterIdentifier: ${sampleDoc.Configuration.configuration.clusterIdentifier !== undefined}`);
+                logger.info(`- configuration.ClusterVersion: ${sampleDoc.Configuration.configuration.ClusterVersion !== undefined}`);
+                logger.info(`- configuration.clusterVersion: ${sampleDoc.Configuration.configuration.clusterVersion !== undefined}`);
+            }
+        }
+
+        let redshiftCount = 0;
         for await (const doc of redshiftCursor) {
+            redshiftCount++;
             if(!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
                 const docVersion = doc.Configuration.ClusterVersion || "Unknown";
 
                 if (docVersion === version) {
+                    // Access fields with AWS Config casing (PascalCase)
                     allResources.push({
                         resourceId: doc.resource_id,
                         shortName: doc.Configuration.ClusterIdentifier || doc.resource_id,
