@@ -191,26 +191,47 @@ async function processDatabaseEngines(req, year, month, day) {
             // Add detailed logging for database engine field access
             logger.debug('RDS doc Configuration keys:', Object.keys(doc.Configuration));
 
-            // Debug the exact field names and values
-            logger.debug(`RDS doc direct field access:
-- Configuration.Engine: ${doc.Configuration.Engine !== undefined ? 'exists' : 'undefined'}
-- Configuration.engine: ${doc.Configuration.engine !== undefined ? 'exists' : 'undefined'}
-- Configuration.EngineVersion: ${doc.Configuration.EngineVersion !== undefined ? 'exists' : 'undefined'}
-- Configuration.engineVersion: ${doc.Configuration.engineVersion !== undefined ? 'exists' : 'undefined'}`);
+            // VERY DETAILED DEBUGGING: Dump the full Configuration object structure
+            console.log('---------- FULL RDS CONFIGURATION DUMP ----------');
+            console.log(JSON.stringify(doc.Configuration, null, 2));
+            console.log('------------------------------------------------');
 
-            // Check if nested configuration exists
+            // Check for various possible paths
+            const pathsToCheck = [
+                'doc.Configuration.Engine',
+                'doc.Configuration.engine',
+                'doc.Configuration.EngineVersion',
+                'doc.Configuration.engineVersion'
+            ];
+
             if (doc.Configuration.configuration) {
-                logger.debug('RDS nested configuration found, keys:', Object.keys(doc.Configuration.configuration));
-                logger.debug(`RDS doc nested field access:
-- Configuration.configuration.Engine: ${doc.Configuration.configuration.Engine !== undefined ? 'exists' : 'undefined'}
-- Configuration.configuration.engine: ${doc.Configuration.configuration.engine !== undefined ? 'exists' : 'undefined'}
-- Configuration.configuration.EngineVersion: ${doc.Configuration.configuration.EngineVersion !== undefined ? 'exists' : 'undefined'}
-- Configuration.configuration.engineVersion: ${doc.Configuration.configuration.engineVersion !== undefined ? 'exists' : 'undefined'}`);
+                pathsToCheck.push(
+                    'doc.Configuration.configuration.Engine',
+                    'doc.Configuration.configuration.engine',
+                    'doc.Configuration.configuration.EngineVersion',
+                    'doc.Configuration.configuration.engineVersion'
+                );
             }
 
-            // Use PascalCase field names (AWS Config format) with fallback to "Unknown"
-            const engine = doc.Configuration.Engine || (doc.Configuration.configuration && doc.Configuration.configuration.Engine) || "Unknown";
-            const version = doc.Configuration.EngineVersion || (doc.Configuration.configuration && doc.Configuration.configuration.EngineVersion) || "Unknown";
+            console.log('---------- CHECKING ALL POSSIBLE PATHS ----------');
+            for (const path of pathsToCheck) {
+                try {
+                    // Use eval to check the path dynamically
+                    const value = eval(path);
+                    if (value !== undefined) {
+                        console.log(`✅ FOUND: ${path} = ${value}`);
+                    } else {
+                        console.log(`❌ NOT FOUND: ${path} = undefined`);
+                    }
+                } catch (err) {
+                    console.log(`❌ ERROR: ${path} - ${err.message}`);
+                }
+            }
+            console.log('------------------------------------------------');
+
+            // According to the schema, fields are in Configuration.configuration
+            const engine = doc.Configuration.configuration.Engine || "Unknown";
+            const version = doc.Configuration.configuration.EngineVersion || "Unknown";
 
             // Log the resolved values
             logger.debug(`Resolved engine: ${engine}, version: ${version}`);
@@ -232,23 +253,42 @@ async function processDatabaseEngines(req, year, month, day) {
             // Add detailed logging for Redshift cluster version field access
             logger.debug('Redshift doc Configuration keys:', Object.keys(doc.Configuration));
 
-            // Debug the exact field names and values
-            logger.debug(`Redshift doc direct field access:
-- Configuration.ClusterVersion: ${doc.Configuration.ClusterVersion !== undefined ? 'exists' : 'undefined'}
-- Configuration.clusterVersion: ${doc.Configuration.clusterVersion !== undefined ? 'exists' : 'undefined'}`);
+            // VERY DETAILED DEBUGGING: Dump the full Configuration object structure
+            console.log('---------- FULL REDSHIFT CONFIGURATION DUMP ----------');
+            console.log(JSON.stringify(doc.Configuration, null, 2));
+            console.log('------------------------------------------------');
 
-            // Check if nested configuration exists
+            // Check for various possible paths
+            const pathsToCheck = [
+                'doc.Configuration.ClusterVersion',
+                'doc.Configuration.clusterVersion'
+            ];
+
             if (doc.Configuration.configuration) {
-                logger.debug('Redshift nested configuration found, keys:', Object.keys(doc.Configuration.configuration));
-                logger.debug(`Redshift doc nested field access:
-- Configuration.configuration.ClusterVersion: ${doc.Configuration.configuration.ClusterVersion !== undefined ? 'exists' : 'undefined'}
-- Configuration.configuration.clusterVersion: ${doc.Configuration.configuration.clusterVersion !== undefined ? 'exists' : 'undefined'}`);
+                pathsToCheck.push(
+                    'doc.Configuration.configuration.ClusterVersion',
+                    'doc.Configuration.configuration.clusterVersion'
+                );
             }
 
-            // Use PascalCase field names (AWS Config format) with fallback to "Unknown"
-            const version = doc.Configuration.ClusterVersion ||
-                           (doc.Configuration.configuration && doc.Configuration.configuration.ClusterVersion) ||
-                           "Unknown";
+            console.log('---------- CHECKING ALL POSSIBLE PATHS ----------');
+            for (const path of pathsToCheck) {
+                try {
+                    // Use eval to check the path dynamically
+                    const value = eval(path);
+                    if (value !== undefined) {
+                        console.log(`✅ FOUND: ${path} = ${value}`);
+                    } else {
+                        console.log(`❌ NOT FOUND: ${path} = undefined`);
+                    }
+                } catch (err) {
+                    console.log(`❌ ERROR: ${path} - ${err.message}`);
+                }
+            }
+            console.log('------------------------------------------------');
+
+            // According to the schema, fields are in Configuration.configuration
+            const version = doc.Configuration.configuration.ClusterVersion || "Unknown";
 
             // Log the resolved version
             logger.debug(`Resolved Redshift version: ${version}`);
@@ -334,8 +374,8 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
             if(!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
-                const docEngine = doc.Configuration.Engine || "Unknown";
-                const docVersion = doc.Configuration.EngineVersion || "Unknown";
+                const docEngine = doc.Configuration.configuration.Engine || "Unknown";
+                const docVersion = doc.Configuration.configuration.EngineVersion || "Unknown";
 
                 const reconstructedKey = `${docEngine}-${docVersion}`;
                 const expectedKey = `${engine}-${version}`;
