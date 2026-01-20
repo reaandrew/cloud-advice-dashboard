@@ -14,6 +14,19 @@ class Logger {
 
     log(level, message, ...args) {
         if (this.levels[level] >= this.currentLevel) {
+            // Debug code to trace large Map objects
+            for (const arg of args) {
+                if (arg instanceof Map && arg.size > 25) {
+                    console.error('Large Map detected in logger call:', message);
+                    console.error('Call stack:', new Error().stack);
+                    // Don't log the full Map, just note it was found
+                    console.error(`Map has ${arg.size} entries`);
+                    // Replace the large Map with a string to avoid huge output
+                    args = args.map(a => (a === arg) ? `[Map with ${arg.size} entries]` : a);
+                    break;
+                }
+            }
+
             const timestamp = new Date().toISOString();
 
             if (this.format === 'json') {

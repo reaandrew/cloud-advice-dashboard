@@ -127,6 +127,9 @@ async function processDatabaseEngines(req, year, month, day) {
 
     logger.info('Calling req.getDetailsForAllAccounts() in processDatabaseEngines...');
 
+    // Define results variable outside the try block so it's available throughout the function
+    let results;
+
     try {
         // Check if the function exists
         if (typeof req.getDetailsForAllAccounts !== 'function') {
@@ -135,7 +138,7 @@ async function processDatabaseEngines(req, year, month, day) {
             throw new Error('getDetailsForAllAccounts is not a function');
         }
 
-        const results = await req.getDetailsForAllAccounts();
+        results = await req.getDetailsForAllAccounts();
         logger.info('Account results type:', Object.prototype.toString.call(results));
         logger.info('DATA', !!results);
 
@@ -179,6 +182,14 @@ async function processDatabaseEngines(req, year, month, day) {
         console.log = originalConsoleLog;
     } catch (err) {
         logger.error('Error calling getDetailsForAllAccounts:', err);
+        // If there's an error, return early to avoid further errors
+        return teamDatabases;
+    }
+
+    // Make sure we have valid results before continuing
+    if (!results || typeof results.findByAccountId !== 'function') {
+        logger.error('Cannot process database engines: missing or invalid account details');
+        return teamDatabases;
     }
 
     // Process RDS instances
@@ -229,9 +240,9 @@ async function processDatabaseEngines(req, year, month, day) {
             }
             console.log('------------------------------------------------');
 
-            // According to the schema, fields are in Configuration.configuration
-            const engine = doc.Configuration.configuration.Engine || "Unknown";
-            const version = doc.Configuration.configuration.EngineVersion || "Unknown";
+            // According to our debugging output, fields are in Configuration.configuration with camelCase
+            const engine = doc.Configuration.configuration.engine || "Unknown";
+            const version = doc.Configuration.configuration.engineVersion || "Unknown";
 
             // Log the resolved values
             logger.debug(`Resolved engine: ${engine}, version: ${version}`);
@@ -287,8 +298,8 @@ async function processDatabaseEngines(req, year, month, day) {
             }
             console.log('------------------------------------------------');
 
-            // According to the schema, fields are in Configuration.configuration
-            const version = doc.Configuration.configuration.ClusterVersion || "Unknown";
+            // According to our debugging output, fields are in Configuration.configuration with camelCase
+            const version = doc.Configuration.configuration.clusterVersion || "Unknown";
 
             // Log the resolved version
             logger.debug(`Resolved Redshift version: ${version}`);
@@ -374,8 +385,8 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
             if(!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
             if (doc.Configuration) {
-                const docEngine = doc.Configuration.configuration.Engine || "Unknown";
-                const docVersion = doc.Configuration.configuration.EngineVersion || "Unknown";
+                const docEngine = doc.Configuration.configuration.engine || "Unknown";
+                const docVersion = doc.Configuration.configuration.engineVersion || "Unknown";
 
                 const reconstructedKey = `${docEngine}-${docVersion}`;
                 const expectedKey = `${engine}-${version}`;
