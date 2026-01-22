@@ -6,25 +6,59 @@ const kmsQueries = require('../../queries/compliance/kms');
 
 router.get('/', async (req, res) => {
     try {
-        // Debug: Check collection and sample document
+        // Debug: Check collections and sample documents
         console.log('--- KMS Route Debug - Direct MongoDB Query ---');
-        const kmsCollection = req.collection("kms_key_metadata");
-        const sampleDoc = await kmsCollection.findOne({});
-        if (sampleDoc) {
-            console.log('Sample document found');
-            console.log('Sample year:', sampleDoc.year);
-            console.log('Sample month:', sampleDoc.month);
-            console.log('Sample day:', sampleDoc.day);
-            console.log('Sample account_id:', sampleDoc.account_id);
-            console.log('Configuration exists:', !!sampleDoc.Configuration);
-            console.log('Configuration.configuration exists:', !!sampleDoc.Configuration?.configuration);
-            console.log('Configuration keys:', Object.keys(sampleDoc.Configuration || {}));
-            if (sampleDoc.Configuration?.configuration) {
-                console.log('Configuration.configuration keys:', Object.keys(sampleDoc.Configuration.configuration));
+
+        // Check kms_keys collection
+        const kmsKeysCollection = req.collection("kms_keys");
+        const kmsKeysSample = await kmsKeysCollection.findOne({});
+        console.log('=== kms_keys collection ===');
+        if (kmsKeysSample) {
+            console.log('Sample document found in kms_keys');
+            console.log('Sample year:', kmsKeysSample.year);
+            console.log('Sample month:', kmsKeysSample.month);
+            console.log('Sample day:', kmsKeysSample.day);
+            console.log('Sample account_id:', kmsKeysSample.account_id);
+            console.log('Configuration exists:', !!kmsKeysSample.Configuration);
+            console.log('Configuration.configuration exists:', !!kmsKeysSample.Configuration?.configuration);
+            console.log('Configuration keys:', Object.keys(kmsKeysSample.Configuration || {}));
+            if (kmsKeysSample.Configuration?.configuration) {
+                console.log('Configuration.configuration keys:', Object.keys(kmsKeysSample.Configuration.configuration));
             }
+        } else {
+            console.log('NO DOCUMENTS FOUND in kms_keys collection');
+        }
+
+        // Check kms_aliases collection
+        const kmsAliasesCollection = req.collection("kms_aliases");
+        const kmsAliasesSample = await kmsAliasesCollection.findOne({});
+        console.log('=== kms_aliases collection ===');
+        if (kmsAliasesSample) {
+            console.log('Sample document found in kms_aliases');
+            console.log('Sample year:', kmsAliasesSample.year);
+            console.log('Sample month:', kmsAliasesSample.month);
+            console.log('Sample day:', kmsAliasesSample.day);
+            console.log('Sample account_id:', kmsAliasesSample.account_id);
+            console.log('Configuration exists:', !!kmsAliasesSample.Configuration);
+            console.log('Configuration.configuration exists:', !!kmsAliasesSample.Configuration?.configuration);
+            console.log('Configuration keys:', Object.keys(kmsAliasesSample.Configuration || {}));
+            if (kmsAliasesSample.Configuration?.configuration) {
+                console.log('Configuration.configuration keys:', Object.keys(kmsAliasesSample.Configuration.configuration));
+            }
+        } else {
+            console.log('NO DOCUMENTS FOUND in kms_aliases collection');
+        }
+
+        // Check kms_key_metadata collection (original)
+        const kmsMetadataCollection = req.collection("kms_key_metadata");
+        const kmsMetadataSample = await kmsMetadataCollection.findOne({});
+        console.log('=== kms_key_metadata collection ===');
+        if (kmsMetadataSample) {
+            console.log('Sample document found in kms_key_metadata');
         } else {
             console.log('NO DOCUMENTS FOUND in kms_key_metadata collection');
         }
+
         console.log('--- End KMS Route Debug ---');
 
         const latestDoc = await kmsQueries.getLatestKmsDate(req);

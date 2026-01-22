@@ -1,12 +1,12 @@
 async function getLatestKmsDate(req) {
-    return await req.collection("kms_key_metadata").findOne({}, {
+    return await req.collection("kms_keys").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
 }
 
 async function getKmsKeysForDate(req, year, month, day, projection = null) {
-    return req.collection("kms_key_metadata").find({
+    return req.collection("kms_keys").find({
         year: year,
         month: month,
         day: day
@@ -109,7 +109,7 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
 
     const results = await req.getDetailsForAllAccounts();
 
-    const kmsCol = req.collection("kms_key_metadata");
+    const kmsCol = req.collection("kms_keys");
     const cursor = kmsCol.find(query, {
         projection: {
             account_id: 1,
