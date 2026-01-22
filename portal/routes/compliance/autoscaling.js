@@ -10,32 +10,6 @@ router.get('/', (req, res) => {
 
 router.get('/dimensions', async (req, res) => {
     try {
-        // Add diagnostic logging to check MongoDB document structure directly
-        console.log('--- Route Debug - Direct MongoDB Query ---');
-
-        // Direct query to get one ASG document for structure analysis
-        const sampleDoc = await req.collection("autoscaling_groups").findOne({}, { projection: { Configuration: 1 } });
-
-        if (sampleDoc) {
-            console.log('Sample document structure test:');
-            console.log('Configuration exists:', !!sampleDoc?.Configuration);
-            console.log('Configuration.configuration exists:', !!sampleDoc?.Configuration?.configuration);
-
-            // Check all capitalization variants to determine what's in the data
-            console.log('Direct lowercase minSize exists:', sampleDoc?.Configuration?.minSize !== undefined);
-            console.log('Direct capitalized MinSize exists:', sampleDoc?.Configuration?.MinSize !== undefined);
-            console.log('Nested lowercase minSize exists:', sampleDoc?.Configuration?.configuration?.minSize !== undefined);
-            console.log('Nested capitalized MinSize exists:', sampleDoc?.Configuration?.configuration?.MinSize !== undefined);
-
-            // Log structure paths without revealing values
-            console.log('Configuration keys:', Object.keys(sampleDoc?.Configuration || {}));
-            if (sampleDoc?.Configuration?.configuration) {
-                console.log('Configuration.configuration keys:', Object.keys(sampleDoc.Configuration.configuration));
-            }
-        } else {
-            console.log('No autoscaling_groups documents found');
-        }
-
         const latestDoc = await asgQueries.getLatestAutoscalingDate(req);
 
         if (!latestDoc) {

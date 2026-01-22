@@ -37,9 +37,6 @@ function getAgeDescription(creationDate) {
 async function processKmsKeyAges(req, year, month, day) {
     const teamKeyAges = new Map();
 
-    console.log('=== KMS processKmsKeyAges START ===');
-    console.log('Query params - year:', year, 'month:', month, 'day:', day);
-
     const ensureTeam = t => {
         if (!teamKeyAges.has(t))
             teamKeyAges.set(t, { ageBuckets: new Map() });
@@ -47,36 +44,9 @@ async function processKmsKeyAges(req, year, month, day) {
     };
 
     const results = await req.getDetailsForAllAccounts();
-    console.log('Account mappings loaded');
-
     const kmsCursor = await getKmsKeysForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
-    let docCount = 0;
-    let debugCount = 0;
-    let matchedCount = 0;
-
     for await (const doc of kmsCursor) {
-        docCount++;
-
-        // Debug first 3 documents
-        if (debugCount < 3) {
-            console.log('--- KMS Document Debug ---');
-            console.log('account_id:', doc.account_id);
-            console.log('Configuration exists:', !!doc.Configuration);
-            console.log('Configuration.configuration exists:', !!doc.Configuration?.configuration);
-            console.log('Configuration keys:', Object.keys(doc.Configuration || {}));
-            if (doc.Configuration?.configuration) {
-                console.log('Configuration.configuration keys:', Object.keys(doc.Configuration.configuration));
-                console.log('CreationDate (PascalCase):', doc.Configuration.configuration.CreationDate);
-                console.log('creationDate (camelCase):', doc.Configuration.configuration.creationDate);
-            }
-            // Also check direct Configuration access
-            console.log('Direct Configuration.CreationDate:', doc.Configuration?.CreationDate);
-            console.log('Direct Configuration.creationDate:', doc.Configuration?.creationDate);
-            console.log('--------------------------');
-            debugCount++;
-        }
-
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         // Try both PascalCase and camelCase
@@ -86,16 +56,10 @@ async function processKmsKeyAges(req, year, month, day) {
                             doc.Configuration?.creationDate;
 
         if (creationDate) {
-            matchedCount++;
             const bucket = getAgeBucket(creationDate);
             recs.map(rec => rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1));
         }
     }
-
-    console.log('KMS processKmsKeyAges: Total documents processed:', docCount);
-    console.log('KMS processKmsKeyAges: Documents with CreationDate:', matchedCount);
-    console.log('KMS processKmsKeyAges: Teams found:', Array.from(teamKeyAges.keys()));
-    console.log('=== KMS processKmsKeyAges END ===');
 
     return teamKeyAges;
 }
@@ -123,24 +87,30 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
     for await (const doc of cursor) {
         if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
-        if (!doc.Configuration?.configuration?.CreationDate) continue;
+        // Try both PascalCase and camelCase
+        const creationDate = doc.Configuration?.configuration?.CreationDate ||
+                            doc.Configuration?.configuration?.creationDate ||
+                            doc.Configuration?.CreationDate ||
+                            doc.Configuration?.creationDate;
 
-        const cfg = doc.Configuration.configuration;
-        const resourceAgeBucket = getAgeBucket(cfg.CreationDate);
+        if (!creationDate) continue;
+
+        const cfg = doc.Configuration?.configuration || doc.Configuration;
+        const resourceAgeBucket = getAgeBucket(creationDate);
         if (resourceAgeBucket !== ageBucket) continue;
 
         const resource = {
             resourceId: doc.resource_id,
-            keyId: cfg.KeyId || doc.resource_id,
-            keyName: cfg.Description || '',
-            creationDate: cfg.CreationDate ? new Date(cfg.CreationDate).toLocaleDateString() : 'Unknown',
-            ageDescription: getAgeDescription(cfg.CreationDate),
-            keyUsage: cfg.KeyUsage,
-            keyState: cfg.KeyState,
-            keySpec: cfg.KeySpec,
-            origin: cfg.Origin,
-            description: cfg.Description,
-            arn: cfg.Arn || doc.resource_id
+            keyId: cfg.KeyId || cfg.keyId || doc.resource_id,
+            keyName: cfg.Description || cfg.description || '',
+            creationDate: creationDate ? new Date(creationDate).toLocaleDateString() : 'Unknown',
+            ageDescription: getAgeDescription(creationDate),
+            keyUsage: cfg.KeyUsage || cfg.keyUsage,
+            keyState: cfg.KeyState || cfg.keyState,
+            keySpec: cfg.KeySpec || cfg.keySpec,
+            origin: cfg.Origin || cfg.origin,
+            description: cfg.Description || cfg.description,
+            arn: cfg.Arn || cfg.arn || doc.resource_id
         };
 
         allResources.push(resource);

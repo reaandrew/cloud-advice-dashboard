@@ -37,29 +37,7 @@ async function processAutoscalingDimensions(req, year, month, day) {
     const results = await req.getDetailsForAllAccounts();
     const asgCursor = await getAutoscalingGroupsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
-    let docCount = 0;
-    let debugCount = 0;
-
     for await (const doc of asgCursor) {
-        docCount++;
-
-        // Debug first 3 documents
-        if (debugCount < 3) {
-            console.log('--- ASG Document Debug ---');
-            console.log('account_id:', doc.account_id);
-            console.log('Configuration exists:', !!doc.Configuration);
-            console.log('Configuration.configuration exists:', !!doc.Configuration?.configuration);
-            console.log('Configuration keys:', Object.keys(doc.Configuration || {}));
-            if (doc.Configuration?.configuration) {
-                console.log('Configuration.configuration keys:', Object.keys(doc.Configuration.configuration));
-                console.log('MinSize:', doc.Configuration.configuration.MinSize);
-                console.log('MaxSize:', doc.Configuration.configuration.MaxSize);
-                console.log('DesiredCapacity:', doc.Configuration.configuration.DesiredCapacity);
-            }
-            console.log('--------------------------');
-            debugCount++;
-        }
-
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration?.configuration) {
@@ -70,9 +48,6 @@ async function processAutoscalingDimensions(req, year, month, day) {
             recs.forEach(rec => rec.dimensions.set(key, (rec.dimensions.get(key) || 0) + 1));
         }
     }
-
-    console.log('ASG processAutoscalingDimensions: Total documents processed:', docCount);
-    console.log('ASG processAutoscalingDimensions: Teams found:', Array.from(teamDimensions.keys()));
 
     return teamDimensions;
 }
