@@ -6,6 +6,27 @@ const kmsQueries = require('../../queries/compliance/kms');
 
 router.get('/', async (req, res) => {
     try {
+        // Debug: Check collection and sample document
+        console.log('--- KMS Route Debug - Direct MongoDB Query ---');
+        const kmsCollection = req.collection("kms_key_metadata");
+        const sampleDoc = await kmsCollection.findOne({});
+        if (sampleDoc) {
+            console.log('Sample document found');
+            console.log('Sample year:', sampleDoc.year);
+            console.log('Sample month:', sampleDoc.month);
+            console.log('Sample day:', sampleDoc.day);
+            console.log('Sample account_id:', sampleDoc.account_id);
+            console.log('Configuration exists:', !!sampleDoc.Configuration);
+            console.log('Configuration.configuration exists:', !!sampleDoc.Configuration?.configuration);
+            console.log('Configuration keys:', Object.keys(sampleDoc.Configuration || {}));
+            if (sampleDoc.Configuration?.configuration) {
+                console.log('Configuration.configuration keys:', Object.keys(sampleDoc.Configuration.configuration));
+            }
+        } else {
+            console.log('NO DOCUMENTS FOUND in kms_key_metadata collection');
+        }
+        console.log('--- End KMS Route Debug ---');
+
         const latestDoc = await kmsQueries.getLatestKmsDate(req);
 
         if (!latestDoc) {
