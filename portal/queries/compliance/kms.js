@@ -49,11 +49,7 @@ async function processKmsKeyAges(req, year, month, day) {
     for await (const doc of kmsCursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
-        // Try both PascalCase and camelCase
-        const creationDate = doc.Configuration?.configuration?.CreationDate ||
-                            doc.Configuration?.configuration?.creationDate ||
-                            doc.Configuration?.CreationDate ||
-                            doc.Configuration?.creationDate;
+        const creationDate = doc.Configuration?.configuration?.creationDate;
 
         if (creationDate) {
             const bucket = getAgeBucket(creationDate);
@@ -87,30 +83,24 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
     for await (const doc of cursor) {
         if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
-        // Try both PascalCase and camelCase
-        const creationDate = doc.Configuration?.configuration?.CreationDate ||
-                            doc.Configuration?.configuration?.creationDate ||
-                            doc.Configuration?.CreationDate ||
-                            doc.Configuration?.creationDate;
+        const cfg = doc.Configuration?.configuration;
+        if (!cfg?.creationDate) continue;
 
-        if (!creationDate) continue;
-
-        const cfg = doc.Configuration?.configuration || doc.Configuration;
-        const resourceAgeBucket = getAgeBucket(creationDate);
+        const resourceAgeBucket = getAgeBucket(cfg.creationDate);
         if (resourceAgeBucket !== ageBucket) continue;
 
         const resource = {
             resourceId: doc.resource_id,
-            keyId: cfg.KeyId || cfg.keyId || doc.resource_id,
-            keyName: cfg.Description || cfg.description || '',
-            creationDate: creationDate ? new Date(creationDate).toLocaleDateString() : 'Unknown',
-            ageDescription: getAgeDescription(creationDate),
-            keyUsage: cfg.KeyUsage || cfg.keyUsage,
-            keyState: cfg.KeyState || cfg.keyState,
-            keySpec: cfg.KeySpec || cfg.keySpec,
-            origin: cfg.Origin || cfg.origin,
-            description: cfg.Description || cfg.description,
-            arn: cfg.Arn || cfg.arn || doc.resource_id
+            keyId: cfg.keyId || doc.resource_id,
+            keyName: cfg.description || '',
+            creationDate: cfg.creationDate ? new Date(cfg.creationDate).toLocaleDateString() : 'Unknown',
+            ageDescription: getAgeDescription(cfg.creationDate),
+            keyUsage: cfg.keyUsage,
+            keyState: cfg.keyState,
+            keySpec: cfg.keySpec,
+            origin: cfg.origin,
+            description: cfg.description,
+            arn: cfg.arn || doc.resource_id
         };
 
         allResources.push(resource);
