@@ -50,8 +50,8 @@ async function processKmsKeyAges(req, year, month, day) {
     for await (const doc of kmsCursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
-        if (doc.Configuration?.CreationDate) {
-            const bucket = getAgeBucket(doc.Configuration.CreationDate);
+        if (doc.Configuration?.configuration?.CreationDate) {
+            const bucket = getAgeBucket(doc.Configuration.configuration.CreationDate);
             recs.map(rec => rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1));
         }
     }
@@ -82,23 +82,24 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
     for await (const doc of cursor) {
         if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
-        if (!doc.Configuration?.CreationDate) continue;
+        if (!doc.Configuration?.configuration?.CreationDate) continue;
 
-        const resourceAgeBucket = getAgeBucket(doc.Configuration.CreationDate);
+        const cfg = doc.Configuration.configuration;
+        const resourceAgeBucket = getAgeBucket(cfg.CreationDate);
         if (resourceAgeBucket !== ageBucket) continue;
 
         const resource = {
             resourceId: doc.resource_id,
-            keyId: doc.Configuration.KeyId || doc.resource_id,
-            keyName: doc.Configuration.Description || '',
-            creationDate: doc.Configuration.CreationDate ? new Date(doc.Configuration.CreationDate).toLocaleDateString() : 'Unknown',
-            ageDescription: getAgeDescription(doc.Configuration.CreationDate),
-            keyUsage: doc.Configuration.KeyUsage,
-            keyState: doc.Configuration.KeyState,
-            keySpec: doc.Configuration.KeySpec,
-            origin: doc.Configuration.Origin,
-            description: doc.Configuration.Description,
-            arn: doc.Configuration.Arn || doc.resource_id
+            keyId: cfg.KeyId || doc.resource_id,
+            keyName: cfg.Description || '',
+            creationDate: cfg.CreationDate ? new Date(cfg.CreationDate).toLocaleDateString() : 'Unknown',
+            ageDescription: getAgeDescription(cfg.CreationDate),
+            keyUsage: cfg.KeyUsage,
+            keyState: cfg.KeyState,
+            keySpec: cfg.KeySpec,
+            origin: cfg.Origin,
+            description: cfg.Description,
+            arn: cfg.Arn || doc.resource_id
         };
 
         allResources.push(resource);

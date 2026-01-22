@@ -37,8 +37,6 @@ Requirements:
   pip install pymongo python-dateutil
 """
 
-from __future__ import annotations
-
 import argparse
 import datetime as dt
 from datetime import timezone
@@ -531,7 +529,7 @@ def generate_team_choices(num_teams):
 
 ENV_CHOICES = ["production", "staging", "development", "testing", "integration", "sandbox", "pre-production", "test"]
 
-def gen_account_ids(args) -> list[str]:
+def gen_account_ids(args) -> List[str]:
     if args.account_ids:
         ids = [x.strip() for x in args.account_ids.split(",") if x.strip()]
         return ids
@@ -555,7 +553,7 @@ def build_account_mapping(owner_id: str) -> dict:
         "Environment": app_env,
     }
 
-def dump_account_mappings_yaml(mappings: list[dict]) -> str:
+def dump_account_mappings_yaml(mappings: List[Dict]) -> str:
     lines = ["account_mappings:"]
     lines.append("  # Map AWS account IDs to team information")
     lines.append("  # Use the actual keys from your data: 'AccountId', 'Team', 'Tenant.Id', 'Tenant.Name', 'Tenant.Description', 'Environment'")
@@ -582,7 +580,13 @@ def insert_many(coll, docs: List[Dict]):
 def wrap_doc(cfg: Dict, ctx: Context, coll: str) -> Dict:
     rid = derive_resource_id(coll, cfg, ctx)
     return {
-        "Configuration": cfg,
+        "Configuration": {
+            "resourceType": resource_type_from_id(rid, coll),
+            "resourceId": rid,
+            "configuration": cfg,
+            "relatedEvents": [],
+            "relationships": []
+        },
         "year": ctx.y,
         "month": ctx.m,
         "day": ctx.d,
