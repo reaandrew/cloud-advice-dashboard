@@ -1,6 +1,4 @@
-const { createLoadBalancerLogger } = require('../../libs/file-logger');
-
-const logger = createLoadBalancerLogger();
+const logger = require('../../libs/logger');
 
 async function getLatestElbDate(req) {
     return await req.collection("elb_v2").findOne({}, {

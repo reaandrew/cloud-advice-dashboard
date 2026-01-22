@@ -1,7 +1,5 @@
 const { checkDatabaseDeprecation } = require('../../utils/shared');
-const { createLogger } = require('../../libs/file-logger');
-
-const logger = createLogger('database.log');
+const logger = require('../../libs/logger');
 
 async function getLatestRdsDate(req) {
     return await req.collection("rds").findOne({}, {

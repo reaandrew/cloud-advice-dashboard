@@ -3,10 +3,7 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const dbQueries = require('../../queries/compliance/database');
-const { createLogger } = require('../../libs/file-logger');
-
-// Initialize the logger
-const logger = createLogger('database-routes.log');
+const logger = require('../../libs/logger');
 
 router.get('/', async (req, res) => {
     try {

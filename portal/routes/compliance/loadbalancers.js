@@ -3,10 +3,7 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const lbQueries = require('../../queries/compliance/loadbalancers');
-const { createLoadBalancerLogger } = require('../../libs/file-logger');
-
-// Initialize the loadbalancer file logger
-const logger = createLoadBalancerLogger();
+const logger = require('../../libs/logger');
 
 router.get('/', (_, res) => {
     res.redirect('/compliance/loadbalancers/tls');
