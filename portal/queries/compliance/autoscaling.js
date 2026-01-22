@@ -19,7 +19,7 @@ async function getEmptyAutoscalingGroups(req, year, month, day) {
             year: year,
             month: month,
             day: day,
-            "Configuration.configuration.Instances": { $size: 0 }
+            "Configuration.configuration.instances": { $size: 0 }
         },
         { projection: { account_id: 1 } }
     );
@@ -63,9 +63,9 @@ async function processAutoscalingDimensions(req, year, month, day) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration?.configuration) {
-            const min = doc.Configuration.configuration.MinSize || 0;
-            const max = doc.Configuration.configuration.MaxSize || 0;
-            const desired = doc.Configuration.configuration.DesiredCapacity || 0;
+            const min = doc.Configuration.configuration.minSize || 0;
+            const max = doc.Configuration.configuration.maxSize || 0;
+            const desired = doc.Configuration.configuration.desiredCapacity || 0;
             const key = `${min}-${max}-${desired}`;
             recs.forEach(rec => rec.dimensions.set(key, (rec.dimensions.get(key) || 0) + 1));
         }
@@ -88,14 +88,14 @@ async function getAutoscalingDimensionDetails(req, params) {
         if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
         if (doc.Configuration?.configuration) {
-            const docMin = doc.Configuration.configuration.MinSize || 0;
-            const docMax = doc.Configuration.configuration.MaxSize || 0;
-            const docDesired = doc.Configuration.configuration.DesiredCapacity || 0;
+            const docMin = doc.Configuration.configuration.minSize || 0;
+            const docMax = doc.Configuration.configuration.maxSize || 0;
+            const docDesired = doc.Configuration.configuration.desiredCapacity || 0;
 
             if (docMin == min && docMax == max && docDesired == desired) {
                 allResources.push({
                     resourceId: doc.resource_id,
-                    shortName: doc.Configuration.configuration.AutoScalingGroupName || doc.resource_id,
+                    shortName: doc.Configuration.configuration.autoScalingGroupName || doc.resource_id,
                     accountId: doc.account_id,
                     dimensions: {
                         min: docMin,
@@ -103,15 +103,15 @@ async function getAutoscalingDimensionDetails(req, params) {
                         desired: docDesired
                     },
                     details: {
-                        launchTemplate: doc.Configuration.configuration.LaunchTemplate?.LaunchTemplateName ||
-                                      doc.Configuration.configuration.LaunchConfigurationName || "N/A",
-                        instanceCount: (doc.Configuration.configuration.Instances || []).length || 0,
-                        healthCheckType: doc.Configuration.configuration.HealthCheckType || "Unknown",
-                        healthCheckGracePeriod: doc.Configuration.configuration.HealthCheckGracePeriod || 0,
-                        availabilityZones: (doc.Configuration.configuration.AvailabilityZones || []).join(", ") || "N/A",
-                        vpcZones: doc.Configuration.configuration.VPCZoneIdentifier || "N/A",
-                        targetGroups: (doc.Configuration.configuration.TargetGroupARNs || []).length || 0,
-                        createdTime: doc.Configuration.configuration.CreatedTime,
+                        launchTemplate: doc.Configuration.configuration.launchTemplate?.launchTemplateName ||
+                                      doc.Configuration.configuration.launchConfigurationName || "N/A",
+                        instanceCount: (doc.Configuration.configuration.instances || []).length || 0,
+                        healthCheckType: doc.Configuration.configuration.healthCheckType || "Unknown",
+                        healthCheckGracePeriod: doc.Configuration.configuration.healthCheckGracePeriod || 0,
+                        availabilityZones: (doc.Configuration.configuration.availabilityZones || []).join(", ") || "N/A",
+                        vpcZones: doc.Configuration.configuration.vpczoneIdentifier || "N/A",
+                        targetGroups: (doc.Configuration.configuration.targetGroupARNs || []).length || 0,
+                        createdTime: doc.Configuration.configuration.createdTime,
                         status: "Active"
                     }
                 });
