@@ -47,7 +47,27 @@ async function processKmsKeyAges(req, year, month, day) {
 
     const kmsCursor = await getKmsKeysForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
+    let docCount = 0;
+    let debugCount = 0;
+
     for await (const doc of kmsCursor) {
+        docCount++;
+
+        // Debug first 3 documents
+        if (debugCount < 3) {
+            console.log('--- KMS Document Debug ---');
+            console.log('account_id:', doc.account_id);
+            console.log('Configuration exists:', !!doc.Configuration);
+            console.log('Configuration.configuration exists:', !!doc.Configuration?.configuration);
+            console.log('Configuration keys:', Object.keys(doc.Configuration || {}));
+            if (doc.Configuration?.configuration) {
+                console.log('Configuration.configuration keys:', Object.keys(doc.Configuration.configuration));
+                console.log('CreationDate:', doc.Configuration.configuration.CreationDate);
+            }
+            console.log('--------------------------');
+            debugCount++;
+        }
+
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
         if (doc.Configuration?.configuration?.CreationDate) {
@@ -55,6 +75,9 @@ async function processKmsKeyAges(req, year, month, day) {
             recs.map(rec => rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1));
         }
     }
+
+    console.log('KMS processKmsKeyAges: Total documents processed:', docCount);
+    console.log('KMS processKmsKeyAges: Teams found:', Array.from(teamKeyAges.keys()));
 
     return teamKeyAges;
 }
