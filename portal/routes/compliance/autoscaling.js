@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const asgQueries = require('../../queries/compliance/autoscaling');
+const logger = require('../../libs/logger');
 
 router.get('/', (req, res) => {
     res.redirect('/compliance/autoscaling/dimensions');
@@ -40,7 +41,7 @@ router.get('/dimensions', async (req, res) => {
             currentPath: "/compliance/autoscaling/dimensions"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in autoscaling route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Auto Scaling", href: "/compliance/autoscaling" }],
             policy_title: "Auto Scaling Group Dimensions",
@@ -116,7 +117,7 @@ router.get('/dimensions/details', async (req, res) => {
             currentPath: "/compliance/autoscaling/dimensions/details"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in autoscaling route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Auto Scaling", href: "/compliance/autoscaling" },
@@ -158,7 +159,7 @@ router.get('/empty', async (req, res) => {
             currentPath: "/compliance/autoscaling/empty"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in autoscaling route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Auto Scaling", href: "/compliance/autoscaling" }],
             policy_title: "Auto Scaling Groups with No Instances",

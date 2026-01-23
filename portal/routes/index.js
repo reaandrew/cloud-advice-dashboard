@@ -1,6 +1,7 @@
 const express = require('express');
 const config = require('../libs/config-loader');
 const router = express.Router();
+const logger = require('../libs/logger');
 
 // Import dashboard queries
 const { getDashboardMetrics } = require('../queries/dashboard');
@@ -24,7 +25,7 @@ router.get('/', async (req, res) => {
             dashboardMetrics,
         });
     } catch (error) {
-        console.error('Error fetching dashboard metrics:', error);
+        logger.error('Error fetching dashboard metrics:', error);
         throw error;
     }
 });

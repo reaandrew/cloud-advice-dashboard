@@ -4,6 +4,7 @@ const router = express.Router();
 // Import shared utilities
 const { complianceBreadcrumbs, mandatoryTags } = require('../../utils/shared');
 const taggingQueries = require('../../queries/compliance/tagging');
+const logger = require('../../libs/logger');
 
 // Main tagging route redirects to teams
 router.get('/', (_, res) => {
@@ -56,7 +57,7 @@ router.get('/teams', async (req, res) => {
             currentPath: "/compliance/tagging/teams"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in tagging route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance" }],
             policy_title: "Tagging",
@@ -129,7 +130,7 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/tagging/details"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in tagging route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Tagging", href: "/compliance/tagging" },

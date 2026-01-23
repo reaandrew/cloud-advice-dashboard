@@ -7,17 +7,9 @@ const logger = require('../../libs/logger');
 
 router.get('/', async (req, res) => {
     try {
-        logger.info('Accessing database engines page');
-        logger.debug('MongoDB available:', !!req.app.locals.mongodb);
-
-        // Check if we have database access via collection method
-        logger.debug('Collection method available:', typeof req.collection === 'function');
-
         const latestDoc = await dbQueries.getLatestRdsDate(req);
-        logger.info('Latest RDS date document:', latestDoc);
 
         if (!latestDoc) {
-            logger.warn('No RDS date document found, rendering no-data page');
             return res.render('errors/no-data.njk', {
                 breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
                 policy_title: "Database Engines and Versions",
@@ -27,15 +19,8 @@ router.get('/', async (req, res) => {
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
-        logger.info(`Using date: ${latestYear}-${latestMonth}-${latestDay} for database data`);
 
         const teamDatabases = await dbQueries.processDatabaseEngines(req, latestYear, latestMonth, latestDay);
-        logger.info(`Team databases data:`, [...teamDatabases.keys()]);
-
-        // Debug team database records
-        for (const [team, data] of teamDatabases.entries()) {
-            logger.debug(`Team ${team} engines:`, [...data.engines.entries()]);
-        }
 
         const data = [...teamDatabases.entries()].map(([team, rec]) => ({
             team,
@@ -44,8 +29,6 @@ router.get('/', async (req, res) => {
                 return { engine, version: versionParts.join("-"), count };
             })
         })).filter(t => t.engines.length > 0);
-
-        logger.info(`Processed data for rendering:`, data.length ? `${data.length} teams with data` : 'No teams have data');
 
         res.render('policies/database/engines.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
@@ -56,19 +39,11 @@ router.get('/', async (req, res) => {
         });
     } catch (err) {
         logger.error('Error in database engines route:', err);
-        console.error('Database error:', err);
         return res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
             policy_title: "Database Engines and Versions",
             currentSection: "compliance",
-            currentPath: "/compliance/database",
-            // Include debug info in the error page
-            debug_info: {
-                error: err.message,
-                stack: err.stack,
-                mongodb_available: !!req.app.locals.mongodb,
-                collection_method_available: typeof req.collection === 'function'
-            }
+            currentPath: "/compliance/database"
         });
     }
 });
@@ -137,7 +112,7 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/database/details"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in database details route:', err);
         return res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Database", href: "/compliance/database" },

@@ -30,14 +30,11 @@ class DashboardRegistry {
                 
                 if (metric.enabled) {
                     this.metrics.set(metric.id, metric);
-                    console.log(`📊 Registered dashboard metric: ${metric.id}`);
                 }
             } catch (error) {
                 console.error(`❌ Failed to load dashboard metric from ${file}:`, error.message);
             }
         });
-        
-        console.log(`✅ Loaded ${this.metrics.size} dashboard metrics`);
     }
 
     /**

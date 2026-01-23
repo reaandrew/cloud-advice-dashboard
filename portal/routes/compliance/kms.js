@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const kmsQueries = require('../../queries/compliance/kms');
+const logger = require('../../libs/logger');
 
 router.get('/', async (req, res) => {
     try {
@@ -32,7 +33,7 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/kms"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in kms route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "KMS Keys", href: "/compliance/kms" }],
             policy_title: "KMS Key Ages",
@@ -111,7 +112,7 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/kms/details"
         });
     } catch (err) {
-        console.error(err);
+        logger.error('Error in kms route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "KMS Keys", href: "/compliance/kms" },
