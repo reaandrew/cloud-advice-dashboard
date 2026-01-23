@@ -80,7 +80,6 @@ async function processTlsConfigurations(req, year, month, day) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
         const redact = (str) => str ? str.replace(/\d{12}/g, 'XXXXXXXXXXXX') : str;
-        console.log('--- processTlsConfigurations: ELB v2 Listeners ---');
         for await (const doc of elbV2ListenersCursor) {
             try {
                 if (!doc.account_id) continue;
@@ -90,21 +89,24 @@ async function processTlsConfigurations(req, year, month, day) {
 
                 const recs = accountDetails.teams.map(ensureTeam);
 
-                console.log('Listener Configuration.configuration:', redact(JSON.stringify(doc.Configuration?.configuration, null, 2)));
                 if (doc.Configuration?.configuration) {
                     const protocol = doc.Configuration.configuration.Protocol;
-                    console.log(`Protocol: ${protocol}`);
                     if (protocol === "HTTPS" || protocol === "TLS") {
                         const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
-                        console.log(`TLS Policy: ${policy}`);
                         recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
+                    } else {
+                        console.log('--- NON-TLS Listener Found ---');
+                        console.log('Protocol:', protocol);
+                        console.log('Configuration.configuration:', redact(JSON.stringify(doc.Configuration?.configuration, null, 2)));
                     }
+                } else {
+                    console.log('--- Listener with NO Configuration.configuration ---');
+                    console.log('Full doc.Configuration:', redact(JSON.stringify(doc.Configuration, null, 2)));
                 }
             } catch (err) {
                 // Skip documents with errors
             }
         }
-        console.log('--- End processTlsConfigurations ---');
 
         // Process Classic ELBs
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
