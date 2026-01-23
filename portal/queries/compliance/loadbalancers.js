@@ -1,5 +1,3 @@
-const logger = require('../../libs/logger');
-
 async function getLatestElbDate(req) {
     return await req.collection("elb_v2").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
@@ -169,18 +167,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             }
         }
 
-        // DEBUG: Log what we found for NO CERTS matching
-        logger.info('--- NO CERTS Matching Debug ---');
-        logger.info('TLS LoadBalancer ARNs found:', Array.from(tlsLoadBalancerArns));
-        logger.info('Team LoadBalancer resource_ids:', Array.from(teamLoadBalancers.keys()));
-
         for (const [resourceId, lbDoc] of teamLoadBalancers) {
             const shortId = resourceId.split('/').pop();
             const hasExactMatch = tlsLoadBalancerArns.has(resourceId);
             const hasShortIdMatch = tlsLoadBalancerShortIds.has(shortId);
-
-            // DEBUG: Log matching attempts
-            logger.info(`Checking LB ${resourceId}: exactMatch=${hasExactMatch}, shortIdMatch=${hasShortIdMatch}`);
 
             if (!hasExactMatch && !hasShortIdMatch) {
                 allResources.push({

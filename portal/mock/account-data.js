@@ -42,33 +42,18 @@ const mockAccounts = {
 
 // Function to mock the getDetailsForAllAccounts middleware
 function getDetailsForAllAccounts() {
-  // Add logging
-  const logger = require('../libs/logger');
-
-  logger.info('Creating mock account details service');
-
   // The real implementation is async, so we need to return an async function
   // that returns an object with findByAccountId
   return async () => {
-    logger.debug('Mock getDetailsForAllAccounts called - returning lookup object');
-
-    // Log that we're returning a valid object, not false
-    logger.info('DATA', true);
-
     return {
       findByAccountId: (account_id) => {
-        // Use a proper logger
-        logger.debug(`Mock finding account details for: ${account_id}`);
-
         // Convert account_id to string if it's not already
         const accountIdStr = String(account_id);
 
         // Return the mock data or a default if not found
         if (mockAccounts[accountIdStr]) {
-          logger.debug(`Found mock data for account ID: ${accountIdStr}`);
           return mockAccounts[accountIdStr];
         } else {
-          logger.debug(`No mock data for account ID: ${accountIdStr}, returning default`);
           return {
             teams: ['Unknown'],
             environments: ['Unknown'],

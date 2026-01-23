@@ -4,7 +4,6 @@ const router = express.Router();
 // Import shared utilities
 const { complianceBreadcrumbs } = require('../utils/shared');
 const overviewQueries = require('../queries/compliance/overview');
-const logger = require('../libs/logger');
 
 router.get('/', async (req, res) => {
     const navigationSections = [
@@ -43,7 +42,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance"
         });
     } catch (err) {
-        logger.error('Error loading compliance overview:', err);
         res.render('compliance.njk', {
             breadcrumbs: complianceBreadcrumbs,
             navigationSections: navigationSections,

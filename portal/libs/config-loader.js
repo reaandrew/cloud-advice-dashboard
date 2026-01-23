@@ -2,20 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
-// Import logger after it's available
-let logger;
-try {
-    logger = require('./logger');
-} catch {
-    // Fallback to console if logger not available during bootstrap
-    logger = {
-        debug: console.log,
-        info: console.log,
-        warn: console.warn,
-        error: console.error
-    };
-}
-
 class ConfigLoader {
     constructor() {
         this.config = {};
@@ -49,47 +35,26 @@ class ConfigLoader {
      * Priority: Environment Variables > Additional Config Files > Default Config
      */
     load() {
-        try {
-            logger.debug('About to initialize config...');
-            this.config = {};
+        this.config = {};
 
-            // Always load default configuration first
-            logger.debug('About to load default configuration...');
-            if (fs.existsSync(this.defaultConfigPath)) {
-                logger.debug(`Reading default config from: ${this.defaultConfigPath}`);
-                const defaultConfig = yaml.load(fs.readFileSync(this.defaultConfigPath, 'utf8'));
-                this.config = this.deepMerge(this.config, defaultConfig);
-                logger.info('✓ Default configuration loaded');
-            } else {
-                logger.warn(`Default configuration file not found at ${this.defaultConfigPath}`);
-            }
-
-            // Load additional configuration files in order
-            if (this.configFiles.length > 0) {
-                logger.debug(`About to load ${this.configFiles.length} additional config files...`);
-            }
-            this.configFiles.forEach((configPath, index) => {
-                logger.debug(`Loading config file ${index + 1}/${this.configFiles.length}: ${configPath}`);
-                if (fs.existsSync(configPath)) {
-                    const configData = yaml.load(fs.readFileSync(configPath, 'utf8'));
-                    this.config = this.deepMerge(this.config, configData);
-                    logger.info(`✓ Configuration loaded from ${path.relative(path.join(__dirname, '../..'), configPath)}`);
-                } else {
-                    logger.warn(`Configuration file not found: ${configPath}`);
-                }
-            });
-
-            // Apply environment variable overrides last
-            logger.debug('About to apply environment variable overrides...');
-            this.applyEnvOverrides();
-            logger.debug('✓ Environment variable overrides applied');
-
-            logger.info(`✓ Configuration loading complete - ${1 + this.configFiles.filter(f => fs.existsSync(f)).length} files loaded`);
-            return this.config;
-        } catch (error) {
-            logger.error('Error loading configuration:', error);
-            throw error;
+        // Always load default configuration first
+        if (fs.existsSync(this.defaultConfigPath)) {
+            const defaultConfig = yaml.load(fs.readFileSync(this.defaultConfigPath, 'utf8'));
+            this.config = this.deepMerge(this.config, defaultConfig);
         }
+
+        // Load additional configuration files in order
+        this.configFiles.forEach((configPath, index) => {
+            if (fs.existsSync(configPath)) {
+                const configData = yaml.load(fs.readFileSync(configPath, 'utf8'));
+                this.config = this.deepMerge(this.config, configData);
+            }
+        });
+
+        // Apply environment variable overrides last
+        this.applyEnvOverrides();
+
+        return this.config;
     }
 
     /**
@@ -250,9 +215,6 @@ function parseConfigArgs() {
         }
     }
 
-    if (configFiles.length > 0) {
-        console.log(`Found ${configFiles.length} config files from args: ${configFiles.join(', ')}`);
-    }
     return configFiles;
 }
 

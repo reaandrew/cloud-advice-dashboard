@@ -3,7 +3,6 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const lbQueries = require('../../queries/compliance/loadbalancers');
-const logger = require('../../libs/logger');
 
 router.get('/', (_, res) => {
     res.redirect('/compliance/loadbalancers/tls');
@@ -67,7 +66,6 @@ router.get('/tls', async (req, res) => {
             currentPath: "/compliance/loadbalancers/tls"
         });
     } catch (err) {
-        logger.error('Error in loadbalancers/tls route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer TLS Configurations",
@@ -132,7 +130,6 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/loadbalancers/details"
         });
     } catch (err) {
-        logger.error(`Error in loadbalancers/details route for team: ${team}, tlsVersion: ${tlsVersion}:`, err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Load Balancers", href: "/compliance/loadbalancers" },
@@ -182,7 +179,6 @@ router.get('/types', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types"
         });
     } catch (err) {
-        logger.error('Error in loadbalancers/types route:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer Types by Team",
@@ -258,8 +254,6 @@ router.get('/types/details', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types/details"
         });
     } catch (err) {
-        logger.error(`Error in loadbalancers/types/details route for team: ${team}, type: ${type}:`, err);
-
         let displayType = "Unknown";
         if (type === "application") {
             displayType = "ALB";

@@ -3,7 +3,6 @@ const router = express.Router();
 
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const dbQueries = require('../../queries/compliance/database');
-const logger = require('../../libs/logger');
 
 router.get('/', async (req, res) => {
     try {
@@ -38,7 +37,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/database"
         });
     } catch (err) {
-        logger.error('Error in database engines route:', err);
         return res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
             policy_title: "Database Engines and Versions",
@@ -112,7 +110,6 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/database/details"
         });
     } catch (err) {
-        logger.error('Error in database details route:', err);
         return res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Database", href: "/compliance/database" },

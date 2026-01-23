@@ -2,26 +2,16 @@ const express = require('express');
 const nunjucks = require('nunjucks');
 const path = require('path');
 const config = require('./libs/config-loader');
-const logger = require('./libs/logger');
 
-logger.debug('Creating express app...');
 const app = express();
-logger.debug('✓ Express app created');
 
 // Configure database
 if (config.get('features.compliance', true)) {
-    // Add explicit debug logs for environment variables
-    logger.debug('USE_MOCK_DB environment variable:', process.env.USE_MOCK_DB);
-    logger.debug('database.mock config:', config.get('database.mock', false));
-
     const useMock = config.get('database.mock', false) || process.env.USE_MOCK_DB === 'true';
-    logger.debug('Using mock database:', useMock);
 
     if (useMock) {
-        logger.debug('Using mock MongoDB middleware for local development');
         app.use(require('./libs/middleware/mongo-mock.js'));
     } else {
-        logger.debug('Using real MongoDB middleware');
         app.use(require('./libs/middleware/mongo.js'));
     }
 }
@@ -32,28 +22,23 @@ let requiresAuth = () => (_, __, next) => { next(); };
 if (config.get('features.auth', false)) {
     switch (config.get('auth.type')) {
         case 'mock':
-            logger.debug('Using mock auth middleware');
             const authMock = require('./libs/middleware/authenticationMock.js');
             app.use(authMock.auth);
             attemptSilentLogin = authMock.attemptSilentLogin;
             requiresAuth = authMock.requiresAuth;
             break;
         case 'oidc':
-            logger.debug('Using oidc auth middleware')
             app.use(require('./libs/middleware/authentication.js'));
             attemptSilentLogin = require('express-openid-connect').attemptSilentLogin;
             requiresAuth = require('express-openid-connect').requiresAuth;
             break;
         default:
-            logger.error(`Failed to setup auth. Unknown auth type: ${config.get('auth.type')}`);
             exit(1);
     }
     app.use(require('./libs/middleware/authorizationImpl.js'));
 }
-logger.info('✓ Auth and DB Middleware configured');
 
 // Configure Nunjucks using config
-logger.debug('Configuring Nunjucks...');
 const nunjucksEnv = nunjucks.configure([
     path.join(__dirname, 'node_modules/govuk-frontend/dist'),
     path.join(__dirname, 'views')
@@ -67,10 +52,8 @@ nunjucksEnv.addGlobal('govukRebrand', true);
 nunjucksEnv.addGlobal('serviceName', config.get('app.name', 'Cloud Advice Dashboard'));
 nunjucksEnv.addGlobal('logoUrl', config.get('frontend.govuk.logo_url', '/assets/LOGO.png'));
 nunjucksEnv.addGlobal('complianceEnabled', config.get('features.compliance', false));
-logger.debug('✓ Nunjucks configured');
 
 // Serve GOV.UK Frontend assets
-logger.debug('Configuring static assets...');
 app.use('/assets', [
     express.static(path.join(__dirname, 'node_modules/govuk-frontend/dist/govuk/assets')),
     express.static(path.join(__dirname, 'assets')),
@@ -86,10 +69,8 @@ app.use('/javascripts', [
     express.static(path.join(__dirname, 'node_modules/govuk-frontend/dist/govuk')),
     express.static(path.join(__dirname, 'javascripts')),
 ]);
-logger.debug('✓ Static assets configured');
 
 // Import and use route modules
-logger.debug('Loading route modules...');
 const indexRoutes = require('./routes/index');
 const complianceRoutes = require('./routes/compliance');
 const policiesRoutes = require('./routes/policies');
@@ -100,10 +81,8 @@ const autoscalingRoutes = require('./routes/compliance/autoscaling');
 const kmsRoutes = require('./routes/compliance/kms');
 const tenantsRoutes = require('./routes/compliance/tenants');
 const teamsRoutes = require('./routes/compliance/teams');
-logger.debug('✓ Route modules loaded');
 
 // Use the routes
-logger.debug('Configuring routes...');
 app.use('/', attemptSilentLogin(), indexRoutes);
 app.use('/policies', policiesRoutes);
 if (config.get('features.auth', false)) {
@@ -116,7 +95,6 @@ if (config.get('features.auth', false)) {
             res.redirect("/");
         }
     });
-    logger.debug('✓ Auth Routes configured');
 }
 if (config.get('features.compliance', true)) {
     app.use('/compliance', requiresAuth(), complianceRoutes);
@@ -127,12 +105,9 @@ if (config.get('features.compliance', true)) {
     app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
     app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
     app.use('/compliance/kms', requiresAuth(), kmsRoutes);
-    logger.debug('✓ Compliance Routes configured');
 }
-logger.debug('✓ Routes configured');
 
 // Error handling middleware
-logger.debug('Setting up error handling...');
 
 // 404 handler - must be after all other routes
 app.use((req, res, _) => {
@@ -159,13 +134,6 @@ app.use((req, res, _) => {
 
 // 500 error handler - must be last middleware
 app.use((err, req, res, next) => {
-    // Log the error
-    if (err['message'] !== undefined) {
-        logger.error(`Application error`, { message: err.message, stack: err.stack });
-    } else {
-        logger.error(`Application error`, err);
-    }
-
     res.status(err.status || 500);
 
     // Respond with 500 page
@@ -189,20 +157,8 @@ app.use((err, req, res, next) => {
     res.type('txt').send(get('development.debug', false) ? err.stack : 'Internal server error');
 });
 
-logger.debug('✓ Error handling configured');
-
 // config.get port from config
 const port = config.get('app.port', 3000);
-const appName = config.get('app.name', 'Cloud Advice Dashboard');
-const environment = config.get('app.environment', 'development');
 
-logger.debug('Starting server...');
 app.listen(port, () => {
-    logger.info(`✓ ${appName} (${environment}) is running on http://localhost:${port}`);
-    logger.info('✓ Application startup complete');
-
-    if (config.get('development.debug', false)) {
-        logger.debug('Debug mode enabled');
-        logger.debug('Loaded configuration files:', config.getLoadedFiles().map(f => path.relative(__dirname, f)));
-    }
 });

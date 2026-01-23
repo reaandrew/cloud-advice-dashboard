@@ -4,7 +4,6 @@ const router = express.Router();
 // Import shared utilities
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const teamQueries = require('../../queries/compliance/teams');
-const logger = require('../../libs/logger');
 
 // Main team summary route
 router.get('/', async (req, res) => {
@@ -24,7 +23,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/teams"
         });
     } catch (err) {
-        logger.error('Error rendering team summary:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "By Teams", href: "/compliance/teams" }],
             policy_title: "Compliance Summary by Team",
