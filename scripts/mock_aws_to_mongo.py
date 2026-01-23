@@ -219,7 +219,7 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
         scheme = pick(["internet-facing", "internal"])
         lb = {
             "loadBalancerArn": lb_arn,
-            "dnsName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
+            "dNSName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
             "canonicalHostedZoneId": rand_hex(12),
             "createdTime": iso_now(),
             "loadBalancerName": name.split('/')[1],
@@ -236,21 +236,21 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
         for proto, port in [("HTTP", 80), ("HTTPS", 443)]:
             listener_arn = arn("elasticloadbalancing", ctx.region, ctx.account, f"listener/{name}/{rand_hex(12)}")
             lst = {
-                "listenerArn": listener_arn,
-                "loadBalancerArn": lb_arn,
-                "port": port,
-                "protocol": proto,
-                "defaultActions": [{"type": "forward", "targetGroupArn": arn('elasticloadbalancing', ctx.region, ctx.account, f"targetgroup/{rand_str(8)}/{rand_hex(12)}")}],
-                "certificates": [] if proto == "HTTP" else [{"certificateArn": arn('acm', ctx.region, ctx.account, f"certificate/{rand_hex(32)}")}],
-                "sslPolicy": None if proto == "HTTP" else pick(["ELBSecurityPolicy-2016-08", "ELBSecurityPolicy-TLS-1-2-2017-01"]),
+                "ListenerArn": listener_arn,
+                "LoadBalancerArn": lb_arn,
+                "Port": port,
+                "Protocol": proto,
+                "DefaultActions": [{"Type": "forward", "TargetGroupArn": arn('elasticloadbalancing', ctx.region, ctx.account, f"targetgroup/{rand_str(8)}/{rand_hex(12)}")}],
+                "Certificates": [] if proto == "HTTP" else [{"CertificateArn": arn('acm', ctx.region, ctx.account, f"certificate/{rand_hex(32)}")}],
+                "SslPolicy": None if proto == "HTTP" else pick(["ELBSecurityPolicy-2016-08", "ELBSecurityPolicy-TLS-1-2-2017-01"]),
             }
             listeners.append(lst)
 
             if proto == "HTTPS":
-                for c in lst["certificates"]:
+                for c in lst["Certificates"]:
                     certs.append({
-                        "certificateArn": c["certificateArn"],
-                        "isDefault": True,
+                        "CertificateArn": c["CertificateArn"],
+                        "IsDefault": True,
                     })
     return lbs, listeners, certs
 
@@ -398,8 +398,8 @@ RESOURCE_ID_MAP = {
     "security_groups": "GroupId",
     "kms_keys": "KeyArn",
     "kms_key_metadata": "Arn",
-    "elb_v2_listeners": "listenerArn",
-    "elb_v2_certificates": "certificateArn",
+    "elb_v2_listeners": "ListenerArn",
+    "elb_v2_certificates": "CertificateArn",
     "volumes": "VolumeId",
     "rds": "DBInstanceArn",
     "redshift_clusters": "ClusterNamespaceArn",

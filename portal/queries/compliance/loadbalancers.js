@@ -83,19 +83,6 @@ async function processTlsConfigurations(req, year, month, day) {
 
         for await (const doc of elbV2ListenersCursor) {
             try {
-                // DEBUG: Log the document structure
-                logger.debug('ELB v2 Listener doc keys:', Object.keys(doc));
-                logger.debug('doc.Configuration exists:', !!doc.Configuration);
-                if (doc.Configuration) {
-                    logger.debug('doc.Configuration keys:', Object.keys(doc.Configuration));
-                    logger.debug('doc.Configuration.configuration exists:', !!doc.Configuration.configuration);
-                    if (doc.Configuration.configuration) {
-                        logger.debug('doc.Configuration.configuration keys:', Object.keys(doc.Configuration.configuration));
-                        logger.debug('doc.Configuration.configuration.protocol:', doc.Configuration.configuration.protocol);
-                        logger.debug('doc.Configuration.configuration.Protocol:', doc.Configuration.configuration.Protocol);
-                    }
-                }
-
                 if (!doc.account_id) continue;
 
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
@@ -104,9 +91,9 @@ async function processTlsConfigurations(req, year, month, day) {
                 const recs = accountDetails.teams.map(ensureTeam);
 
                 if (doc.Configuration?.configuration) {
-                    const protocol = doc.Configuration.configuration.protocol;
+                    const protocol = doc.Configuration.configuration.Protocol;
                     if (protocol === "HTTPS" || protocol === "TLS") {
-                        const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
+                        const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
                         recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
                     }
                 }
@@ -169,10 +156,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
         for await (const doc of elbV2ListenersCursor) {
-            const protocol = doc.Configuration?.configuration?.protocol;
+            const protocol = doc.Configuration?.configuration?.Protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
+                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
 
                 if (loadBalancerArn) {
                     tlsLoadBalancerArns.add(loadBalancerArn);
@@ -196,7 +183,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                     accountId: lbDoc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: lbDoc.Configuration?.configuration?.dnsName,
+                        dnsName: lbDoc.Configuration?.configuration?.dNSName,
                         availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
                         securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
                         vpcId: lbDoc.Configuration?.configuration?.vpcId,
@@ -262,10 +249,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
 
         for await (const doc of elbV2ListenersCursor) {
             if (doc.Configuration?.configuration) {
-                const protocol = doc.Configuration.configuration.protocol;
+                const protocol = doc.Configuration.configuration.Protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
-                    const loadBalancerArn = doc.Configuration.configuration.loadBalancerArn;
+                    const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
+                    const loadBalancerArn = doc.Configuration.configuration.LoadBalancerArn;
 
                     if (policy === tlsVersion && loadBalancerArn) {
                         let lbDoc = null;
@@ -288,7 +275,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                                 accountId: doc.account_id,
                                 tlsPolicy: policy,
                                 details: {
-                                    dnsName: lbDoc.Configuration?.configuration?.dnsName,
+                                    dnsName: lbDoc.Configuration?.configuration?.dNSName,
                                     availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
                                     securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
                                     vpcId: lbDoc.Configuration?.configuration?.vpcId,
@@ -414,7 +401,7 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
                     scheme: doc.Configuration?.configuration?.scheme || "Unknown",
                     accountId: doc.account_id,
                     details: {
-                        dnsName: doc.Configuration?.configuration?.dnsName,
+                        dnsName: doc.Configuration?.configuration?.dNSName,
                         availabilityZones: doc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
                         securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
                         vpcId: doc.Configuration?.configuration?.vpcId,
