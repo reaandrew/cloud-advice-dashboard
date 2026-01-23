@@ -153,7 +153,9 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const tlsLoadBalancerShortIds = new Set();
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
+        console.log('--- NO CERTS Debug: Listener Configuration.configuration ---');
         for await (const doc of elbV2ListenersCursor) {
+            console.log('Configuration.configuration:', JSON.stringify(doc.Configuration?.configuration, null, 2));
             const protocol = doc.Configuration?.configuration?.Protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
@@ -166,6 +168,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                 }
             }
         }
+        console.log('--- End NO CERTS Debug ---');
 
         for (const [resourceId, lbDoc] of teamLoadBalancers) {
             const shortId = resourceId.split('/').pop();
