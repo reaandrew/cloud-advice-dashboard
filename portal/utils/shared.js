@@ -4,9 +4,6 @@ const { get } = require('../libs/config-loader');
 // Load account mappings from config
 const mappings = get('account_mappings', []);
 
-// Load logger for other uses
-const logger = require('../libs/logger');
-
 // Breadcrumb configurations
 const baseBreadcrumbs = [
     { text: 'Home', href: '/' }
