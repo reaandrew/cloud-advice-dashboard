@@ -4,10 +4,6 @@ const path = require('path');
 const config = require('./libs/config-loader');
 const logger = require('./libs/logger');
 
-// Configure logger
-logger.setLevel(config.get('monitoring.logging.level', 'info'));
-logger.setFormat(config.get('monitoring.logging.format', 'console'));
-
 logger.debug('Creating express app...');
 const app = express();
 logger.debug('✓ Express app created');
