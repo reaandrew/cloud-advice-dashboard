@@ -193,19 +193,20 @@ def gen_elb_classic(n: int, ctx: Context) -> List[Dict]:
     for i in range(n):
         name = f"classic-{i}-{rand_str(5)}"
         cfg = {
-            "LoadBalancerName": name,
-            "DNSName": f"{name}-{rand_hex(8)}.{ctx.region}.elb.amazonaws.com",
-            "CanonicalHostedZoneNameID": rand_hex(12),
-            "ListenerDescriptions": [{
-                "Listener": {"Protocol": "HTTP", "LoadBalancerPort": 80, "InstanceProtocol": "HTTP", "InstancePort": 80},
-                "PolicyNames": []
+            "loadBalancerName": name,
+            "dnsName": f"{name}-{rand_hex(8)}.{ctx.region}.elb.amazonaws.com",
+            "canonicalHostedZoneNameID": rand_hex(12),
+            "listenerDescriptions": [{
+                "listener": {"protocol": "HTTP", "loadBalancerPort": 80, "instanceProtocol": "HTTP", "instancePort": 80},
+                "policyNames": []
             }],
-            "Policies": {"AppCookieStickinessPolicies": [], "LBCookieStickinessPolicies": [], "OtherPolicies": []},
-            "AvailabilityZones": [f"{ctx.region}{z}" for z in "ab"],
-            "VPCId": f"vpc-{rand_hex(8)}",
-            "Instances": [],
-            "CreatedTime": iso_now(),
-            "Scheme": "internet-facing",
+            "policies": {"appCookieStickinessPolicies": [], "lbCookieStickinessPolicies": [], "otherPolicies": []},
+            "availabilityZones": [f"{ctx.region}{z}" for z in "ab"],
+            "vpcId": f"vpc-{rand_hex(8)}",
+            "securityGroups": [f"sg-{rand_hex(8)}"],
+            "instances": [],
+            "createdTime": iso_now(),
+            "scheme": "internet-facing",
         }
         out.append(cfg)
     return out
@@ -217,37 +218,39 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
         lb_arn = arn("elasticloadbalancing", ctx.region, ctx.account, f"loadbalancer/{name}")
         scheme = pick(["internet-facing", "internal"])
         lb = {
-            "LoadBalancerArn": lb_arn,
-            "DNSName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
-            "CanonicalHostedZoneId": rand_hex(12),
-            "CreatedTime": iso_now(),
-            "LoadBalancerName": name.split('/')[1],
-            "Scheme": scheme,
-            "VpcId": f"vpc-{rand_hex(8)}",
-            "Type": pick(["application", "network"]),
-            "IpAddressType": pick(["ipv4", "dualstack"]),
-            "AvailabilityZones": [{"ZoneName": f"{ctx.region}{z}", "SubnetId": f"subnet-{rand_hex(8)}"} for z in "ab"],
+            "loadBalancerArn": lb_arn,
+            "dnsName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
+            "canonicalHostedZoneId": rand_hex(12),
+            "createdTime": iso_now(),
+            "loadBalancerName": name.split('/')[1],
+            "scheme": scheme,
+            "vpcId": f"vpc-{rand_hex(8)}",
+            "type": pick(["application", "network"]),
+            "ipAddressType": pick(["ipv4", "dualstack"]),
+            "availabilityZones": [{"zoneName": f"{ctx.region}{z}", "subnetId": f"subnet-{rand_hex(8)}"} for z in "ab"],
+            "state": {"code": "active"},
+            "securityGroups": [f"sg-{rand_hex(8)}"],
         }
         lbs.append(lb)
 
         for proto, port in [("HTTP", 80), ("HTTPS", 443)]:
             listener_arn = arn("elasticloadbalancing", ctx.region, ctx.account, f"listener/{name}/{rand_hex(12)}")
             lst = {
-                "ListenerArn": listener_arn,
-                "LoadBalancerArn": lb_arn,
-                "Port": port,
-                "Protocol": proto,
-                "DefaultActions": [{"Type": "forward", "TargetGroupArn": arn('elasticloadbalancing', ctx.region, ctx.account, f"targetgroup/{rand_str(8)}/{rand_hex(12)}")}],
-                "Certificates": [] if proto == "HTTP" else [{"CertificateArn": arn('acm', ctx.region, ctx.account, f"certificate/{rand_hex(32)}")}],
-                "SslPolicy": None if proto == "HTTP" else pick(["ELBSecurityPolicy-2016-08", "ELBSecurityPolicy-TLS-1-2-2017-01"]),
+                "listenerArn": listener_arn,
+                "loadBalancerArn": lb_arn,
+                "port": port,
+                "protocol": proto,
+                "defaultActions": [{"type": "forward", "targetGroupArn": arn('elasticloadbalancing', ctx.region, ctx.account, f"targetgroup/{rand_str(8)}/{rand_hex(12)}")}],
+                "certificates": [] if proto == "HTTP" else [{"certificateArn": arn('acm', ctx.region, ctx.account, f"certificate/{rand_hex(32)}")}],
+                "sslPolicy": None if proto == "HTTP" else pick(["ELBSecurityPolicy-2016-08", "ELBSecurityPolicy-TLS-1-2-2017-01"]),
             }
             listeners.append(lst)
 
             if proto == "HTTPS":
-                for c in lst["Certificates"]:
+                for c in lst["certificates"]:
                     certs.append({
-                        "CertificateArn": c["CertificateArn"],
-                        "IsDefault": True,
+                        "certificateArn": c["certificateArn"],
+                        "isDefault": True,
                     })
     return lbs, listeners, certs
 
@@ -390,13 +393,13 @@ def gen_tags(resources: List[str]) -> List[Dict]:
 RESOURCE_ID_MAP = {
     "ec2": "InstanceId",
     "autoscaling_groups": "AutoScalingGroupARN",
-    "elb_v2": "LoadBalancerArn",
-    "elb_classic": "LoadBalancerName",
+    "elb_v2": "loadBalancerArn",
+    "elb_classic": "loadBalancerName",
     "security_groups": "GroupId",
     "kms_keys": "KeyArn",
     "kms_key_metadata": "Arn",
-    "elb_v2_listeners": "ListenerArn",
-    "elb_v2_certificates": "CertificateArn",
+    "elb_v2_listeners": "listenerArn",
+    "elb_v2_certificates": "certificateArn",
     "volumes": "VolumeId",
     "rds": "DBInstanceArn",
     "redshift_clusters": "ClusterNamespaceArn",
@@ -407,7 +410,7 @@ RESOURCE_ID_MAP = {
 }
 
 def classic_elb_arn_from_cfg(cfg: Dict, region: str, account: str) -> str:
-    name = cfg.get("LoadBalancerName")
+    name = cfg.get("loadBalancerName")
     return arn_elb_classic(name, region, account)
 
 def derive_resource_id(coll: str, cfg: Dict, ctx: Context) -> str:

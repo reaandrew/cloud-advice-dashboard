@@ -83,6 +83,19 @@ async function processTlsConfigurations(req, year, month, day) {
 
         for await (const doc of elbV2ListenersCursor) {
             try {
+                // DEBUG: Log the document structure
+                logger.debug('ELB v2 Listener doc keys:', Object.keys(doc));
+                logger.debug('doc.Configuration exists:', !!doc.Configuration);
+                if (doc.Configuration) {
+                    logger.debug('doc.Configuration keys:', Object.keys(doc.Configuration));
+                    logger.debug('doc.Configuration.configuration exists:', !!doc.Configuration.configuration);
+                    if (doc.Configuration.configuration) {
+                        logger.debug('doc.Configuration.configuration keys:', Object.keys(doc.Configuration.configuration));
+                        logger.debug('doc.Configuration.configuration.protocol:', doc.Configuration.configuration.protocol);
+                        logger.debug('doc.Configuration.configuration.Protocol:', doc.Configuration.configuration.Protocol);
+                    }
+                }
+
                 if (!doc.account_id) continue;
 
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
