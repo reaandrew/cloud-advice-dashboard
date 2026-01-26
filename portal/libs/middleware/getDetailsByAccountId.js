@@ -32,10 +32,14 @@ function getDetailsByAccountId(id, _) {
 
 
 function getDetailsForAllAccounts(db) {
+  // Load account mappings
+  const accountMappings = config.get('account_mappings', []);
+
   return (function () {
     return {
       findByAccountId: (account_id) => {
-        return getDetailsByAccountId(account_id, db)
+        const result = getDetailsByAccountId(account_id, db);
+        return result;
       }
     }
   })();
@@ -46,4 +50,3 @@ module.exports = {
   getDetailsByAccountId: getDetailsByAccountId,
   getDetailsForAllAccounts: getDetailsForAllAccounts
 };
-

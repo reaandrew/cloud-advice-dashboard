@@ -30,14 +30,11 @@ class DashboardRegistry {
                 
                 if (metric.enabled) {
                     this.metrics.set(metric.id, metric);
-                    console.log(`📊 Registered dashboard metric: ${metric.id}`);
                 }
             } catch (error) {
-                console.error(`❌ Failed to load dashboard metric from ${file}:`, error.message);
+                // Failed to load metric
             }
         });
-        
-        console.log(`✅ Loaded ${this.metrics.size} dashboard metrics`);
     }
 
     /**
@@ -84,7 +81,6 @@ class DashboardRegistry {
                     keyDetail: keyDetail
                 };
             } catch (error) {
-                console.error(`❌ Error calculating metric ${metric.id}:`, error);
                 results[metric.id] = {
                     ...metric.getMetadata(),
                     value: 0,
@@ -121,7 +117,6 @@ class DashboardRegistry {
                     metricTitle: metric.title
                 }));
             } catch (error) {
-                console.error(`❌ Error getting summaries for metric ${metric.id}:`, error);
                 return [];
             }
         });
@@ -182,7 +177,7 @@ async function getLatestDate(req) {
                 latestDate = date;
             }
         } catch (error) {
-            console.error(`Error getting latest date from ${collectionName}:`, error);
+            // Failed to get date from collection
         }
     }
     

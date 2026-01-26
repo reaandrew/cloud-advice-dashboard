@@ -66,7 +66,6 @@ router.get('/tls', async (req, res) => {
             currentPath: "/compliance/loadbalancers/tls"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer TLS Configurations",
@@ -131,7 +130,6 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/loadbalancers/details"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Load Balancers", href: "/compliance/loadbalancers" },
@@ -181,7 +179,6 @@ router.get('/types', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer Types by Team",
@@ -257,7 +254,15 @@ router.get('/types/details', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types/details"
         });
     } catch (err) {
-        console.error(err);
+        let displayType = "Unknown";
+        if (type === "application") {
+            displayType = "ALB";
+        } else if (type === "network") {
+            displayType = "NLB";
+        } else if (type === "classic") {
+            displayType = "Classic";
+        }
+
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Load Balancers", href: "/compliance/loadbalancers" },

@@ -37,8 +37,6 @@ Requirements:
   pip install pymongo python-dateutil
 """
 
-from __future__ import annotations
-
 import argparse
 import datetime as dt
 from datetime import timezone
@@ -195,19 +193,20 @@ def gen_elb_classic(n: int, ctx: Context) -> List[Dict]:
     for i in range(n):
         name = f"classic-{i}-{rand_str(5)}"
         cfg = {
-            "LoadBalancerName": name,
-            "DNSName": f"{name}-{rand_hex(8)}.{ctx.region}.elb.amazonaws.com",
-            "CanonicalHostedZoneNameID": rand_hex(12),
-            "ListenerDescriptions": [{
-                "Listener": {"Protocol": "HTTP", "LoadBalancerPort": 80, "InstanceProtocol": "HTTP", "InstancePort": 80},
-                "PolicyNames": []
+            "loadBalancerName": name,
+            "dnsName": f"{name}-{rand_hex(8)}.{ctx.region}.elb.amazonaws.com",
+            "canonicalHostedZoneNameID": rand_hex(12),
+            "listenerDescriptions": [{
+                "listener": {"protocol": "HTTP", "loadBalancerPort": 80, "instanceProtocol": "HTTP", "instancePort": 80},
+                "policyNames": []
             }],
-            "Policies": {"AppCookieStickinessPolicies": [], "LBCookieStickinessPolicies": [], "OtherPolicies": []},
-            "AvailabilityZones": [f"{ctx.region}{z}" for z in "ab"],
-            "VPCId": f"vpc-{rand_hex(8)}",
-            "Instances": [],
-            "CreatedTime": iso_now(),
-            "Scheme": "internet-facing",
+            "policies": {"appCookieStickinessPolicies": [], "lbCookieStickinessPolicies": [], "otherPolicies": []},
+            "availabilityZones": [f"{ctx.region}{z}" for z in "ab"],
+            "vpcId": f"vpc-{rand_hex(8)}",
+            "securityGroups": [f"sg-{rand_hex(8)}"],
+            "instances": [],
+            "createdTime": iso_now(),
+            "scheme": "internet-facing",
         }
         out.append(cfg)
     return out
@@ -219,16 +218,18 @@ def gen_elbv2(n: int, ctx: Context) -> Tuple[List[Dict], List[Dict], List[Dict]]
         lb_arn = arn("elasticloadbalancing", ctx.region, ctx.account, f"loadbalancer/{name}")
         scheme = pick(["internet-facing", "internal"])
         lb = {
-            "LoadBalancerArn": lb_arn,
-            "DNSName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
-            "CanonicalHostedZoneId": rand_hex(12),
-            "CreatedTime": iso_now(),
-            "LoadBalancerName": name.split('/')[1],
-            "Scheme": scheme,
-            "VpcId": f"vpc-{rand_hex(8)}",
-            "Type": pick(["application", "network"]),
-            "IpAddressType": pick(["ipv4", "dualstack"]),
-            "AvailabilityZones": [{"ZoneName": f"{ctx.region}{z}", "SubnetId": f"subnet-{rand_hex(8)}"} for z in "ab"],
+            "loadBalancerArn": lb_arn,
+            "dNSName": f"{name.split('/')[1]}-{rand_hex(6)}.{ctx.region}.elb.amazonaws.com",
+            "canonicalHostedZoneId": rand_hex(12),
+            "createdTime": iso_now(),
+            "loadBalancerName": name.split('/')[1],
+            "scheme": scheme,
+            "vpcId": f"vpc-{rand_hex(8)}",
+            "type": pick(["application", "network"]),
+            "ipAddressType": pick(["ipv4", "dualstack"]),
+            "availabilityZones": [{"zoneName": f"{ctx.region}{z}", "subnetId": f"subnet-{rand_hex(8)}"} for z in "ab"],
+            "state": {"code": "active"},
+            "securityGroups": [f"sg-{rand_hex(8)}"],
         }
         lbs.append(lb)
 
@@ -392,8 +393,8 @@ def gen_tags(resources: List[str]) -> List[Dict]:
 RESOURCE_ID_MAP = {
     "ec2": "InstanceId",
     "autoscaling_groups": "AutoScalingGroupARN",
-    "elb_v2": "LoadBalancerArn",
-    "elb_classic": "LoadBalancerName",
+    "elb_v2": "loadBalancerArn",
+    "elb_classic": "loadBalancerName",
     "security_groups": "GroupId",
     "kms_keys": "KeyArn",
     "kms_key_metadata": "Arn",
@@ -409,7 +410,7 @@ RESOURCE_ID_MAP = {
 }
 
 def classic_elb_arn_from_cfg(cfg: Dict, region: str, account: str) -> str:
-    name = cfg.get("LoadBalancerName")
+    name = cfg.get("loadBalancerName")
     return arn_elb_classic(name, region, account)
 
 def derive_resource_id(coll: str, cfg: Dict, ctx: Context) -> str:
@@ -531,7 +532,7 @@ def generate_team_choices(num_teams):
 
 ENV_CHOICES = ["production", "staging", "development", "testing", "integration", "sandbox", "pre-production", "test"]
 
-def gen_account_ids(args) -> list[str]:
+def gen_account_ids(args) -> List[str]:
     if args.account_ids:
         ids = [x.strip() for x in args.account_ids.split(",") if x.strip()]
         return ids
@@ -555,7 +556,7 @@ def build_account_mapping(owner_id: str) -> dict:
         "Environment": app_env,
     }
 
-def dump_account_mappings_yaml(mappings: list[dict]) -> str:
+def dump_account_mappings_yaml(mappings: List[Dict]) -> str:
     lines = ["account_mappings:"]
     lines.append("  # Map AWS account IDs to team information")
     lines.append("  # Use the actual keys from your data: 'AccountId', 'Team', 'Tenant.Id', 'Tenant.Name', 'Tenant.Description', 'Environment'")
@@ -582,7 +583,13 @@ def insert_many(coll, docs: List[Dict]):
 def wrap_doc(cfg: Dict, ctx: Context, coll: str) -> Dict:
     rid = derive_resource_id(coll, cfg, ctx)
     return {
-        "Configuration": cfg,
+        "Configuration": {
+            "resourceType": resource_type_from_id(rid, coll),
+            "resourceId": rid,
+            "configuration": cfg,
+            "relatedEvents": [],
+            "relationships": []
+        },
         "year": ctx.y,
         "month": ctx.m,
         "day": ctx.d,

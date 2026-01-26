@@ -1,12 +1,12 @@
 async function getLatestKmsDate(req) {
-    return await req.collection("kms_key_metadata").findOne({}, {
+    return await req.collection("kms_keys").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
 }
 
 async function getKmsKeysForDate(req, year, month, day, projection = null) {
-    return req.collection("kms_key_metadata").find({
+    return req.collection("kms_keys").find({
         year: year,
         month: month,
         day: day
@@ -44,14 +44,15 @@ async function processKmsKeyAges(req, year, month, day) {
     };
 
     const results = await req.getDetailsForAllAccounts();
-
     const kmsCursor = await getKmsKeysForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of kmsCursor) {
         const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
 
-        if (doc.Configuration?.CreationDate) {
-            const bucket = getAgeBucket(doc.Configuration.CreationDate);
+        const creationDate = doc.Configuration?.configuration?.creationDate;
+
+        if (creationDate) {
+            const bucket = getAgeBucket(creationDate);
             recs.map(rec => rec.ageBuckets.set(bucket, (rec.ageBuckets.get(bucket) || 0) + 1));
         }
     }
@@ -68,7 +69,7 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
 
     const results = await req.getDetailsForAllAccounts();
 
-    const kmsCol = req.collection("kms_key_metadata");
+    const kmsCol = req.collection("kms_keys");
     const cursor = kmsCol.find(query, {
         projection: {
             account_id: 1,
@@ -82,23 +83,24 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
     for await (const doc of cursor) {
         if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
 
-        if (!doc.Configuration?.CreationDate) continue;
+        const cfg = doc.Configuration?.configuration;
+        if (!cfg?.creationDate) continue;
 
-        const resourceAgeBucket = getAgeBucket(doc.Configuration.CreationDate);
+        const resourceAgeBucket = getAgeBucket(cfg.creationDate);
         if (resourceAgeBucket !== ageBucket) continue;
 
         const resource = {
             resourceId: doc.resource_id,
-            keyId: doc.Configuration.KeyId || doc.resource_id,
-            keyName: doc.Configuration.Description || '',
-            creationDate: doc.Configuration.CreationDate ? new Date(doc.Configuration.CreationDate).toLocaleDateString() : 'Unknown',
-            ageDescription: getAgeDescription(doc.Configuration.CreationDate),
-            keyUsage: doc.Configuration.KeyUsage,
-            keyState: doc.Configuration.KeyState,
-            keySpec: doc.Configuration.KeySpec,
-            origin: doc.Configuration.Origin,
-            description: doc.Configuration.Description,
-            arn: doc.Configuration.Arn || doc.resource_id
+            keyId: cfg.keyId || doc.resource_id,
+            keyName: cfg.description || '',
+            creationDate: cfg.creationDate ? new Date(cfg.creationDate).toLocaleDateString() : 'Unknown',
+            ageDescription: getAgeDescription(cfg.creationDate),
+            keyUsage: cfg.keyUsage,
+            keyState: cfg.keyState,
+            keySpec: cfg.keySpec,
+            origin: cfg.origin,
+            description: cfg.description,
+            arn: cfg.arn || doc.resource_id
         };
 
         allResources.push(resource);

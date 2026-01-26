@@ -42,7 +42,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance"
         });
     } catch (err) {
-        console.error('Error loading compliance overview:', err);
         res.render('compliance.njk', {
             breadcrumbs: complianceBreadcrumbs,
             navigationSections: navigationSections,

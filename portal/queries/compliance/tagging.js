@@ -14,7 +14,7 @@ async function getTagsForDate(req, year, month, day) {
         month: month,
         day: day
     }, {
-        projection: { day: 1, account_id: 1, resource_id: 1, resource_type: 1, Tags: 1 }
+        projection: { day: 1, account_id: 1, resource_id: 1, resource_type: 1, Tags: 1, tags: 1 }
     });
 }
 
@@ -24,7 +24,7 @@ async function getTagsForDateWithProjection(req, year, month, day) {
         month: month,
         day: day
     }, {
-        projection: { account_id: 1, resource_id: 1, resource_type: 1, Tags: 1 }
+        projection: { account_id: 1, resource_id: 1, resource_type: 1, Tags: 1, tags: 1 }
     });
 }
 
@@ -68,12 +68,18 @@ async function processTeamsTagCompliance(req, cursor) {
         const tagMissings = recsUnseen.map(rec => ensureResourceType(rec, resourceType));
 
         const tags = {};
+        // First try to use Tags array (original format)
         if (doc.Tags && Array.isArray(doc.Tags)) {
             for (const tag of doc.Tags) {
                 if (tag.Key && tag.Value !== undefined) {
                     tags[tag.Key.toLowerCase()] = tag.Value;
                 }
             }
+        }
+        // Fallback to use tags dictionary if available and Tags array didn't work
+        else if (doc.tags && typeof doc.tags === 'object') {
+            // tags dictionary already has lowercase keys, just copy it
+            Object.assign(tags, doc.tags);
         }
 
         for (const originalTagName of mandatoryTags) {
@@ -106,12 +112,18 @@ async function processTagDetailsForTeam(req, cursor, team, resourceType, tag) {
         if (!(await req.detailsByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
         const tags = {};
+        // First try to use Tags array (original format)
         if (doc.Tags && Array.isArray(doc.Tags)) {
             for (const tagItem of doc.Tags) {
                 if (tagItem.Key && tagItem.Value !== undefined) {
                     tags[tagItem.Key.toLowerCase()] = tagItem.Value;
                 }
             }
+        }
+        // Fallback to use tags dictionary if available and Tags array didn't work
+        else if (doc.tags && typeof doc.tags === 'object') {
+            // tags dictionary already has lowercase keys, just copy it
+            Object.assign(tags, doc.tags);
         }
 
         let shouldInclude = false;

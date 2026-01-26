@@ -24,7 +24,6 @@ router.get('/', async (req, res) => {
             dashboardMetrics,
         });
     } catch (error) {
-        console.error('Error fetching dashboard metrics:', error);
         throw error;
     }
 });

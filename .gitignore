@@ -475,3 +475,10 @@ portal/libs/middleware/authorizationImpl.test.js
 
 account_mappings.yaml
 ca-bundle.crt
+
+# Additional temporary files
+all_keys.txt
+compliance.jsonschema.json
+test-account-mapping.js
+/mongo-seed/
+portal/routes/compliance/test-logger.js

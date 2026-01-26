@@ -23,7 +23,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/teams"
         });
     } catch (err) {
-        console.error('Error rendering team summary:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "By Teams", href: "/compliance/teams" }],
             policy_title: "Compliance Summary by Team",

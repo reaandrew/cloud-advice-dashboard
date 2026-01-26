@@ -40,7 +40,6 @@ router.get('/dimensions', async (req, res) => {
             currentPath: "/compliance/autoscaling/dimensions"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Auto Scaling", href: "/compliance/autoscaling" }],
             policy_title: "Auto Scaling Group Dimensions",
@@ -116,7 +115,6 @@ router.get('/dimensions/details', async (req, res) => {
             currentPath: "/compliance/autoscaling/dimensions/details"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Auto Scaling", href: "/compliance/autoscaling" },
@@ -158,7 +156,6 @@ router.get('/empty', async (req, res) => {
             currentPath: "/compliance/autoscaling/empty"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Auto Scaling", href: "/compliance/autoscaling" }],
             policy_title: "Auto Scaling Groups with No Instances",

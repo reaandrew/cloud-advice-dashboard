@@ -4,10 +4,6 @@ const { get } = require('../libs/config-loader');
 // Load account mappings from config
 const mappings = get('account_mappings', []);
 
-// Debug logging for account mappings
-const logger = require('../libs/logger');
-logger.debug('Account mappings loaded:', mappings);
-
 // Breadcrumb configurations
 const baseBreadcrumbs = [
     { text: 'Home', href: '/' }
@@ -49,3 +45,4 @@ module.exports.complianceBreadcrumbs = complianceBreadcrumbs;
 module.exports.policiesBreadcrumbs = policiesBreadcrumbs;
 module.exports.markdownRoot = markdownRoot;
 module.exports.mandatoryTags = mandatoryTags;
+module.exports.checkDatabaseDeprecation = checkDatabaseDeprecation;

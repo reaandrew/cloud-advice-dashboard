@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
         const latestDoc = await kmsQueries.getLatestKmsDate(req);
 
         if (!latestDoc) {
-            throw new Error("No data found in kms_key_metadata collection");
+            throw new Error("No data found in kms_keys collection");
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
@@ -32,7 +32,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/kms"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "KMS Keys", href: "/compliance/kms" }],
             policy_title: "KMS Key Ages",
@@ -57,7 +56,7 @@ router.get('/details', async (req, res) => {
         const latestDoc = await kmsQueries.getLatestKmsDate(req);
 
         if (!latestDoc) {
-            throw new Error("No data found in kms_key_metadata collection");
+            throw new Error("No data found in kms_keys collection");
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
@@ -111,7 +110,6 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/kms/details"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "KMS Keys", href: "/compliance/kms" },

@@ -37,7 +37,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/database"
         });
     } catch (err) {
-        console.error(err);
         return res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Database", href: "/compliance/database" }],
             policy_title: "Database Engines and Versions",
@@ -111,7 +110,6 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/database/details"
         });
     } catch (err) {
-        console.error(err);
         return res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Database", href: "/compliance/database" },

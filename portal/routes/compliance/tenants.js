@@ -23,7 +23,6 @@ router.get('/', async (req, res) => {
             currentPath: "/compliance/tenants"
         });
     } catch (err) {
-        console.error('Error rendering tenant summary:', err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "By Tenant", href: "/compliance/tenants" }],
             policy_title: "Compliance Summary by Tenant",

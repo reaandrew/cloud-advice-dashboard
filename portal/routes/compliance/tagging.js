@@ -56,7 +56,6 @@ router.get('/teams', async (req, res) => {
             currentPath: "/compliance/tagging/teams"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Tagging", href: "/compliance" }],
             policy_title: "Tagging",
@@ -129,7 +128,6 @@ router.get('/details', async (req, res) => {
             currentPath: "/compliance/tagging/details"
         });
     } catch (err) {
-        console.error(err);
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs,
                 { text: "Tagging", href: "/compliance/tagging" },
