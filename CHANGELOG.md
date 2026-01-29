@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.2.0...v1.3.0) (2026-01-29)
+
+### Features
+
+* show only Load Balancers in compliance navigation ([#28](https://github.com/reaandrew/cloud-advice-dashboard/issues/28)) ([b82fe76](https://github.com/reaandrew/cloud-advice-dashboard/commit/b82fe762b687cae7fb67aa67e64851a03c4a35be))
+
 ## [1.2.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.1.0...v1.2.0) (2026-01-29)
 
 ### Features
