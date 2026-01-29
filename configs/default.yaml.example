@@ -22,6 +22,7 @@ auth:
 
 # MongoDB Database Configuration
 database:
+  mock: false  # Set to true to use mock data (no MongoDB required)
   mongodb:
     host: "localhost"  # MONGO_HOST
     port: 27017  # MONGO_PORT

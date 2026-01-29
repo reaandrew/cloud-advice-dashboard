@@ -4,39 +4,44 @@
  */
 
 const mockAccounts = {
-  // Map of account IDs to their details
   '123456789012': {
-    teams: ['Team Alpha', 'DevOps'],
+    AccountId: '123456789012',
+    Team: 'DevOps',
+    teams: ['DevOps'],
+    Environment: 'Production',
     environments: ['Production'],
-    tenants: [
-      {
-        Id: 'tenant-123456789012',
-        Name: 'Core Services',
-        Description: 'Core production services'
-      }
-    ]
+    Tenant: {
+      Id: 'DVOP001',
+      Name: 'Core Services',
+      Description: 'Core production services'
+    },
+    tenants: [{ Id: 'DVOP001', Name: 'Core Services', Description: 'Core production services' }]
   },
   '987654321098': {
-    teams: ['Team Beta', 'Infrastructure'],
+    AccountId: '987654321098',
+    Team: 'Platform',
+    teams: ['Platform'],
+    Environment: 'Development',
     environments: ['Development', 'Staging'],
-    tenants: [
-      {
-        Id: 'tenant-987654321098',
-        Name: 'Platform Services',
-        Description: 'Platform development and staging'
-      }
-    ]
+    Tenant: {
+      Id: 'PLAT002',
+      Name: 'Platform Services',
+      Description: 'Platform development and staging'
+    },
+    tenants: [{ Id: 'PLAT002', Name: 'Platform Services', Description: 'Platform development and staging' }]
   },
   '111222333444': {
-    teams: ['Team Gamma', 'Security'],
+    AccountId: '111222333444',
+    Team: 'Security',
+    teams: ['Security'],
+    Environment: 'Testing',
     environments: ['Testing'],
-    tenants: [
-      {
-        Id: 'tenant-111222333444',
-        Name: 'Security Testing',
-        Description: 'Security testing environment'
-      }
-    ]
+    Tenant: {
+      Id: 'SECU003',
+      Name: 'Security Testing',
+      Description: 'Security testing environment'
+    },
+    tenants: [{ Id: 'SECU003', Name: 'Security Testing', Description: 'Security testing environment' }]
   },
 };
 

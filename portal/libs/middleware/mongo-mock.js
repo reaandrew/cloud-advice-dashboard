@@ -4,13 +4,22 @@
  */
 
 const { mockRdsInstances, mockRedshiftClusters } = require('../../mock/database-data');
-const { getDetailsForAllAccounts } = require('../../mock/account-data');
+const { mockElbV2, mockElbV2Listeners, mockElbClassic, mockElbV2TargetGroups } = require('../../mock/loadbalancer-data');
+const { mockTags, mockKmsKeys, mockKmsKeyMetadata, mockAutoscalingGroups } = require('../../mock/compliance-data');
+const { getDetailsForAllAccounts } = require('./getDetailsByAccountId');
 
 // Mock collection data
 const collections = {
   'rds': mockRdsInstances,
   'redshift_clusters': mockRedshiftClusters,
-  // Add other collections as needed
+  'elb_v2': mockElbV2,
+  'elb_v2_listeners': mockElbV2Listeners,
+  'elb_classic': mockElbClassic,
+  'elb_v2_target_groups': mockElbV2TargetGroups,
+  'tags': mockTags,
+  'kms_keys': mockKmsKeys,
+  'kms_key_metadata': mockKmsKeyMetadata,
+  'autoscaling_groups': mockAutoscalingGroups,
 };
 
 /**
@@ -93,8 +102,8 @@ function mongoMock(req, res, next) {
     };
   };
 
-  // Add getDetailsForAllAccounts to the request
-  req.getDetailsForAllAccounts = getDetailsForAllAccounts;
+  // Add getDetailsForAllAccounts to the request (uses account_mappings from config)
+  req.getDetailsForAllAccounts = async () => getDetailsForAllAccounts(null);
 
   next();
 }
