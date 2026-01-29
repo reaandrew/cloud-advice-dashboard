@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.1.0...v1.2.0) (2026-01-29)
+
+### Features
+
+* **compliance:** exclude TCP/UDP-only NLBs from TLS certificate checks ([#26](https://github.com/reaandrew/cloud-advice-dashboard/issues/26)) ([4c3f418](https://github.com/reaandrew/cloud-advice-dashboard/commit/4c3f4186bcf9fbb7bdb7012e0a4aa952eca4dd38))
+
 ## [1.1.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.0.0...v1.1.0) (2025-11-10)
 
 ### Features
