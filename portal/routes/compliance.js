@@ -17,16 +17,16 @@ router.get('/', async (req, res) => {
         {
             title: "Policies",
             items: [
-                { text: "Tagging", href: "/compliance/tagging" },
+                // { text: "Tagging", href: "/compliance/tagging" },
                 { text: "Load Balancers", href: "/compliance/loadbalancers" },
-                { text: "Database", href: "/compliance/database" },
-                { text: "KMS Keys", href: "/compliance/kms" },
-                { text: "Auto Scaling", href: "/compliance/autoscaling" },
-                { text: "Decommissioning", href: "/compliance/decommissioning" },
-                { text: "Containers", href: "/compliance/containers" },
-                { text: "Monitoring and Alerting", href: "/compliance/monitoring" },
-                { text: "AMIs", href: "/compliance/amis" },
-                { text: "Agents and Ports", href: "/compliance/agents" }
+                // { text: "Database", href: "/compliance/database" },
+                // { text: "KMS Keys", href: "/compliance/kms" },
+                // { text: "Auto Scaling", href: "/compliance/autoscaling" },
+                // { text: "Decommissioning", href: "/compliance/decommissioning" },
+                // { text: "Containers", href: "/compliance/containers" },
+                // { text: "Monitoring and Alerting", href: "/compliance/monitoring" },
+                // { text: "AMIs", href: "/compliance/amis" },
+                // { text: "Agents and Ports", href: "/compliance/agents" }
             ]
         }
     ];
