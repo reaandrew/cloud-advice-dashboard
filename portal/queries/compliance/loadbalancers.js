@@ -29,6 +29,53 @@ async function getElbV2ListenersForDate(req, year, month, day, projection = null
     }, projection ? { projection } : {});
 }
 
+/**
+ * Get NLBs that have ONLY TCP/UDP/TCP_UDP listeners (no TLS listeners).
+ * These should be excluded from TLS certificate evaluation since they operate at layer 4.
+ * @returns {Set} Set of NLB ARNs to exclude from TLS evaluation
+ */
+async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
+    const nlbArns = new Set();
+    const nlbsWithTlsListeners = new Set();
+
+    // Get all NLBs (type="network")
+    const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { resource_id: 1, Configuration: 1 });
+    for await (const doc of elbV2Cursor) {
+        const type = doc.Configuration?.configuration?.type;
+        if (type === "network") {
+            nlbArns.add(doc.resource_id);
+        }
+    }
+
+    // Check which NLBs have TLS listeners
+    const listenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
+    for await (const doc of listenersCursor) {
+        const protocol = doc.Configuration?.configuration?.Protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+
+        if (loadBalancerArn && protocol === "TLS") {
+            nlbsWithTlsListeners.add(loadBalancerArn);
+            // Also check by short ID for cross-account ARN matching
+            const shortId = loadBalancerArn.split('/').pop();
+            for (const nlbArn of nlbArns) {
+                if (nlbArn.split('/').pop() === shortId) {
+                    nlbsWithTlsListeners.add(nlbArn);
+                }
+            }
+        }
+    }
+
+    // Return NLBs that have NO TLS listeners (only TCP/UDP)
+    const tcpUdpOnlyNlbs = new Set();
+    for (const nlbArn of nlbArns) {
+        if (!nlbsWithTlsListeners.has(nlbArn)) {
+            tcpUdpOnlyNlbs.add(nlbArn);
+        }
+    }
+
+    return tcpUdpOnlyNlbs;
+}
+
 async function processTlsConfigurations(req, year, month, day) {
     const teamTls = new Map();
     let accountDetailsResults;
@@ -42,11 +89,17 @@ async function processTlsConfigurations(req, year, month, day) {
     try {
         accountDetailsResults = await req.getDetailsForAllAccounts();
 
-        // Count total ELB v2
-        const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1 });
+        // Get NLBs with only TCP/UDP listeners to exclude from TLS evaluation
+        const tcpUdpOnlyNlbs = await getNlbsWithOnlyTcpUdpListeners(req, year, month, day);
+
+        // Count total ELB v2 (excluding TCP/UDP-only NLBs)
+        const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1 });
 
         for await (const doc of elbV2Cursor) {
             try {
+                // Skip NLBs with only TCP/UDP listeners
+                if (tcpUdpOnlyNlbs.has(doc.resource_id)) continue;
+
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
                 const recs = accountDetails.teams.map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
@@ -79,7 +132,6 @@ async function processTlsConfigurations(req, year, month, day) {
         // Process ELB v2 Listeners
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
-        const redact = (str) => str ? str.replace(/\d{12}/g, 'XXXXXXXXXXXX') : str;
         for await (const doc of elbV2ListenersCursor) {
             try {
                 if (!doc.account_id) continue;
@@ -94,14 +146,7 @@ async function processTlsConfigurations(req, year, month, day) {
                     if (protocol === "HTTPS" || protocol === "TLS") {
                         const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
                         recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
-                    } else {
-                        console.log('--- NON-TLS Listener Found ---');
-                        console.log('Protocol:', protocol);
-                        console.log('Configuration.configuration:', redact(JSON.stringify(doc.Configuration?.configuration, null, 2)));
                     }
-                } else {
-                    console.log('--- Listener with NO Configuration.configuration ---');
-                    console.log('Full doc.Configuration:', redact(JSON.stringify(doc.Configuration, null, 2)));
                 }
             } catch (err) {
                 // Skip documents with errors
@@ -143,13 +188,19 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
     const results = await req.getDetailsForAllAccounts();
 
     if (tlsVersion === "NO CERTS") {
-        // Get ELB v2 without certificates
+        // Get NLBs with only TCP/UDP listeners to exclude from evaluation
+        const tcpUdpOnlyNlbs = await getNlbsWithOnlyTcpUdpListeners(req, year, month, day);
+
+        // Get ELB v2 without certificates (excluding TCP/UDP-only NLBs)
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         const teamLoadBalancers = new Map();
         const teamLoadBalancersByShortId = new Map();
 
         for await (const doc of elbV2Cursor) {
+            // Skip NLBs with only TCP/UDP listeners
+            if (tcpUdpOnlyNlbs.has(doc.resource_id)) continue;
+
             if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
                 const shortId = doc.resource_id.split('/').pop();
@@ -161,10 +212,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const tlsLoadBalancerShortIds = new Set();
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
-        const redactAccountId = (str) => str ? str.replace(/\d{12}/g, 'XXXXXXXXXXXX') : str;
-        console.log('--- NO CERTS Debug: Listener Configuration.configuration ---');
         for await (const doc of elbV2ListenersCursor) {
-            console.log('Configuration.configuration:', redactAccountId(JSON.stringify(doc.Configuration?.configuration, null, 2)));
             const protocol = doc.Configuration?.configuration?.Protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
@@ -177,16 +225,11 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                 }
             }
         }
-        console.log('--- End NO CERTS Debug ---');
-        console.log('TLS LoadBalancer ARNs:', [...tlsLoadBalancerArns].map(redactAccountId));
-        console.log('TLS LoadBalancer ShortIds:', [...tlsLoadBalancerShortIds]);
-        console.log('Team LoadBalancer resource_ids:', [...teamLoadBalancers.keys()].map(redactAccountId));
 
         for (const [resourceId, lbDoc] of teamLoadBalancers) {
             const shortId = resourceId.split('/').pop();
             const hasExactMatch = tlsLoadBalancerArns.has(resourceId);
             const hasShortIdMatch = tlsLoadBalancerShortIds.has(shortId);
-            console.log(`Checking LB: ${redactAccountId(resourceId)} | shortId: ${shortId} | exactMatch: ${hasExactMatch} | shortIdMatch: ${hasShortIdMatch}`);
 
             if (!hasExactMatch && !hasShortIdMatch) {
                 allResources.push({
@@ -435,6 +478,7 @@ module.exports = {
     getElbV2ForDate,
     getElbClassicForDate,
     getElbV2ListenersForDate,
+    getNlbsWithOnlyTcpUdpListeners,
     processTlsConfigurations,
     getLoadBalancerDetails,
     processLoadBalancerTypes,
