@@ -2,6 +2,28 @@
 
 The Cloud Advice Dashboard uses a flexible configuration system that supports environment-specific configs loaded via command line arguments.
 
+## Quick Start - Local Development
+
+To run locally with mock data (no MongoDB required):
+
+```bash
+# 1. Copy the example config
+cp configs/default.yaml.example configs/default.yaml
+
+# 2. Enable mock mode - edit configs/default.yaml and set:
+#    database:
+#      mock: true
+
+# 3. Install dependencies and start
+cd portal
+npm install
+npm run dev
+
+# 4. Open http://localhost:3000
+```
+
+The mock data includes sample RDS instances, load balancers, KMS keys, tags, and account mappings.
+
 ## Directory Structure
 
 ```
