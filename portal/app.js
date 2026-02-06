@@ -70,6 +70,10 @@ app.use('/javascripts', [
     express.static(path.join(__dirname, 'javascripts')),
 ]);
 
+// Monitoring endpoints (no auth required)
+const monitoringRoutes = require('./routes/monitoring');
+app.use(monitoringRoutes);
+
 // Import and use route modules
 const indexRoutes = require('./routes/index');
 const complianceRoutes = require('./routes/compliance');
