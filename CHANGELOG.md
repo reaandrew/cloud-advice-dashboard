@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.3.0...v1.4.0) (2026-02-06)
+
+### Features
+
+* add granular feature flags for compliance navigation, routes an… ([#29](https://github.com/reaandrew/cloud-advice-dashboard/issues/29)) ([1ee1ceb](https://github.com/reaandrew/cloud-advice-dashboard/commit/1ee1ceb9e2c8061c1314edc99985ba011f00a77f))
+
 ## [1.3.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.2.0...v1.3.0) (2026-01-29)
 
 ### Features
