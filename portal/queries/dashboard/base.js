@@ -10,7 +10,17 @@ class DashboardMetric {
         this.category = config.category || 'general';
         this.order = config.order || 0;
         this.colorScheme = config.colorScheme || 'default'; // default, success, warning, error
-        this.enabled = config.enabled !== false; // Default to enabled unless explicitly disabled
+        this.featureFlag = config.featureFlag || null;
+        this.enabled = this._isEnabled(config);
+    }
+
+    _isEnabled(metricConfig) {
+        if (metricConfig.enabled === false) return false;
+        if (this.featureFlag) {
+            const appConfig = require('../../libs/config-loader');
+            return appConfig.get(this.featureFlag, false);
+        }
+        return true;
     }
 
     /**

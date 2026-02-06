@@ -8,7 +8,8 @@ class KmsRotationMetric extends DashboardMetric {
             description: 'KMS keys with automatic rotation enabled',
             category: 'security',
             order: 4,
-            colorScheme: 'success'
+            colorScheme: 'success',
+            featureFlag: 'features.compliance.policies.kms'
         });
     }
 

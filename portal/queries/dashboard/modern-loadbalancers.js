@@ -8,7 +8,8 @@ class ModernLoadBalancersMetric extends DashboardMetric {
             description: 'Using ALB/NLB instead of Classic ELB',
             category: 'modernization',
             order: 7,
-            colorScheme: 'default'
+            colorScheme: 'default',
+            featureFlag: 'features.compliance.policies.loadbalancers'
         });
     }
 

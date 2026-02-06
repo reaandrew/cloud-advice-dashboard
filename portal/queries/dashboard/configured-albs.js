@@ -8,7 +8,8 @@ class ConfiguredAlbsMetric extends DashboardMetric {
             description: 'ALBs with proper health checks and targets',
             category: 'performance',
             order: 6,
-            colorScheme: 'default'
+            colorScheme: 'default',
+            featureFlag: 'features.compliance.policies.albs'
         });
     }
 

@@ -36,75 +36,28 @@ async function getComplianceOverview(req) {
         tenants: uniqueTenants.size
     };
 
-    // Get latest dates for each collection
-    const tagsDate = await getLatestDate(req, "tags");
-    const rdsDate = await getLatestDate(req, "rds");
-    const elbDate = await getLatestDate(req, "elb_v2");
-    const kmsDate = await getLatestDate(req, "kms_key_metadata");
-    const asgDate = await getLatestDate(req, "autoscaling_groups");
-
-    // Get non-compliant counts by resource type
-    const resourceTypes = [
-        {
-            name: 'Tagging',
-            teamsNonCompliant: 0,
-            tenantsNonCompliant: 0
-        },
-        {
-            name: 'Database',
-            teamsNonCompliant: 0,
-            tenantsNonCompliant: 0
-        },
-        {
-            name: 'Load Balancers',
-            teamsNonCompliant: 0,
-            tenantsNonCompliant: 0
-        },
-        {
-            name: 'KMS Keys',
-            teamsNonCompliant: 0,
-            tenantsNonCompliant: 0
-        },
-        {
-            name: 'Auto Scaling',
-            teamsNonCompliant: 0,
-            tenantsNonCompliant: 0
-        }
+    // Define resource types with their feature flags and query functions
+    const resourceTypeDefinitions = [
+        { name: 'Tagging', flag: 'features.compliance.policies.tagging', collection: 'tags', query: getTaggingNonCompliant },
+        { name: 'Database', flag: 'features.compliance.policies.database', collection: 'rds', query: getDatabaseNonCompliant },
+        { name: 'Load Balancers', flag: 'features.compliance.policies.loadbalancers', collection: 'elb_v2', query: getLoadBalancerNonCompliant },
+        { name: 'KMS Keys', flag: 'features.compliance.policies.kms', collection: 'kms_key_metadata', query: getKmsNonCompliant },
+        { name: 'Auto Scaling', flag: 'features.compliance.policies.autoscaling', collection: 'autoscaling_groups', query: getAutoScalingNonCompliant },
     ];
 
-    // Process tagging compliance
-    if (tagsDate) {
-        const { teamsNonCompliant, tenantsNonCompliant } = await getTaggingNonCompliant(req, tagsDate.year, tagsDate.month, tagsDate.day);
-        resourceTypes[0].teamsNonCompliant = teamsNonCompliant;
-        resourceTypes[0].tenantsNonCompliant = tenantsNonCompliant;
-    }
+    // Only process resource types whose feature flag is enabled
+    const enabledTypes = resourceTypeDefinitions.filter(rt => config.get(rt.flag, false));
+    const resourceTypes = [];
 
-    // Process database compliance
-    if (rdsDate) {
-        const { teamsNonCompliant, tenantsNonCompliant } = await getDatabaseNonCompliant(req, rdsDate.year, rdsDate.month, rdsDate.day);
-        resourceTypes[1].teamsNonCompliant = teamsNonCompliant;
-        resourceTypes[1].tenantsNonCompliant = tenantsNonCompliant;
-    }
-
-    // Process load balancer compliance
-    if (elbDate) {
-        const { teamsNonCompliant, tenantsNonCompliant } = await getLoadBalancerNonCompliant(req, elbDate.year, elbDate.month, elbDate.day);
-        resourceTypes[2].teamsNonCompliant = teamsNonCompliant;
-        resourceTypes[2].tenantsNonCompliant = tenantsNonCompliant;
-    }
-
-    // Process KMS compliance
-    if (kmsDate) {
-        const { teamsNonCompliant, tenantsNonCompliant } = await getKmsNonCompliant(req, kmsDate.year, kmsDate.month, kmsDate.day);
-        resourceTypes[3].teamsNonCompliant = teamsNonCompliant;
-        resourceTypes[3].tenantsNonCompliant = tenantsNonCompliant;
-    }
-
-    // Process auto scaling compliance
-    if (asgDate) {
-        const { teamsNonCompliant, tenantsNonCompliant } = await getAutoScalingNonCompliant(req, asgDate.year, asgDate.month, asgDate.day);
-        resourceTypes[4].teamsNonCompliant = teamsNonCompliant;
-        resourceTypes[4].tenantsNonCompliant = tenantsNonCompliant;
+    for (const rt of enabledTypes) {
+        const entry = { name: rt.name, teamsNonCompliant: 0, tenantsNonCompliant: 0 };
+        const date = await getLatestDate(req, rt.collection);
+        if (date) {
+            const { teamsNonCompliant, tenantsNonCompliant } = await rt.query(req, date.year, date.month, date.day);
+            entry.teamsNonCompliant = teamsNonCompliant;
+            entry.tenantsNonCompliant = tenantsNonCompliant;
+        }
+        resourceTypes.push(entry);
     }
 
     return {

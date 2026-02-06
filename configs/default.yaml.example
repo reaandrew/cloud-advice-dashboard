@@ -66,7 +66,24 @@ monitoring:
 # Feature Flags
 features:
   auth: false
-  compliance: true
+  compliance:
+    enabled: true
+    overview:
+      tenants: false
+      teams: false
+      loadbalancers: false
+    policies:
+      tagging: false
+      loadbalancers: true
+      albs: false
+      database: false
+      kms: false
+      autoscaling: false
+      decommissioning: false
+      containers: false
+      monitoring: false
+      amis: false
+      agents: false
 
 # Development Settings
 development:
