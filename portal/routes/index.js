@@ -8,7 +8,7 @@ const { requiresAuth } = require('express-openid-connect');
 
 // Route for the homepage
 router.get('/', async (req, res) => {
-    if (!config.get("features.compliance", false)) {
+    if (!config.get("features.compliance.enabled", false)) {
         // When the compliance feature is not enabled redirect to the policy documentation.
         res.redirect("/policies");
         return;

@@ -8,7 +8,8 @@ class SecureLoadBalancersMetric extends DashboardMetric {
             description: 'Load balancers with HTTPS/TLS',
             category: 'security',
             order: 2,
-            colorScheme: 'success'
+            colorScheme: 'success',
+            featureFlag: 'features.compliance.policies.loadbalancers'
         });
     }
 

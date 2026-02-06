@@ -8,7 +8,8 @@ class ActiveAlbsMetric extends DashboardMetric {
             description: 'Application Load Balancers that are active',
             category: 'performance',
             order: 5,
-            colorScheme: 'default'
+            colorScheme: 'default',
+            featureFlag: 'features.compliance.policies.albs'
         });
     }
 

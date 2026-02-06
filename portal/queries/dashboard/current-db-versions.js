@@ -8,7 +8,8 @@ class CurrentDbVersionsMetric extends DashboardMetric {
             description: 'RDS instances running current versions',
             category: 'modernization',
             order: 3,
-            colorScheme: 'default'
+            colorScheme: 'default',
+            featureFlag: 'features.compliance.policies.database'
         });
     }
 

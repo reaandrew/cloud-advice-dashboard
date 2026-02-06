@@ -6,7 +6,7 @@ const config = require('./libs/config-loader');
 const app = express();
 
 // Configure database
-if (config.get('features.compliance', true)) {
+if (config.get('features.compliance.enabled', true)) {
     const useMock = config.get('database.mock', false) || process.env.USE_MOCK_DB === 'true';
 
     if (useMock) {
@@ -51,7 +51,7 @@ const nunjucksEnv = nunjucks.configure([
 nunjucksEnv.addGlobal('govukRebrand', true);
 nunjucksEnv.addGlobal('serviceName', config.get('app.name', 'Cloud Advice Dashboard'));
 nunjucksEnv.addGlobal('logoUrl', config.get('frontend.govuk.logo_url', '/assets/LOGO.png'));
-nunjucksEnv.addGlobal('complianceEnabled', config.get('features.compliance', false));
+nunjucksEnv.addGlobal('complianceEnabled', config.get('features.compliance.enabled', false));
 
 // Serve GOV.UK Frontend assets
 app.use('/assets', [
@@ -96,15 +96,29 @@ if (config.get('features.auth', false)) {
         }
     });
 }
-if (config.get('features.compliance', true)) {
+if (config.get('features.compliance.enabled', true)) {
     app.use('/compliance', requiresAuth(), complianceRoutes);
-    app.use('/compliance/tenants', requiresAuth(), tenantsRoutes);
-    app.use('/compliance/teams', requiresAuth(), teamsRoutes);
-    app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
-    app.use('/compliance/database', requiresAuth(), databaseRoutes);
-    app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
-    app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
-    app.use('/compliance/kms', requiresAuth(), kmsRoutes);
+    if (config.get('features.compliance.overview.tenants', false)) {
+        app.use('/compliance/tenants', requiresAuth(), tenantsRoutes);
+    }
+    if (config.get('features.compliance.overview.teams', false)) {
+        app.use('/compliance/teams', requiresAuth(), teamsRoutes);
+    }
+    if (config.get('features.compliance.policies.tagging', false)) {
+        app.use('/compliance/tagging', requiresAuth(), taggingRoutes);
+    }
+    if (config.get('features.compliance.policies.database', false)) {
+        app.use('/compliance/database', requiresAuth(), databaseRoutes);
+    }
+    if (config.get('features.compliance.policies.loadbalancers', false)) {
+        app.use('/compliance/loadbalancers', requiresAuth(), loadbalancersRoutes);
+    }
+    if (config.get('features.compliance.policies.autoscaling', false)) {
+        app.use('/compliance/autoscaling', requiresAuth(), autoscalingRoutes);
+    }
+    if (config.get('features.compliance.policies.kms', false)) {
+        app.use('/compliance/kms', requiresAuth(), kmsRoutes);
+    }
 }
 
 // Error handling middleware

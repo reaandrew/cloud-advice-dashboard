@@ -9,7 +9,8 @@ class OverallComplianceMetric extends DashboardMetric {
             description: 'Resources with all mandatory tags',
             category: 'compliance',
             order: 1,
-            colorScheme: 'default'
+            colorScheme: 'default',
+            featureFlag: 'features.compliance.policies.tagging'
         });
     }
 
