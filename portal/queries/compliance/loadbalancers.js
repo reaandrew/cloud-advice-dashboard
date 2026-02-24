@@ -1,8 +1,13 @@
+const logger = require('../../libs/logger');
+
 async function getLatestElbDate(req) {
-    return await req.collection("elb_v2").findOne({}, {
+    logger.debug('loadbalancers: getLatestElbDate - fetching latest date from elb_v2');
+    const result = await req.collection("elb_v2").findOne({}, {
         projection: { year: 1, month: 1, day: 1 },
         sort: { year: -1, month: -1, day: -1 }
     });
+    logger.debug('loadbalancers: getLatestElbDate - result', { result });
+    return result;
 }
 
 async function getElbV2ForDate(req, year, month, day, projection = null) {
@@ -77,8 +82,11 @@ async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
 }
 
 async function processTlsConfigurations(req, year, month, day) {
+    logger.info('loadbalancers: processTlsConfigurations - starting', { year, month, day });
     const teamTls = new Map();
     let accountDetailsResults;
+    let elbV2Count = 0;
+    let skippedTcpUdpCount = 0;
 
     const ensureTeam = t => {
         if (!teamTls.has(t))
@@ -88,28 +96,55 @@ async function processTlsConfigurations(req, year, month, day) {
 
     try {
         accountDetailsResults = await req.getDetailsForAllAccounts();
+        logger.debug('loadbalancers: processTlsConfigurations - got account details resolver');
 
         // Get NLBs with only TCP/UDP listeners to exclude from TLS evaluation
         const tcpUdpOnlyNlbs = await getNlbsWithOnlyTcpUdpListeners(req, year, month, day);
+        logger.debug('loadbalancers: processTlsConfigurations - TCP/UDP only NLBs to exclude', { count: tcpUdpOnlyNlbs.size });
 
         // Count total ELB v2 (excluding TCP/UDP-only NLBs)
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1 });
 
+        let firstDoc = null;
         for await (const doc of elbV2Cursor) {
+            elbV2Count++;
+            if (!firstDoc) {
+                firstDoc = doc;
+                logger.debug('loadbalancers: processTlsConfigurations - first ELB v2 doc sample', {
+                    account_id: doc.account_id,
+                    resource_id: doc.resource_id,
+                    hasConfiguration: !!doc.Configuration
+                });
+            }
             try {
                 // Skip NLBs with only TCP/UDP listeners
-                if (tcpUdpOnlyNlbs.has(doc.resource_id)) continue;
+                if (tcpUdpOnlyNlbs.has(doc.resource_id)) {
+                    skippedTcpUdpCount++;
+                    continue;
+                }
 
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
                 const recs = accountDetails.teams.map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
-                // Skip documents with invalid account_id
+                logger.warn('loadbalancers: processTlsConfigurations - error processing ELB v2 doc', {
+                    account_id: doc.account_id,
+                    error: err.message
+                });
             }
         }
+        logger.info('loadbalancers: processTlsConfigurations - processed ELB v2 documents', {
+            total: elbV2Count,
+            skippedTcpUdp: skippedTcpUdpCount
+        });
     } catch (err) {
+        logger.error('loadbalancers: processTlsConfigurations - error in ELB v2 processing', { error: err.message, stack: err.stack });
         throw err;
     }
+
+    let classicCount = 0;
+    let listenerCount = 0;
+    let httpsListenerCount = 0;
 
     try {
         // Count total Classic ELBs
@@ -120,19 +155,36 @@ async function processTlsConfigurations(req, year, month, day) {
         }
 
         for await (const doc of elbClassicTotalCursor) {
+            classicCount++;
             try {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
                 const recs = accountDetails.teams.map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
-                // Skip documents with invalid account_id
+                logger.warn('loadbalancers: processTlsConfigurations - error processing Classic ELB', {
+                    account_id: doc.account_id,
+                    error: err.message
+                });
             }
         }
+        logger.debug('loadbalancers: processTlsConfigurations - processed Classic ELBs', { count: classicCount });
 
         // Process ELB v2 Listeners
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
+        let firstListenerDoc = null;
         for await (const doc of elbV2ListenersCursor) {
+            listenerCount++;
+            if (!firstListenerDoc) {
+                firstListenerDoc = doc;
+                logger.debug('loadbalancers: processTlsConfigurations - first listener doc sample', {
+                    account_id: doc.account_id,
+                    hasConfiguration: !!doc.Configuration,
+                    hasNestedConfig: !!doc.Configuration?.configuration,
+                    protocol: doc.Configuration?.configuration?.protocol,
+                    sslPolicy: doc.Configuration?.configuration?.sslPolicy
+                });
+            }
             try {
                 if (!doc.account_id) continue;
 
@@ -144,14 +196,22 @@ async function processTlsConfigurations(req, year, month, day) {
                 if (doc.Configuration?.configuration) {
                     const protocol = doc.Configuration.configuration.protocol;
                     if (protocol === "HTTPS" || protocol === "TLS") {
+                        httpsListenerCount++;
                         const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
                         recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
                     }
                 }
             } catch (err) {
-                // Skip documents with errors
+                logger.warn('loadbalancers: processTlsConfigurations - error processing listener', {
+                    account_id: doc.account_id,
+                    error: err.message
+                });
             }
         }
+        logger.info('loadbalancers: processTlsConfigurations - processed listeners', {
+            total: listenerCount,
+            httpsOrTls: httpsListenerCount
+        });
 
         // Process Classic ELBs
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
@@ -171,13 +231,21 @@ async function processTlsConfigurations(req, year, month, day) {
                     }
                 }
             } catch (err) {
-                // Skip documents with errors
+                logger.warn('loadbalancers: processTlsConfigurations - error processing Classic ELB listeners', {
+                    account_id: doc.account_id,
+                    error: err.message
+                });
             }
         }
 
     } catch (err) {
-        // Continue with processing
+        logger.error('loadbalancers: processTlsConfigurations - error in processing', { error: err.message });
     }
+
+    logger.info('loadbalancers: processTlsConfigurations - completed', {
+        teamCount: teamTls.size,
+        teams: Array.from(teamTls.keys())
+    });
 
     return teamTls;
 }
@@ -384,7 +452,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
 }
 
 async function processLoadBalancerTypes(req, year, month, day) {
+    logger.info('loadbalancers: processLoadBalancerTypes - starting', { year, month, day });
     const teamTypes = new Map();
+    let elbV2Count = 0;
+    let classicCount = 0;
 
     const ensureTeam = t => {
         if (!teamTypes.has(t))
@@ -396,18 +467,51 @@ async function processLoadBalancerTypes(req, year, month, day) {
 
     const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
+    let firstDoc = null;
     for await (const doc of elbV2Cursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-        const type = doc.Configuration?.configuration?.type || "Unknown";
-        recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
+        elbV2Count++;
+        if (!firstDoc) {
+            firstDoc = doc;
+            logger.debug('loadbalancers: processLoadBalancerTypes - first ELB v2 doc sample', {
+                account_id: doc.account_id,
+                hasConfiguration: !!doc.Configuration,
+                hasNestedConfig: !!doc.Configuration?.configuration,
+                type: doc.Configuration?.configuration?.type
+            });
+        }
+        try {
+            const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+            const type = doc.Configuration?.configuration?.type || "Unknown";
+            recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
+        } catch (err) {
+            logger.warn('loadbalancers: processLoadBalancerTypes - error processing ELB v2', {
+                account_id: doc.account_id,
+                error: err.message
+            });
+        }
     }
+    logger.debug('loadbalancers: processLoadBalancerTypes - processed ELB v2', { count: elbV2Count });
 
     const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1 });
 
     for await (const doc of elbClassicCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-        recs.forEach(rec => rec.types.set("classic", (rec.types.get("classic") || 0) + 1));
+        classicCount++;
+        try {
+            const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+            recs.forEach(rec => rec.types.set("classic", (rec.types.get("classic") || 0) + 1));
+        } catch (err) {
+            logger.warn('loadbalancers: processLoadBalancerTypes - error processing Classic ELB', {
+                account_id: doc.account_id,
+                error: err.message
+            });
+        }
     }
+    logger.debug('loadbalancers: processLoadBalancerTypes - processed Classic ELBs', { count: classicCount });
+
+    logger.info('loadbalancers: processLoadBalancerTypes - completed', {
+        teamCount: teamTypes.size,
+        teams: Array.from(teamTypes.keys())
+    });
 
     return teamTypes;
 }

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
+const logger = require('../../libs/logger');
 const { complianceBreadcrumbs } = require('../../utils/shared');
 const lbQueries = require('../../queries/compliance/loadbalancers');
 
@@ -9,16 +10,24 @@ router.get('/', (_, res) => {
 });
 
 router.get('/tls', async (req, res) => {
+    logger.info('loadbalancers route: GET /tls - request received');
     try {
         const latestDoc = await lbQueries.getLatestElbDate(req);
+        logger.debug('loadbalancers route: /tls - latestDoc', { latestDoc });
 
         if (!latestDoc) {
+            logger.warn('loadbalancers route: /tls - no data found in elb_v2 collection');
             throw new Error("No data found in elb_v2 collection");
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
+        logger.info('loadbalancers route: /tls - processing TLS configurations', { year: latestYear, month: latestMonth, day: latestDay });
 
         const teamTls = await lbQueries.processTlsConfigurations(req, latestYear, latestMonth, latestDay);
+        logger.debug('loadbalancers route: /tls - teamTls result', {
+            teamCount: teamTls.size,
+            teams: Array.from(teamTls.keys())
+        });
 
         const isDeprecatedPolicy = (version) => {
             return version.startsWith('ELBSecurityPolicy-2015') ||
@@ -54,6 +63,11 @@ router.get('/tls', async (req, res) => {
             };
         }).filter(t => t.totalLBs > 0);
 
+        logger.info('loadbalancers route: /tls - rendering with data', {
+            dataCount: data.length,
+            teams: data.map(d => d.team)
+        });
+
         res.render('policies/loadbalancers/tls.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer TLS Configurations",
@@ -66,6 +80,7 @@ router.get('/tls', async (req, res) => {
             currentPath: "/compliance/loadbalancers/tls"
         });
     } catch (err) {
+        logger.error('loadbalancers route: /tls - error', { error: err.message, stack: err.stack });
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer TLS Configurations",
@@ -143,16 +158,24 @@ router.get('/details', async (req, res) => {
 });
 
 router.get('/types', async (req, res) => {
+    logger.info('loadbalancers route: GET /types - request received');
     try {
         const latestDoc = await lbQueries.getLatestElbDate(req);
+        logger.debug('loadbalancers route: /types - latestDoc', { latestDoc });
 
         if (!latestDoc) {
+            logger.warn('loadbalancers route: /types - no data found in elb_v2 collection');
             throw new Error("No data found in elb_v2 collection");
         }
 
         const { year: latestYear, month: latestMonth, day: latestDay } = latestDoc;
+        logger.info('loadbalancers route: /types - processing load balancer types', { year: latestYear, month: latestMonth, day: latestDay });
 
         const teamTypes = await lbQueries.processLoadBalancerTypes(req, latestYear, latestMonth, latestDay);
+        logger.debug('loadbalancers route: /types - teamTypes result', {
+            teamCount: teamTypes.size,
+            teams: Array.from(teamTypes.keys())
+        });
 
         const data = [...teamTypes.entries()].map(([team, rec]) => ({
             team,
@@ -167,6 +190,11 @@ router.get('/types', async (req, res) => {
             }))
         })).filter(t => t.types.length > 0);
 
+        logger.info('loadbalancers route: /types - rendering with data', {
+            dataCount: data.length,
+            teams: data.map(d => d.team)
+        });
+
         res.render('policies/loadbalancers/types.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer Types by Team",
@@ -179,6 +207,7 @@ router.get('/types', async (req, res) => {
             currentPath: "/compliance/loadbalancers/types"
         });
     } catch (err) {
+        logger.error('loadbalancers route: /types - error', { error: err.message, stack: err.stack });
         res.render('errors/no-data.njk', {
             breadcrumbs: [...complianceBreadcrumbs, { text: "Load Balancers", href: "/compliance/loadbalancers" }],
             policy_title: "Load Balancer Types by Team",
