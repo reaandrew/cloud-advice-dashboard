@@ -216,15 +216,17 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
     const secureLoadBalancers = new Set();
 
     for await (const doc of listenersCursor) {
-        if (doc.Protocol === 'HTTPS' || doc.Protocol === 'TLS') {
-            secureLoadBalancers.add(doc.LoadBalancerArn);
+        const protocol = doc.Configuration?.configuration?.protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
+        if (protocol === 'HTTPS' || protocol === 'TLS') {
+            secureLoadBalancers.add(loadBalancerArn);
         }
     }
 
     // Count secure load balancers per team
     const elbV2Cursor2 = elbV2Collection.find({ year, month, day });
     for await (const doc of elbV2Cursor2) {
-        if (secureLoadBalancers.has(doc.LoadBalancerArn)) {
+        if (secureLoadBalancers.has(doc.resource_id)) {
             const accountDetails = results.findByAccountId(doc.account_id);
             const teams = accountDetails.teams || [];
 

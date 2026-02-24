@@ -45,7 +45,7 @@ class ConfiguredAlbsMetric extends DashboardMetric {
         }
         
         for await (const doc of elbV2Cursor) {
-            const type = doc.Configuration?.Type;
+            const type = doc.Configuration?.configuration?.type;
             if (type === 'application') {
                 totalALBs++;
                 
@@ -122,7 +122,7 @@ class ConfiguredAlbsMetric extends DashboardMetric {
         }
         
         for await (const doc of elbV2Cursor) {
-            const type = doc.Configuration?.Type;
+            const type = doc.Configuration?.configuration?.type;
             if (type === 'application') {
                 totalALBs++;
                 

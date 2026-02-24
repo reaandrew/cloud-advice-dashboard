@@ -50,8 +50,8 @@ async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
     // Check which NLBs have TLS listeners
     const listenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
     for await (const doc of listenersCursor) {
-        const protocol = doc.Configuration?.configuration?.Protocol;
-        const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+        const protocol = doc.Configuration?.configuration?.protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
 
         if (loadBalancerArn && protocol === "TLS") {
             nlbsWithTlsListeners.add(loadBalancerArn);
@@ -142,9 +142,9 @@ async function processTlsConfigurations(req, year, month, day) {
                 const recs = accountDetails.teams.map(ensureTeam);
 
                 if (doc.Configuration?.configuration) {
-                    const protocol = doc.Configuration.configuration.Protocol;
+                    const protocol = doc.Configuration.configuration.protocol;
                     if (protocol === "HTTPS" || protocol === "TLS") {
-                        const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
+                        const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
                         recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
                     }
                 }
@@ -213,10 +213,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
         for await (const doc of elbV2ListenersCursor) {
-            const protocol = doc.Configuration?.configuration?.Protocol;
+            const protocol = doc.Configuration?.configuration?.protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+                const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
 
                 if (loadBalancerArn) {
                     tlsLoadBalancerArns.add(loadBalancerArn);
@@ -306,10 +306,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
 
         for await (const doc of elbV2ListenersCursor) {
             if (doc.Configuration?.configuration) {
-                const protocol = doc.Configuration.configuration.Protocol;
+                const protocol = doc.Configuration.configuration.protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.configuration.SslPolicy || "Unknown";
-                    const loadBalancerArn = doc.Configuration.configuration.LoadBalancerArn;
+                    const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
+                    const loadBalancerArn = doc.Configuration.configuration.loadBalancerArn;
 
                     if (policy === tlsVersion && loadBalancerArn) {
                         let lbDoc = null;
