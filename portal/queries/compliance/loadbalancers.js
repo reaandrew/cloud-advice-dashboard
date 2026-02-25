@@ -1,5 +1,17 @@
 const logger = require('../../libs/logger');
 
+/**
+ * Redact account ID for logging - shows first 4 digits only
+ * @param {string} accountId - AWS account ID
+ * @returns {string} Redacted account ID (e.g., "1234********")
+ */
+function redactAccountId(accountId) {
+    if (!accountId) return 'unknown';
+    const str = String(accountId);
+    if (str.length <= 4) return str;
+    return str.substring(0, 4) + '*'.repeat(str.length - 4);
+}
+
 async function getLatestElbDate(req) {
     logger.debug('loadbalancers: getLatestElbDate - fetching latest date from elb_v2');
     const result = await req.collection("elb_v2").findOne({}, {
@@ -111,7 +123,7 @@ async function processTlsConfigurations(req, year, month, day) {
             if (!firstDoc) {
                 firstDoc = doc;
                 logger.debug('loadbalancers: processTlsConfigurations - first ELB v2 doc sample', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     resource_id: doc.resource_id,
                     hasConfiguration: !!doc.Configuration
                 });
@@ -126,16 +138,18 @@ async function processTlsConfigurations(req, year, month, day) {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
                 if (!accountDetails?.teams) {
                     logger.error('loadbalancers: processTlsConfigurations - missing account details or teams', {
-                        account_id: doc.account_id,
+                        account_id: redactAccountId(doc.account_id),
                         hasAccountDetails: !!accountDetails,
-                        hasTeams: !!accountDetails?.teams
+                        hasTeams: !!accountDetails?.teams,
+                        accountDetailsKeys: accountDetails ? Object.keys(accountDetails) : [],
+                        teamsType: accountDetails?.teams === undefined ? 'undefined' : (accountDetails?.teams === null ? 'null' : typeof accountDetails?.teams)
                     });
                 }
                 const recs = (accountDetails?.teams || []).map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
                 logger.warn('loadbalancers: processTlsConfigurations - error processing ELB v2 doc', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     error: err.message
                 });
             }
@@ -167,7 +181,7 @@ async function processTlsConfigurations(req, year, month, day) {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
                 if (!accountDetails?.teams) {
                     logger.error('loadbalancers: processTlsConfigurations - missing account details or teams for Classic ELB', {
-                        account_id: doc.account_id,
+                        account_id: redactAccountId(doc.account_id),
                         hasAccountDetails: !!accountDetails,
                         hasTeams: !!accountDetails?.teams
                     });
@@ -176,7 +190,7 @@ async function processTlsConfigurations(req, year, month, day) {
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
                 logger.warn('loadbalancers: processTlsConfigurations - error processing Classic ELB', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     error: err.message
                 });
             }
@@ -192,7 +206,7 @@ async function processTlsConfigurations(req, year, month, day) {
             if (!firstListenerDoc) {
                 firstListenerDoc = doc;
                 logger.debug('loadbalancers: processTlsConfigurations - first listener doc sample', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     hasConfiguration: !!doc.Configuration,
                     hasNestedConfig: !!doc.Configuration?.configuration,
                     protocol: doc.Configuration?.configuration?.protocol,
@@ -217,7 +231,7 @@ async function processTlsConfigurations(req, year, month, day) {
                 }
             } catch (err) {
                 logger.warn('loadbalancers: processTlsConfigurations - error processing listener', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     error: err.message
                 });
             }
@@ -235,7 +249,7 @@ async function processTlsConfigurations(req, year, month, day) {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
                 if (!accountDetails?.teams) {
                     logger.error('loadbalancers: processTlsConfigurations - missing account details or teams for Classic ELB listeners', {
-                        account_id: doc.account_id,
+                        account_id: redactAccountId(doc.account_id),
                         hasAccountDetails: !!accountDetails,
                         hasTeams: !!accountDetails?.teams
                     });
@@ -253,7 +267,7 @@ async function processTlsConfigurations(req, year, month, day) {
                 }
             } catch (err) {
                 logger.warn('loadbalancers: processTlsConfigurations - error processing Classic ELB listeners', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     error: err.message
                 });
             }
@@ -494,7 +508,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
         if (!firstDoc) {
             firstDoc = doc;
             logger.debug('loadbalancers: processLoadBalancerTypes - first ELB v2 doc sample', {
-                account_id: doc.account_id,
+                account_id: redactAccountId(doc.account_id),
                 hasConfiguration: !!doc.Configuration,
                 type: doc.Configuration?.Type
             });
@@ -503,7 +517,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
             const accountDetails = results.findByAccountId(doc.account_id);
             if (!accountDetails?.teams) {
                 logger.error('loadbalancers: processLoadBalancerTypes - missing account details or teams', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     hasAccountDetails: !!accountDetails,
                     hasTeams: !!accountDetails?.teams
                 });
@@ -513,7 +527,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
             recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
         } catch (err) {
             logger.warn('loadbalancers: processLoadBalancerTypes - error processing ELB v2', {
-                account_id: doc.account_id,
+                account_id: redactAccountId(doc.account_id),
                 error: err.message
             });
         }
@@ -528,7 +542,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
             const accountDetails = results.findByAccountId(doc.account_id);
             if (!accountDetails?.teams) {
                 logger.error('loadbalancers: processLoadBalancerTypes - missing account details or teams for Classic ELB', {
-                    account_id: doc.account_id,
+                    account_id: redactAccountId(doc.account_id),
                     hasAccountDetails: !!accountDetails,
                     hasTeams: !!accountDetails?.teams
                 });
@@ -537,7 +551,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
             recs.forEach(rec => rec.types.set("classic", (rec.types.get("classic") || 0) + 1));
         } catch (err) {
             logger.warn('loadbalancers: processLoadBalancerTypes - error processing Classic ELB', {
-                account_id: doc.account_id,
+                account_id: redactAccountId(doc.account_id),
                 error: err.message
             });
         }
