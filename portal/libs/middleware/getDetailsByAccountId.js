@@ -6,6 +6,16 @@ const logger = require('../logger.js');
 let accountLookupIndex = null;
 
 /**
+ * Redact account ID for logging - shows first 4 digits only
+ */
+function redactAccountId(accountId) {
+  if (!accountId) return 'unknown';
+  const str = String(accountId);
+  if (str.length <= 4) return str;
+  return str.substring(0, 4) + '*'.repeat(str.length - 4);
+}
+
+/**
  * Build an index mapping account_id -> { teams, tenants, environments }
  * from the new tenants.json and platform_contacts.json schema
  */
@@ -15,7 +25,12 @@ function buildAccountLookupIndex() {
 
   // If new schema files aren't configured, return null to fall back to old format
   if (!tenants || !platformContacts) {
-    logger.debug('getDetailsByAccountId: New schema (tenants/platform_contacts) not configured, using legacy account_mappings');
+    logger.warn('getDetailsByAccountId: New schema (tenants/platform_contacts) not configured, falling back to legacy account_mappings', {
+      hasTenants: !!tenants,
+      tenantsType: tenants === null ? 'null' : (tenants === undefined ? 'undefined' : typeof tenants),
+      hasPlatformContacts: !!platformContacts,
+      platformContactsType: platformContacts === null ? 'null' : (platformContacts === undefined ? 'undefined' : typeof platformContacts)
+    });
     return null;
   }
 
@@ -78,9 +93,22 @@ function buildAccountLookupIndex() {
     }
   }
 
+  // Log sample entry to verify structure
+  const sampleAccountIds = Array.from(index.keys()).slice(0, 3);
+  const sampleEntries = sampleAccountIds.map(id => {
+    const entry = index.get(id);
+    return {
+      accountId: redactAccountId(id),
+      teamsCount: entry.teams.size,
+      teamsArray: Array.from(entry.teams),
+      tenantCount: entry.tenants.length
+    };
+  });
+
   logger.info('getDetailsByAccountId: Built account lookup index', {
     accountCount: index.size,
-    sampleAccountIds: Array.from(index.keys()).slice(0, 5)
+    sampleAccountIds: sampleAccountIds.map(redactAccountId),
+    sampleEntries: sampleEntries
   });
 
   return index;
@@ -167,11 +195,36 @@ function getDetailsByAccountId(id, _) {
 
 
 function getDetailsForAllAccounts(db) {
-  logger.debug('getDetailsForAllAccounts: Creating account details resolver');
+  // Log config status on first call
+  const tenants = config.get('tenants', null);
+  const platformContacts = config.get('platform_contacts', null);
+
+  logger.info('getDetailsForAllAccounts: Creating account details resolver', {
+    hasTenants: !!tenants,
+    tenantsType: tenants === null ? 'null' : (tenants === undefined ? 'undefined' : typeof tenants),
+    tenantCount: tenants ? Object.keys(tenants).length : 0,
+    hasPlatformContacts: !!platformContacts,
+    platformContactsType: platformContacts === null ? 'null' : (platformContacts === undefined ? 'undefined' : typeof platformContacts),
+    platformContactCount: platformContacts ? Object.keys(platformContacts).length : 0
+  });
 
   return {
     findByAccountId: (account_id) => {
       const result = getDetailsByAccountId(account_id, db);
+
+      // Verbose logging to debug teams issue
+      logger.debug('getDetailsForAllAccounts.findByAccountId: Result', {
+        account_id: redactAccountId(account_id),
+        resultType: typeof result,
+        resultIsNull: result === null,
+        resultIsUndefined: result === undefined,
+        resultKeys: result ? Object.keys(result) : [],
+        hasTeamsProperty: result ? ('teams' in result) : false,
+        teamsValue: result?.teams,
+        teamsType: result?.teams === undefined ? 'undefined' : (result?.teams === null ? 'null' : (Array.isArray(result?.teams) ? 'array' : typeof result?.teams)),
+        teamsLength: Array.isArray(result?.teams) ? result.teams.length : 'N/A'
+      });
+
       return result;
     }
   };
