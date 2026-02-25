@@ -46,7 +46,7 @@ async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
     // Get all NLBs (type="network")
     const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { resource_id: 1, Configuration: 1 });
     for await (const doc of elbV2Cursor) {
-        const type = doc.Configuration?.configuration?.type;
+        const type = doc.Configuration?.Type;
         if (type === "network") {
             nlbArns.add(doc.resource_id);
         }
@@ -55,8 +55,8 @@ async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
     // Check which NLBs have TLS listeners
     const listenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
     for await (const doc of listenersCursor) {
-        const protocol = doc.Configuration?.configuration?.protocol;
-        const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
+        const protocol = doc.Configuration?.Protocol;
+        const loadBalancerArn = doc.Configuration?.LoadBalancerArn;
 
         if (loadBalancerArn && protocol === "TLS") {
             nlbsWithTlsListeners.add(loadBalancerArn);
@@ -124,7 +124,14 @@ async function processTlsConfigurations(req, year, month, day) {
                 }
 
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
-                const recs = accountDetails.teams.map(ensureTeam);
+                if (!accountDetails?.teams) {
+                    logger.error('loadbalancers: processTlsConfigurations - missing account details or teams', {
+                        account_id: doc.account_id,
+                        hasAccountDetails: !!accountDetails,
+                        hasTeams: !!accountDetails?.teams
+                    });
+                }
+                const recs = (accountDetails?.teams || []).map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
                 logger.warn('loadbalancers: processTlsConfigurations - error processing ELB v2 doc', {
@@ -158,7 +165,14 @@ async function processTlsConfigurations(req, year, month, day) {
             classicCount++;
             try {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
-                const recs = accountDetails.teams.map(ensureTeam);
+                if (!accountDetails?.teams) {
+                    logger.error('loadbalancers: processTlsConfigurations - missing account details or teams for Classic ELB', {
+                        account_id: doc.account_id,
+                        hasAccountDetails: !!accountDetails,
+                        hasTeams: !!accountDetails?.teams
+                    });
+                }
+                const recs = (accountDetails?.teams || []).map(ensureTeam);
                 recs.forEach(rec => rec.totalLBs++);
             } catch (err) {
                 logger.warn('loadbalancers: processTlsConfigurations - error processing Classic ELB', {
@@ -193,11 +207,11 @@ async function processTlsConfigurations(req, year, month, day) {
 
                 const recs = accountDetails.teams.map(ensureTeam);
 
-                if (doc.Configuration?.configuration) {
-                    const protocol = doc.Configuration.configuration.protocol;
+                if (doc.Configuration) {
+                    const protocol = doc.Configuration.Protocol;
                     if (protocol === "HTTPS" || protocol === "TLS") {
                         httpsListenerCount++;
-                        const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
+                        const policy = doc.Configuration.SslPolicy || "Unknown";
                         recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
                     }
                 }
@@ -219,13 +233,20 @@ async function processTlsConfigurations(req, year, month, day) {
         for await (const doc of elbClassicCursor) {
             try {
                 const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
-                const recs = accountDetails.teams.map(ensureTeam);
+                if (!accountDetails?.teams) {
+                    logger.error('loadbalancers: processTlsConfigurations - missing account details or teams for Classic ELB listeners', {
+                        account_id: doc.account_id,
+                        hasAccountDetails: !!accountDetails,
+                        hasTeams: !!accountDetails?.teams
+                    });
+                }
+                const recs = (accountDetails?.teams || []).map(ensureTeam);
 
-                if (doc.Configuration?.configuration?.listenerDescriptions) {
-                    for (const listenerDesc of doc.Configuration.configuration.listenerDescriptions) {
-                        const listener = listenerDesc.listener;
-                        if (listener?.protocol === "HTTPS" || listener?.protocol === "SSL") {
-                            const policy = listenerDesc.policyNames?.[0] || "Classic-Default";
+                if (doc.Configuration?.ListenerDescriptions) {
+                    for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
+                        const listener = listenerDesc.Listener;
+                        if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
+                            const policy = listenerDesc.PolicyNames?.[0] || "Classic-Default";
                             recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
                         }
                     }
@@ -269,7 +290,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             // Skip NLBs with only TCP/UDP listeners
             if (tcpUdpOnlyNlbs.has(doc.resource_id)) continue;
 
-            if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
+            if (results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
                 const shortId = doc.resource_id.split('/').pop();
                 teamLoadBalancersByShortId.set(shortId, doc);
@@ -281,10 +302,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
         for await (const doc of elbV2ListenersCursor) {
-            const protocol = doc.Configuration?.configuration?.protocol;
+            const protocol = doc.Configuration?.Protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
+                const loadBalancerArn = doc.Configuration?.LoadBalancerArn;
 
                 if (loadBalancerArn) {
                     tlsLoadBalancerArns.add(loadBalancerArn);
@@ -302,17 +323,17 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             if (!hasExactMatch && !hasShortIdMatch) {
                 allResources.push({
                     resourceId: resourceId,
-                    shortName: lbDoc.Configuration?.configuration?.loadBalancerName || resourceId,
-                    type: lbDoc.Configuration?.configuration?.type || "Unknown",
-                    scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
+                    shortName: lbDoc.Configuration?.LoadBalancerName || resourceId,
+                    type: lbDoc.Configuration?.Type || "Unknown",
+                    scheme: lbDoc.Configuration?.Scheme || "Unknown",
                     accountId: lbDoc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: lbDoc.Configuration?.configuration?.dNSName,
-                        availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
-                        securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
-                        vpcId: lbDoc.Configuration?.configuration?.vpcId,
-                        state: lbDoc.Configuration?.configuration?.state?.code
+                        dnsName: lbDoc.Configuration?.DNSName,
+                        availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
+                        securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
+                        vpcId: lbDoc.Configuration?.VpcId,
+                        state: lbDoc.Configuration?.State?.Code
                     }
                 });
             }
@@ -322,13 +343,13 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
 
             let hasTLS = false;
-            if (doc.Configuration?.configuration?.listenerDescriptions) {
-                for (const listenerDesc of doc.Configuration.configuration.listenerDescriptions) {
-                    const listener = listenerDesc.listener;
-                    if (listener?.protocol === "HTTPS" || listener?.protocol === "SSL") {
+            if (doc.Configuration?.ListenerDescriptions) {
+                for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
+                    const listener = listenerDesc.Listener;
+                    if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
                         hasTLS = true;
                         break;
                     }
@@ -338,16 +359,16 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             if (!hasTLS) {
                 allResources.push({
                     resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
+                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
                     type: "classic",
-                    scheme: doc.Configuration?.configuration?.scheme || "Unknown",
+                    scheme: doc.Configuration?.Scheme || "Unknown",
                     accountId: doc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: doc.Configuration?.configuration?.dnsName,
-                        availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", "),
-                        securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
-                        vpcId: doc.Configuration?.configuration?.vpcId,
+                        dnsName: doc.Configuration?.DNSName,
+                        availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
+                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
+                        vpcId: doc.Configuration?.VpcId,
                         state: "active"
                     }
                 });
@@ -362,7 +383,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const teamLoadBalancersByShortId = new Map();
 
         for await (const doc of elbV2Cursor) {
-            if (!!results.findByAccountId(doc.account_id).teams.find(t => t === team)) {
+            if (results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
                 teamLoadBalancersByArn.set(doc.resource_id, doc);
                 const shortId = doc.resource_id.split('/').pop();
@@ -373,11 +394,11 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
         for await (const doc of elbV2ListenersCursor) {
-            if (doc.Configuration?.configuration) {
-                const protocol = doc.Configuration.configuration.protocol;
+            if (doc.Configuration) {
+                const protocol = doc.Configuration.Protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.configuration.sslPolicy || "Unknown";
-                    const loadBalancerArn = doc.Configuration.configuration.loadBalancerArn;
+                    const policy = doc.Configuration.SslPolicy || "Unknown";
+                    const loadBalancerArn = doc.Configuration.LoadBalancerArn;
 
                     if (policy === tlsVersion && loadBalancerArn) {
                         let lbDoc = null;
@@ -394,17 +415,17 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                         if (lbDoc) {
                             allResources.push({
                                 resourceId: loadBalancerArn,
-                                shortName: lbDoc.Configuration?.configuration?.loadBalancerName || loadBalancerArn,
-                                type: lbDoc.Configuration?.configuration?.type || "Unknown",
-                                scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
+                                shortName: lbDoc.Configuration?.LoadBalancerName || loadBalancerArn,
+                                type: lbDoc.Configuration?.Type || "Unknown",
+                                scheme: lbDoc.Configuration?.Scheme || "Unknown",
                                 accountId: doc.account_id,
                                 tlsPolicy: policy,
                                 details: {
-                                    dnsName: lbDoc.Configuration?.configuration?.dNSName,
-                                    availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
-                                    securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
-                                    vpcId: lbDoc.Configuration?.configuration?.vpcId,
-                                    state: lbDoc.Configuration?.configuration?.state?.code
+                                    dnsName: lbDoc.Configuration?.DNSName,
+                                    availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
+                                    securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
+                                    vpcId: lbDoc.Configuration?.VpcId,
+                                    state: lbDoc.Configuration?.State?.Code
                                 }
                             });
                         }
@@ -417,26 +438,26 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
 
-            if (doc.Configuration?.configuration?.listenerDescriptions) {
-                for (const listenerDesc of doc.Configuration.configuration.listenerDescriptions) {
-                    const listener = listenerDesc.listener;
-                    if (listener?.protocol === "HTTPS" || listener?.protocol === "SSL") {
-                        const policy = listenerDesc.policyNames?.[0] || "Classic-Default";
+            if (doc.Configuration?.ListenerDescriptions) {
+                for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
+                    const listener = listenerDesc.Listener;
+                    if (listener?.Protocol === "HTTPS" || listener?.Protocol === "SSL") {
+                        const policy = listenerDesc.PolicyNames?.[0] || "Classic-Default";
                         if (policy === tlsVersion) {
                             allResources.push({
                                 resourceId: doc.resource_id,
-                                shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
+                                shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
                                 type: "classic",
-                                scheme: doc.Configuration?.configuration?.scheme || "Unknown",
+                                scheme: doc.Configuration?.Scheme || "Unknown",
                                 accountId: doc.account_id,
                                 tlsPolicy: policy,
                                 details: {
-                                    dnsName: doc.Configuration?.configuration?.dnsName,
-                                    availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", "),
-                                    securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
-                                    vpcId: doc.Configuration?.configuration?.vpcId,
+                                    dnsName: doc.Configuration?.DNSName,
+                                    availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
+                                    securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
+                                    vpcId: doc.Configuration?.VpcId,
                                     state: "active"
                                 }
                             });
@@ -475,13 +496,20 @@ async function processLoadBalancerTypes(req, year, month, day) {
             logger.debug('loadbalancers: processLoadBalancerTypes - first ELB v2 doc sample', {
                 account_id: doc.account_id,
                 hasConfiguration: !!doc.Configuration,
-                hasNestedConfig: !!doc.Configuration?.configuration,
-                type: doc.Configuration?.configuration?.type
+                type: doc.Configuration?.Type
             });
         }
         try {
-            const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
-            const type = doc.Configuration?.configuration?.type || "Unknown";
+            const accountDetails = results.findByAccountId(doc.account_id);
+            if (!accountDetails?.teams) {
+                logger.error('loadbalancers: processLoadBalancerTypes - missing account details or teams', {
+                    account_id: doc.account_id,
+                    hasAccountDetails: !!accountDetails,
+                    hasTeams: !!accountDetails?.teams
+                });
+            }
+            const recs = (accountDetails?.teams || []).map(ensureTeam);
+            const type = doc.Configuration?.Type || "Unknown";
             recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
         } catch (err) {
             logger.warn('loadbalancers: processLoadBalancerTypes - error processing ELB v2', {
@@ -497,7 +525,15 @@ async function processLoadBalancerTypes(req, year, month, day) {
     for await (const doc of elbClassicCursor) {
         classicCount++;
         try {
-            const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+            const accountDetails = results.findByAccountId(doc.account_id);
+            if (!accountDetails?.teams) {
+                logger.error('loadbalancers: processLoadBalancerTypes - missing account details or teams for Classic ELB', {
+                    account_id: doc.account_id,
+                    hasAccountDetails: !!accountDetails,
+                    hasTeams: !!accountDetails?.teams
+                });
+            }
+            const recs = (accountDetails?.teams || []).map(ensureTeam);
             recs.forEach(rec => rec.types.set("classic", (rec.types.get("classic") || 0) + 1));
         } catch (err) {
             logger.warn('loadbalancers: processLoadBalancerTypes - error processing Classic ELB', {
@@ -525,20 +561,20 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
 
             allResources.push({
                 resourceId: doc.resource_id,
-                shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
+                shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
                 type: "classic",
-                scheme: doc.Configuration?.configuration?.scheme || "Unknown",
+                scheme: doc.Configuration?.Scheme || "Unknown",
                 accountId: doc.account_id,
                 details: {
-                    dnsName: doc.Configuration?.configuration?.dnsName,
-                    availabilityZones: doc.Configuration?.configuration?.availabilityZones?.join(", "),
-                    securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
-                    vpcId: doc.Configuration?.configuration?.vpcId,
-                    createdTime: doc.Configuration?.configuration?.createdTime
+                    dnsName: doc.Configuration?.DNSName,
+                    availabilityZones: doc.Configuration?.AvailabilityZones?.join(", "),
+                    securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
+                    vpcId: doc.Configuration?.VpcId,
+                    createdTime: doc.Configuration?.CreatedTime
                 }
             });
         }
@@ -546,28 +582,28 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbV2Cursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
 
-            const docType = doc.Configuration?.configuration?.type;
+            const docType = doc.Configuration?.Type;
             if (docType === type) {
                 allResources.push({
                     resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
+                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
                     type: (() => {
                         if (docType === "application") return "ALB";
                         if (docType === "network") return "NLB";
                         if (docType === "classic") return "Classic";
                         return docType;
                     })(),
-                    scheme: doc.Configuration?.configuration?.scheme || "Unknown",
+                    scheme: doc.Configuration?.Scheme || "Unknown",
                     accountId: doc.account_id,
                     details: {
-                        dnsName: doc.Configuration?.configuration?.dNSName,
-                        availabilityZones: doc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
-                        securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
-                        vpcId: doc.Configuration?.configuration?.vpcId,
-                        state: doc.Configuration?.configuration?.state?.code,
-                        createdTime: doc.Configuration?.configuration?.createdTime
+                        dnsName: doc.Configuration?.DNSName,
+                        availabilityZones: doc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
+                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
+                        vpcId: doc.Configuration?.VpcId,
+                        state: doc.Configuration?.State?.Code,
+                        createdTime: doc.Configuration?.CreatedTime
                     }
                 });
             }
