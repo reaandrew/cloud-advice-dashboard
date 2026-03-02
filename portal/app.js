@@ -5,6 +5,10 @@ const config = require('./libs/config-loader');
 
 const app = express();
 
+// Monitoring endpoints (no auth required) - must be before auth middleware
+const monitoringRoutes = require('./routes/monitoring');
+app.use(monitoringRoutes);
+
 // Configure database
 if (config.get('features.compliance.enabled', true)) {
     const useMock = config.get('database.mock', false) || process.env.USE_MOCK_DB === 'true';
@@ -69,10 +73,6 @@ app.use('/javascripts', [
     express.static(path.join(__dirname, 'node_modules/govuk-frontend/dist/govuk')),
     express.static(path.join(__dirname, 'javascripts')),
 ]);
-
-// Monitoring endpoints (no auth required)
-const monitoringRoutes = require('./routes/monitoring');
-app.use(monitoringRoutes);
 
 // Import and use route modules
 const indexRoutes = require('./routes/index');
