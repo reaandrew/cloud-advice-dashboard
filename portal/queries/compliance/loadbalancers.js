@@ -101,7 +101,7 @@ async function processTlsConfigurations(req, year, month, day) {
             continue;
         }
 
-        const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
+        const accountDetails = await accountDetailsResults.findByAccountId(doc.account_id);
         const recs = (accountDetails?.teams || []).map(ensureTeam);
         recs.forEach(rec => rec.totalLBs++);
     }
@@ -110,7 +110,7 @@ async function processTlsConfigurations(req, year, month, day) {
     const elbClassicTotalCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1 });
 
     for await (const doc of elbClassicTotalCursor) {
-        const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
+        const accountDetails = await accountDetailsResults.findByAccountId(doc.account_id);
         const recs = (accountDetails?.teams || []).map(ensureTeam);
         recs.forEach(rec => rec.totalLBs++);
     }
@@ -121,7 +121,7 @@ async function processTlsConfigurations(req, year, month, day) {
     for await (const doc of elbV2ListenersCursor) {
         if (!doc.account_id) continue;
 
-        const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
+        const accountDetails = await accountDetailsResults.findByAccountId(doc.account_id);
         if (!accountDetails || !accountDetails.teams || !Array.isArray(accountDetails.teams)) continue;
 
         const recs = accountDetails.teams.map(ensureTeam);
@@ -139,7 +139,7 @@ async function processTlsConfigurations(req, year, month, day) {
     const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of elbClassicCursor) {
-        const accountDetails = accountDetailsResults.findByAccountId(doc.account_id);
+        const accountDetails = await accountDetailsResults.findByAccountId(doc.account_id);
         const recs = (accountDetails?.teams || []).map(ensureTeam);
 
         if (doc.Configuration?.ListenerDescriptions) {
@@ -175,7 +175,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             // Skip NLBs with only TCP/UDP listeners
             if (tcpUdpOnlyNlbs.has(doc.resource_id)) continue;
 
-            if (results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) {
+            if ((await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
                 const shortId = doc.resource_id.split('/').pop();
                 teamLoadBalancersByShortId.set(shortId, doc);
@@ -228,7 +228,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
+            if (!(await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) continue;
 
             let hasTLS = false;
             if (doc.Configuration?.ListenerDescriptions) {
@@ -268,7 +268,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const teamLoadBalancersByShortId = new Map();
 
         for await (const doc of elbV2Cursor) {
-            if (results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) {
+            if ((await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) {
                 teamLoadBalancers.set(doc.resource_id, doc);
                 teamLoadBalancersByArn.set(doc.resource_id, doc);
                 const shortId = doc.resource_id.split('/').pop();
@@ -323,7 +323,7 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
+            if (!(await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) continue;
 
             if (doc.Configuration?.ListenerDescriptions) {
                 for (const listenerDesc of doc.Configuration.ListenerDescriptions) {
@@ -371,7 +371,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
     const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of elbV2Cursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const recs = (accountDetails?.teams || []).map(ensureTeam);
         const type = doc.Configuration?.Type || "Unknown";
         recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
@@ -380,7 +380,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
     const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1 });
 
     for await (const doc of elbClassicCursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const recs = (accountDetails?.teams || []).map(ensureTeam);
         recs.forEach(rec => rec.types.set("classic", (rec.types.get("classic") || 0) + 1));
     }
@@ -397,7 +397,7 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
         const elbClassicCursor = await getElbClassicForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbClassicCursor) {
-            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
+            if (!(await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) continue;
 
             allResources.push({
                 resourceId: doc.resource_id,
@@ -418,7 +418,7 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
         const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of elbV2Cursor) {
-            if (!results.findByAccountId(doc.account_id)?.teams?.find(t => t === team)) continue;
+            if (!(await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) continue;
 
             const docType = doc.Configuration?.Type;
             if (docType === type) {
