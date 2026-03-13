@@ -42,7 +42,7 @@ async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
     // Get all NLBs (type="network")
     const elbV2Cursor = await getElbV2ForDate(req, year, month, day, { resource_id: 1, Configuration: 1 });
     for await (const doc of elbV2Cursor) {
-        const type = doc.Configuration?.Type;
+        const type = doc.Configuration?.configuration?.type;
         if (type === "network") {
             nlbArns.add(doc.resource_id);
         }
@@ -51,8 +51,8 @@ async function getNlbsWithOnlyTcpUdpListeners(req, year, month, day) {
     // Check which NLBs have TLS listeners
     const listenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
     for await (const doc of listenersCursor) {
-        const protocol = doc.Configuration?.Protocol;
-        const loadBalancerArn = doc.Configuration?.LoadBalancerArn;
+        const protocol = doc.Configuration?.configuration?.Protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
 
         if (loadBalancerArn && protocol === "TLS") {
             nlbsWithTlsListeners.add(loadBalancerArn);
@@ -127,9 +127,9 @@ async function processTlsConfigurations(req, year, month, day) {
         const recs = accountDetails.teams.map(ensureTeam);
 
         if (doc.Configuration) {
-            const protocol = doc.Configuration.Protocol;
+            const protocol = doc.Configuration?.configuration?.Protocol;
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const policy = doc.Configuration.SslPolicy || "Unknown";
+                const policy = doc.Configuration?.configuration?.SslPolicy || "Unknown";
                 recs.forEach(rec => rec.tlsVersions.set(policy, (rec.tlsVersions.get(policy) || 0) + 1));
             }
         }
@@ -187,10 +187,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
         const elbV2ListenersCursor = await getElbV2ListenersForDate(req, year, month, day, { Configuration: 1 });
 
         for await (const doc of elbV2ListenersCursor) {
-            const protocol = doc.Configuration?.Protocol;
+            const protocol = doc.Configuration?.configuration?.Protocol;
 
             if (protocol === "HTTPS" || protocol === "TLS") {
-                const loadBalancerArn = doc.Configuration?.LoadBalancerArn;
+                const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
 
                 if (loadBalancerArn) {
                     tlsLoadBalancerArns.add(loadBalancerArn);
@@ -208,17 +208,17 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
             if (!hasExactMatch && !hasShortIdMatch) {
                 allResources.push({
                     resourceId: resourceId,
-                    shortName: lbDoc.Configuration?.LoadBalancerName || resourceId,
-                    type: lbDoc.Configuration?.Type || "Unknown",
-                    scheme: lbDoc.Configuration?.Scheme || "Unknown",
+                    shortName: lbDoc.Configuration?.configuration?.loadBalancerName || resourceId,
+                    type: lbDoc.Configuration?.configuration?.type || "Unknown",
+                    scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
                     accountId: lbDoc.account_id,
                     tlsPolicy: "NO CERTS",
                     details: {
-                        dnsName: lbDoc.Configuration?.DNSName,
-                        availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                        securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: lbDoc.Configuration?.VpcId,
-                        state: lbDoc.Configuration?.State?.Code
+                        dnsName: lbDoc.Configuration?.configuration?.dNSName,
+                        availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.ZoneName).join(", "),
+                        securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
+                        vpcId: lbDoc.Configuration?.configuration?.vpcId,
+                        state: lbDoc.Configuration?.configuration?.state?.code
                     }
                 });
             }
@@ -280,10 +280,10 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
 
         for await (const doc of elbV2ListenersCursor) {
             if (doc.Configuration) {
-                const protocol = doc.Configuration.Protocol;
+                const protocol = doc.Configuration?.configuration?.Protocol;
                 if (protocol === "HTTPS" || protocol === "TLS") {
-                    const policy = doc.Configuration.SslPolicy || "Unknown";
-                    const loadBalancerArn = doc.Configuration.LoadBalancerArn;
+                    const policy = doc.Configuration?.configuration?.SslPolicy || "Unknown";
+                    const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
 
                     if (policy === tlsVersion && loadBalancerArn) {
                         let lbDoc = null;
@@ -300,17 +300,17 @@ async function getLoadBalancerDetails(req, year, month, day, team, tlsVersion) {
                         if (lbDoc) {
                             allResources.push({
                                 resourceId: loadBalancerArn,
-                                shortName: lbDoc.Configuration?.LoadBalancerName || loadBalancerArn,
-                                type: lbDoc.Configuration?.Type || "Unknown",
-                                scheme: lbDoc.Configuration?.Scheme || "Unknown",
+                                shortName: lbDoc.Configuration?.configuration?.loadBalancerName || loadBalancerArn,
+                                type: lbDoc.Configuration?.configuration?.type || "Unknown",
+                                scheme: lbDoc.Configuration?.configuration?.scheme || "Unknown",
                                 accountId: doc.account_id,
                                 tlsPolicy: policy,
                                 details: {
-                                    dnsName: lbDoc.Configuration?.DNSName,
-                                    availabilityZones: lbDoc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                                    securityGroups: lbDoc.Configuration?.SecurityGroups?.join(", "),
-                                    vpcId: lbDoc.Configuration?.VpcId,
-                                    state: lbDoc.Configuration?.State?.Code
+                                    dnsName: lbDoc.Configuration?.configuration?.dNSName,
+                                    availabilityZones: lbDoc.Configuration?.configuration?.availabilityZones?.map(az => az.ZoneName).join(", "),
+                                    securityGroups: lbDoc.Configuration?.configuration?.securityGroups?.join(", "),
+                                    vpcId: lbDoc.Configuration?.configuration?.vpcId,
+                                    state: lbDoc.Configuration?.configuration?.state?.code
                                 }
                             });
                         }
@@ -373,7 +373,7 @@ async function processLoadBalancerTypes(req, year, month, day) {
     for await (const doc of elbV2Cursor) {
         const accountDetails = await results.findByAccountId(doc.account_id);
         const recs = (accountDetails?.teams || []).map(ensureTeam);
-        const type = doc.Configuration?.Type || "Unknown";
+        const type = doc.Configuration?.configuration?.type || "Unknown";
         recs.forEach(rec => rec.types.set(type, (rec.types.get(type) || 0) + 1));
     }
 
@@ -420,26 +420,26 @@ async function getLoadBalancerTypeDetails(req, year, month, day, team, type) {
         for await (const doc of elbV2Cursor) {
             if (!(await results.findByAccountId(doc.account_id))?.teams?.find(t => t === team)) continue;
 
-            const docType = doc.Configuration?.Type;
+            const docType = doc.Configuration?.configuration?.type;
             if (docType === type) {
                 allResources.push({
                     resourceId: doc.resource_id,
-                    shortName: doc.Configuration?.LoadBalancerName || doc.resource_id,
+                    shortName: doc.Configuration?.configuration?.loadBalancerName || doc.resource_id,
                     type: (() => {
                         if (docType === "application") return "ALB";
                         if (docType === "network") return "NLB";
                         if (docType === "classic") return "Classic";
                         return docType;
                     })(),
-                    scheme: doc.Configuration?.Scheme || "Unknown",
+                    scheme: doc.Configuration?.configuration?.scheme || "Unknown",
                     accountId: doc.account_id,
                     details: {
-                        dnsName: doc.Configuration?.DNSName,
-                        availabilityZones: doc.Configuration?.AvailabilityZones?.map(az => az.ZoneName).join(", "),
-                        securityGroups: doc.Configuration?.SecurityGroups?.join(", "),
-                        vpcId: doc.Configuration?.VpcId,
-                        state: doc.Configuration?.State?.Code,
-                        createdTime: doc.Configuration?.CreatedTime
+                        dnsName: doc.Configuration?.configuration?.dNSName,
+                        availabilityZones: doc.Configuration?.configuration?.availabilityZones?.map(az => az.zoneName).join(", "),
+                        securityGroups: doc.Configuration?.configuration?.securityGroups?.join(", "),
+                        vpcId: doc.Configuration?.configuration?.vpcId,
+                        state: doc.Configuration?.configuration?.state?.code,
+                        createdTime: doc.Configuration?.configuration?.createdTime
                     }
                 });
             }

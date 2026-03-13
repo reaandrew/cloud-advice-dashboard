@@ -204,7 +204,7 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
             const stats = teamStats.get(team);
             stats.totalLoadBalancers++;
 
-            const lbType = doc.Type || 'unknown';
+            const lbType = doc.Configuration?.configuration?.type || 'unknown';
             if (lbType === 'application') stats.albCount++;
             else if (lbType === 'network') stats.nlbCount++;
         }
@@ -216,8 +216,8 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
     const secureLoadBalancers = new Set();
 
     for await (const doc of listenersCursor) {
-        const protocol = doc.Configuration?.configuration?.protocol;
-        const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
+        const protocol = doc.Configuration?.configuration?.Protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
         if (protocol === 'HTTPS' || protocol === 'TLS') {
             secureLoadBalancers.add(loadBalancerArn);
         }
