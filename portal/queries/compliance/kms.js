@@ -47,7 +47,7 @@ async function processKmsKeyAges(req, year, month, day) {
     const kmsCursor = await getKmsKeysForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of kmsCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+        const recs = (await results.findByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         const creationDate = doc.Configuration?.configuration?.creationDate;
 
@@ -81,7 +81,7 @@ async function getKmsKeyDetails(req, year, month, day, team, ageBucket) {
 
     const allResources = [];
     for await (const doc of cursor) {
-        if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+        if (!(await results.findByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
         const cfg = doc.Configuration?.configuration;
         if (!cfg?.creationDate) continue;

@@ -47,8 +47,8 @@ class SecureLoadBalancersMetric extends DashboardMetric {
         });
 
         for await (const doc of listenersCursor) {
-            const protocol = doc.Configuration?.configuration?.Protocol;
-            const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+            const protocol = doc.Configuration?.configuration?.protocol;
+            const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
 
             if (loadBalancerArn && protocol === "TLS") {
                 nlbsWithTlsListeners.add(loadBalancerArn);
@@ -108,8 +108,8 @@ class SecureLoadBalancersMetric extends DashboardMetric {
 
         const secureElbV2 = new Set();
         for await (const doc of listenersCursor) {
-            const protocol = doc.Configuration?.configuration?.Protocol;
-            const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+            const protocol = doc.Configuration?.configuration?.protocol;
+            const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
             if (protocol === "HTTPS" || protocol === "TLS") {
                 if (loadBalancerArn) {
                     secureElbV2.add(loadBalancerArn);
@@ -212,8 +212,8 @@ class SecureLoadBalancersMetric extends DashboardMetric {
 
         const secureElbV2 = new Set();
         for await (const doc of listenersCursor) {
-            const protocol = doc.Configuration?.configuration?.Protocol;
-            const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+            const protocol = doc.Configuration?.configuration?.protocol;
+            const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
             if (protocol === "HTTPS" || protocol === "TLS") {
                 if (loadBalancerArn) {
                     secureElbV2.add(loadBalancerArn);
@@ -290,9 +290,9 @@ class SecureLoadBalancersMetric extends DashboardMetric {
 
         const deprecatedTlsArns = new Set();
         for await (const doc of listenersCursor) {
-            const protocol = doc.Configuration?.configuration?.Protocol;
-            const sslPolicy = doc.Configuration?.configuration?.SslPolicy || '';
-            const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+            const protocol = doc.Configuration?.configuration?.protocol;
+            const sslPolicy = doc.Configuration?.configuration?.sslPolicy || '';
+            const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
 
             // Check for deprecated SSL policies (TLS < 1.2)
             if ((protocol === "HTTPS" || protocol === "TLS") &&

@@ -27,12 +27,12 @@ class ActiveAlbsMetric extends DashboardMetric {
 
         for await (const doc of elbV2Cursor) {
             // Only count Application Load Balancers
-            const type = doc.Configuration?.Type;
+            const type = doc.Configuration?.configuration?.type;
             if (type === 'application') {
                 totalALBs++;
 
                 // Check if ALB is active (provisioning or active state)
-                const state = doc.Configuration?.State?.Code;
+                const state = doc.Configuration?.configuration?.state?.code;
                 if (state === 'active' || state === 'provisioning') {
                     activeALBs++;
                 }
@@ -97,11 +97,11 @@ class ActiveAlbsMetric extends DashboardMetric {
         let activeALBs = 0;
         
         for await (const doc of elbV2Cursor) {
-            const type = doc.Configuration?.Type;
+            const type = doc.Configuration?.configuration?.type;
             if (type === 'application') {
                 totalALBs++;
                 
-                const state = doc.Configuration?.State?.Code;
+                const state = doc.Configuration?.configuration?.state?.code;
                 if (state === 'active' || state === 'provisioning') {
                     activeALBs++;
                 }

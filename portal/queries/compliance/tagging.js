@@ -57,7 +57,7 @@ async function processTeamsTagCompliance(req, cursor) {
     for await (const doc of cursor) {
         if (doc.resource_type === "bucket" && bucketStartsWithAccountId(doc.resource_id)) continue;
 
-	const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+	const recs = (await results.findByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         const resourceType = doc.resource_type || "Unknown";
 

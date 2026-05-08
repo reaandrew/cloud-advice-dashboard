@@ -88,6 +88,23 @@ class ConfigLoader {
     }
 
     /**
+     * Load a JSON file if the path is provided
+     */
+    loadJsonFile(filePath) {
+        if (!filePath) return undefined;
+        try {
+            const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+            if (fs.existsSync(resolvedPath)) {
+                const content = fs.readFileSync(resolvedPath, 'utf8');
+                return JSON.parse(content);
+            }
+        } catch (err) {
+            console.error(`Failed to load JSON file ${filePath}: ${err.message}`);
+        }
+        return undefined;
+    }
+
+    /**
      * Get environment variable overrides
      */
     getEnvOverrides() {
@@ -111,6 +128,10 @@ class ConfigLoader {
 
             // Logging
             'monitoring.logging.level': process.env.LOG_LEVEL,
+
+            // Portfolio schema files (new format)
+            'tenants': this.loadJsonFile(process.env.TENANTS_FILE),
+            'platform_contacts': this.loadJsonFile(process.env.PLATFORM_CONTACTS_FILE),
         };
     }
 

@@ -85,27 +85,33 @@ async function getSecureLoadBalancersPercentage(req, year, month, day) {
     
     const secureElbV2 = new Set();
     for await (const doc of listenersCursor) {
-        const protocol = doc.Configuration?.Protocol;
+        const protocol = doc.Configuration?.configuration?.protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.loadBalancerArn;
         if (protocol === "HTTPS" || protocol === "TLS") {
-            secureElbV2.add(doc.LoadBalancerArn);
+            secureElbV2.add(loadBalancerArn);
         }
     }
-    
-    secureLBs += secureElbV2.size;
-    
+
+    // Count secure ELBv2 that match our resource_ids
+    for (const [resourceId] of elbV2Map) {
+        if (secureElbV2.has(resourceId)) {
+            secureLBs++;
+        }
+    }
+
     // Check Classic ELBs with HTTPS listeners
     const elbClassicCursor = await elbClassicCollection.find({
         year: year,
         month: month,
         day: day
     });
-    
+
     for await (const doc of elbClassicCursor) {
         totalLBs++;
-        const listeners = doc.Configuration?.ListenerDescriptions || [];
-        const hasSecureListener = listeners.some(listener => 
-            listener.Listener?.Protocol === "HTTPS" || 
-            listener.Listener?.Protocol === "SSL"
+        const listeners = doc.Configuration?.configuration?.listenerDescriptions || [];
+        const hasSecureListener = listeners.some(listener =>
+            listener.listener?.protocol === "HTTPS" ||
+            listener.listener?.protocol === "SSL"
         );
         if (hasSecureListener) {
             secureLBs++;
@@ -223,10 +229,10 @@ async function getActiveAlbsPercentage(req, year, month, day) {
     });
     
     for await (const doc of elbV2Cursor) {
-        const type = doc.Configuration?.Type;
+        const type = doc.Configuration?.configuration?.type;
         if (type === "application") {
             totalAlbs++;
-            const state = doc.Configuration?.State?.Code;
+            const state = doc.Configuration?.configuration?.state?.code;
             if (state === "active") {
                 activeAlbs++;
             }
@@ -252,27 +258,27 @@ async function getCorrectlyConfiguredAlbsPercentage(req, year, month, day) {
     
     const albMap = new Map();
     for await (const doc of elbV2Cursor) {
-        const type = doc.Configuration?.Type;
+        const type = doc.Configuration?.configuration?.type;
         if (type === "application") {
             totalAlbs++;
             albMap.set(doc.resource_id, {
                 hasHttpsListener: false,
-                isInternetFacing: doc.Configuration?.Scheme === "internet-facing"
+                isInternetFacing: doc.Configuration?.configuration?.scheme === "internet-facing"
             });
         }
     }
-    
+
     // Check for HTTPS listeners
     const listenersCursor = await listenersCollection.find({
         year: year,
         month: month,
         day: day
     });
-    
+
     for await (const doc of listenersCursor) {
-        const albArn = doc.LoadBalancerArn;
+        const albArn = doc.Configuration?.configuration?.loadBalancerArn;
         if (albMap.has(albArn)) {
-            const protocol = doc.Configuration?.Protocol;
+            const protocol = doc.Configuration?.configuration?.protocol;
             if (protocol === "HTTPS") {
                 albMap.get(albArn).hasHttpsListener = true;
             }

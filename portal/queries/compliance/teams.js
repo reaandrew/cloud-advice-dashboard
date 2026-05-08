@@ -28,7 +28,7 @@ async function aggregateTaggingByTeam(req, year, month, day) {
     for await (const doc of cursor) {
         if (doc.resource_type === "bucket" && bucketStartsWithAccountId(doc.resource_id)) continue;
 
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         if (teams.length === 0) continue;
@@ -114,7 +114,7 @@ async function aggregateDatabaseByTeam(req, year, month, day) {
     const rdsCursor = rdsCollection.find({ year, month, day });
 
     for await (const doc of rdsCursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         for (const team of teams) {
@@ -150,7 +150,7 @@ async function aggregateDatabaseByTeam(req, year, month, day) {
     const redshiftCursor = redshiftCollection.find({ year, month, day });
 
     for await (const doc of redshiftCursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         for (const team of teams) {
@@ -184,7 +184,7 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
     const elbV2Cursor = elbV2Collection.find({ year, month, day });
 
     for await (const doc of elbV2Cursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         for (const team of teams) {
@@ -204,7 +204,7 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
             const stats = teamStats.get(team);
             stats.totalLoadBalancers++;
 
-            const lbType = doc.Type || 'unknown';
+            const lbType = doc.Configuration?.configuration?.type || 'unknown';
             if (lbType === 'application') stats.albCount++;
             else if (lbType === 'network') stats.nlbCount++;
         }
@@ -216,16 +216,18 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
     const secureLoadBalancers = new Set();
 
     for await (const doc of listenersCursor) {
-        if (doc.Protocol === 'HTTPS' || doc.Protocol === 'TLS') {
-            secureLoadBalancers.add(doc.LoadBalancerArn);
+        const protocol = doc.Configuration?.configuration?.Protocol;
+        const loadBalancerArn = doc.Configuration?.configuration?.LoadBalancerArn;
+        if (protocol === 'HTTPS' || protocol === 'TLS') {
+            secureLoadBalancers.add(loadBalancerArn);
         }
     }
 
     // Count secure load balancers per team
     const elbV2Cursor2 = elbV2Collection.find({ year, month, day });
     for await (const doc of elbV2Cursor2) {
-        if (secureLoadBalancers.has(doc.LoadBalancerArn)) {
-            const accountDetails = results.findByAccountId(doc.account_id);
+        if (secureLoadBalancers.has(doc.resource_id)) {
+            const accountDetails = await results.findByAccountId(doc.account_id);
             const teams = accountDetails.teams || [];
 
             for (const team of teams) {
@@ -241,7 +243,7 @@ async function aggregateLoadBalancersByTeam(req, year, month, day) {
     const classicCursor = classicCollection.find({ year, month, day });
 
     for await (const doc of classicCursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         for (const team of teams) {
@@ -285,7 +287,7 @@ async function aggregateKmsByTeam(req, year, month, day) {
     const cursor = collection.find({ year, month, day });
 
     for await (const doc of cursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         for (const team of teams) {
@@ -321,7 +323,7 @@ async function aggregateAutoScalingByTeam(req, year, month, day) {
     const cursor = collection.find({ year, month, day });
 
     for await (const doc of cursor) {
-        const accountDetails = results.findByAccountId(doc.account_id);
+        const accountDetails = await results.findByAccountId(doc.account_id);
         const teams = accountDetails.teams || [];
 
         for (const team of teams) {

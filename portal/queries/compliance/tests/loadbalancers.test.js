@@ -88,8 +88,8 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
                 {
                     Configuration: {
                         configuration: {
-                            Protocol: 'TCP',
-                            LoadBalancerArn: nlbArn
+                            protocol: 'TCP',
+                            loadBalancerArn: nlbArn
                         }
                     }
                 }
@@ -116,8 +116,8 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
                 {
                     Configuration: {
                         configuration: {
-                            Protocol: 'UDP',
-                            LoadBalancerArn: nlbArn
+                            protocol: 'UDP',
+                            loadBalancerArn: nlbArn
                         }
                     }
                 }
@@ -144,8 +144,8 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
                 {
                     Configuration: {
                         configuration: {
-                            Protocol: 'TCP_UDP',
-                            LoadBalancerArn: nlbArn
+                            protocol: 'TCP_UDP',
+                            loadBalancerArn: nlbArn
                         }
                     }
                 }
@@ -172,9 +172,9 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
                 {
                     Configuration: {
                         configuration: {
-                            Protocol: 'TLS',
-                            LoadBalancerArn: nlbArn,
-                            SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
+                            protocol: 'TLS',
+                            loadBalancerArn: nlbArn,
+                            sslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
                         }
                     }
                 }
@@ -200,17 +200,17 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
                 {
                     Configuration: {
                         configuration: {
-                            Protocol: 'TCP',
-                            LoadBalancerArn: nlbArn
+                            protocol: 'TCP',
+                            loadBalancerArn: nlbArn
                         }
                     }
                 },
                 {
                     Configuration: {
                         configuration: {
-                            Protocol: 'TLS',
-                            LoadBalancerArn: nlbArn,
-                            SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
+                            protocol: 'TLS',
+                            loadBalancerArn: nlbArn,
+                            sslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06'
                         }
                     }
                 }
@@ -235,12 +235,12 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
             ],
             elb_v2_listeners: [
                 // TCP-only NLB
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: tcpOnlyNlb } } },
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: tcpOnlyNlb } } },
                 // TLS NLB
-                { Configuration: { configuration: { Protocol: 'TLS', LoadBalancerArn: tlsNlb, SslPolicy: 'policy' } } },
+                { Configuration: { configuration: { protocol: 'TLS', loadBalancerArn: tlsNlb, sslPolicy: 'policy' } } },
                 // Mixed NLB (TCP + TLS)
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: mixedNlb } } },
-                { Configuration: { configuration: { Protocol: 'TLS', LoadBalancerArn: mixedNlb, SslPolicy: 'policy' } } }
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: mixedNlb } } },
+                { Configuration: { configuration: { protocol: 'TLS', loadBalancerArn: mixedNlb, sslPolicy: 'policy' } } }
             ]
         });
 
@@ -282,7 +282,7 @@ describe('getNlbsWithOnlyTcpUdpListeners', () => {
             ],
             elb_v2_listeners: [
                 // Listener ARN has different account ID but same short ID
-                { Configuration: { configuration: { Protocol: 'TLS', LoadBalancerArn: nlbArn2, SslPolicy: 'policy' } } }
+                { Configuration: { configuration: { protocol: 'TLS', loadBalancerArn: nlbArn2, sslPolicy: 'policy' } } }
             ]
         });
 
@@ -309,9 +309,9 @@ describe('processTlsConfigurations - TCP/UDP NLB Exclusion', () => {
             ],
             elb_v2_listeners: [
                 // ALB with HTTPS
-                { account_id: '123456789012', Configuration: { configuration: { Protocol: 'HTTPS', LoadBalancerArn: albArn, SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06' } } },
+                { account_id: '123456789012', Configuration: { configuration: { protocol: 'HTTPS', loadBalancerArn: albArn, sslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06' } } },
                 // NLB with TCP only
-                { account_id: '123456789012', Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: tcpNlbArn } } }
+                { account_id: '123456789012', Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: tcpNlbArn } } }
             ],
             elb_classic: []
         });
@@ -331,7 +331,7 @@ describe('processTlsConfigurations - TCP/UDP NLB Exclusion', () => {
                 { resource_id: tlsNlbArn, account_id: '123456789012', Configuration: { configuration: { type: 'network' } } }
             ],
             elb_v2_listeners: [
-                { account_id: '123456789012', Configuration: { configuration: { Protocol: 'TLS', LoadBalancerArn: tlsNlbArn, SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06' } } }
+                { account_id: '123456789012', Configuration: { configuration: { protocol: 'TLS', loadBalancerArn: tlsNlbArn, sslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06' } } }
             ],
             elb_classic: []
         });
@@ -381,7 +381,7 @@ describe('getLoadBalancerDetails - NO CERTS exclusion', () => {
                 }
             ],
             elb_v2_listeners: [
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: tcpNlbArn } } }
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: tcpNlbArn } } }
             ],
             elb_classic: []
         });
@@ -410,7 +410,7 @@ describe('getLoadBalancerDetails - NO CERTS exclusion', () => {
                 }
             ],
             elb_v2_listeners: [
-                { Configuration: { configuration: { Protocol: 'HTTP', LoadBalancerArn: httpAlbArn } } }
+                { Configuration: { configuration: { protocol: 'HTTP', loadBalancerArn: httpAlbArn } } }
             ],
             elb_classic: []
         });
@@ -473,7 +473,7 @@ describe('getLoadBalancerDetails - NO CERTS exclusion', () => {
                 }
             ],
             elb_v2_listeners: [
-                { Configuration: { configuration: { Protocol: 'HTTPS', LoadBalancerArn: httpsAlbArn, SslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06' } } }
+                { Configuration: { configuration: { protocol: 'HTTPS', loadBalancerArn: httpsAlbArn, sslPolicy: 'ELBSecurityPolicy-TLS13-1-2-2021-06' } } }
             ],
             elb_classic: []
         });
@@ -498,10 +498,10 @@ describe('getLoadBalancerDetails - NO CERTS exclusion', () => {
                 { resource_id: tlsNlbArn, account_id: '123456789012', Configuration: { configuration: { type: 'network', loadBalancerName: 'tls-nlb' } } }
             ],
             elb_v2_listeners: [
-                { Configuration: { configuration: { Protocol: 'HTTP', LoadBalancerArn: httpAlbArn } } },
-                { Configuration: { configuration: { Protocol: 'HTTPS', LoadBalancerArn: httpsAlbArn, SslPolicy: 'policy' } } },
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: tcpNlbArn } } },
-                { Configuration: { configuration: { Protocol: 'TLS', LoadBalancerArn: tlsNlbArn, SslPolicy: 'policy' } } }
+                { Configuration: { configuration: { protocol: 'HTTP', loadBalancerArn: httpAlbArn } } },
+                { Configuration: { configuration: { protocol: 'HTTPS', loadBalancerArn: httpsAlbArn, sslPolicy: 'policy' } } },
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: tcpNlbArn } } },
+                { Configuration: { configuration: { protocol: 'TLS', loadBalancerArn: tlsNlbArn, sslPolicy: 'policy' } } }
             ],
             elb_classic: []
         });
@@ -530,9 +530,9 @@ describe('Protocol handling edge cases', () => {
                 { resource_id: nlbArn, Configuration: { configuration: { type: 'network' } } }
             ],
             elb_v2_listeners: [
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: nlbArn, Port: 80 } } },
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: nlbArn, Port: 443 } } },
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: nlbArn, Port: 8080 } } }
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: nlbArn, Port: 80 } } },
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: nlbArn, Port: 443 } } },
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: nlbArn, Port: 8080 } } }
             ]
         });
 
@@ -552,7 +552,7 @@ describe('Protocol handling edge cases', () => {
             elb_v2_listeners: [
                 { Configuration: null },
                 { Configuration: { configuration: null } },
-                { Configuration: { configuration: { Protocol: 'TCP', LoadBalancerArn: nlbArn } } }
+                { Configuration: { configuration: { protocol: 'TCP', loadBalancerArn: nlbArn } } }
             ]
         });
 
@@ -570,7 +570,7 @@ describe('Protocol handling edge cases', () => {
                 { resource_id: albArn, Configuration: { configuration: { type: 'application' } } }
             ],
             elb_v2_listeners: [
-                { Configuration: { configuration: { Protocol: 'HTTP', LoadBalancerArn: albArn } } }
+                { Configuration: { configuration: { protocol: 'HTTP', loadBalancerArn: albArn } } }
             ]
         });
 

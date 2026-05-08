@@ -42,7 +42,7 @@ async function processDatabaseEngines(req, year, month, day) {
     const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of rdsCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+        const recs = (await results.findByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         if (doc.Configuration?.configuration) {
             const engine = doc.Configuration.configuration.engine || "Unknown";
@@ -56,7 +56,7 @@ async function processDatabaseEngines(req, year, month, day) {
     const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, Configuration: 1 });
 
     for await (const doc of redshiftCursor) {
-        const recs = results.findByAccountId(doc.account_id).teams.map(ensureTeam);
+        const recs = (await results.findByAccountId(doc.account_id)).teams.map(ensureTeam);
 
         if (doc.Configuration?.configuration) {
             const version = doc.Configuration.configuration.clusterVersion || "Unknown";
@@ -77,7 +77,7 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
         const rdsCursor = await getRdsForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of rdsCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+            if (!(await results.findByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
             if (doc.Configuration?.configuration) {
                 const docEngine = doc.Configuration.configuration.engine || "Unknown";
@@ -113,7 +113,7 @@ async function getDatabaseDetails(req, year, month, day, team, engine, version) 
         const redshiftCursor = await getRedshiftForDate(req, year, month, day, { account_id: 1, resource_id: 1, Configuration: 1 });
 
         for await (const doc of redshiftCursor) {
-            if (!results.findByAccountId(doc.account_id).teams.find(t => t === team)) continue;
+            if (!(await results.findByAccountId(doc.account_id)).teams.find(t => t === team)) continue;
 
             if (doc.Configuration?.configuration) {
                 const docVersion = doc.Configuration.configuration.clusterVersion || "Unknown";
