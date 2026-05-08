@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.4.0...v1.4.1) (2026-05-08)
+
+### Bug Fixes
+
+* update load balancer queries to use camelCase property names ([#30](https://github.com/reaandrew/cloud-advice-dashboard/issues/30)) ([c9d45ed](https://github.com/reaandrew/cloud-advice-dashboard/commit/c9d45edbdc9385100e28a2468febbb212b27f4e5))
+
 ## [1.4.0](https://github.com/reaandrew/cloud-advice-dashboard/compare/v1.3.0...v1.4.0) (2026-02-06)
 
 ### Features
